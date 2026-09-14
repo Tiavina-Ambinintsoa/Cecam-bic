@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { clientSchema, type ClientFormValues } from "./clientSchema";
 import { clientApi } from "@/api/clientApi";
+import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
 
 const FIELD_H = "min-h-10 h-auto py-2";
 
@@ -18,6 +19,7 @@ export function ClientForm() {
   const [categorieLabel, setCategorieLabel] = useState("0215 - I M F");
   const [genreLabel, setGenreLabel] = useState<string>();
   const [titreLabel, setTitreLabel] = useState<string>();
+  const { setClientId } = useDemandeEnCours();
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientSchema),
@@ -31,6 +33,17 @@ export function ClientForm() {
 
   const adressesArray = useFieldArray({ control: form.control, name: "adresses" });
   const identifiantsArray = useFieldArray({ control: form.control, name: "identifiants" });
+
+  async function onSubmit(values: ClientFormValues) {
+  setSubmitting(true);
+  try {
+    const { client } = await clientApi.creer(values);
+    setClientId(client.id);
+    navigate(`/demande/nouvelle/contrat/${client.id}`);
+  } finally {
+    setSubmitting(false);
+  }
+}
 
   async function onSubmit(values: ClientFormValues) {
     setSubmitting(true);

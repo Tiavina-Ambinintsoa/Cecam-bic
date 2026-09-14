@@ -62,6 +62,10 @@ public Contrat changerPhase(Long contratId, PhaseDemande nouvellePhase) {
         return contratRepository.findByClient_Id(clientId);
     }
 
+    public List<Contrat> listerTous() {
+    return contratRepository.findAllByOrderByDateDemandeDesc();
+}
+
     private void genererEcheances(Contrat contrat) {
         BigDecimal montantParEcheance = contrat.getMontantEcheanceMensuelle() != null
                 ? contrat.getMontantEcheanceMensuelle()

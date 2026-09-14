@@ -21,3 +21,8 @@ spring:
       mode: always
   thymeleaf:
     cache: false
+
+app:
+  jwt:
+    secret: change-this-secret-key-in-production-please-make-it-long-and-random-1234567890
+    expiration-ms: 28800000  # 8h

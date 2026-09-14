@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.client.Adresse;
 import mg.cecam.bic.client.Client;
 import mg.cecam.bic.common.enums.PhaseDemande;
+import mg.cecam.bic.common.enums.RoleClient;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.common.util.LabelMapper;
 import mg.cecam.bic.common.util.ScoreColorMapper;
@@ -21,16 +22,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class RapportService {
+    private static final Set<PhaseDemande> PHASES_DECAISSEES = EnumSet.of(PhaseDemande.ACTIF, PhaseDemande.FERME);
 
     private final ContratRepository contratRepository;
     private final EcheanceRepository echeanceRepository;
@@ -55,7 +60,10 @@ public class RapportService {
                 .map(i -> new IdentifiantDTO(i.getTypeIdentifiant(), i.getNumero())).toList();
 
         List<CalendrierCreditDTO> calendriers = historique.stream()
-                .map(calendrierService::construire).filter(c -> !c.lignes().isEmpty()).toList();
+                .filter(c -> PHASES_DECAISSEES.contains(c.getPhaseDemande()))
+                .map(calendrierService::construire)
+                .filter(c -> !c.lignes().isEmpty())
+                .toList();
 
         List<GrilleScoreDTO> grille = grilleScoreRepository.findAll().stream()
                 .sorted(Comparator.comparing(GrilleScore::getIntervalle).reversed())
@@ -103,15 +111,6 @@ public class RapportService {
         return new ScoreDTO(true, r.valeur(), r.intervalle(), r.categorieRisque(), r.couleur(), ScoreColorMapper.toHex(r.couleur()), null);
     }
 
-    /**
-     * Calculs des "chiffres clés" :
-     * - Montant Total Restant dû : somme, sur les contrats ACTIFS, de (montant financé - montant déjà payé).
-     * - Montant Total Impayés : somme des montants dus des échéances au statut IMPAYE.
-     * - Exposition Potentielle : restant dû actuel + montant de la demande en cours (dette totale si cette demande est acceptée).
-     *   (Notion approximée : sans "plafond de crédit" dans le modèle, c'est l'estimation la plus proche disponible.)
-     * - Montant Total Demandes : somme des montants financés sur tout l'historique + la demande en cours.
-     * - Nombre Établissements Déclarants : 1 si le client a un historique (CECAM est le seul déclarant modélisé pour l'instant), sinon 0.
-     */
     private SyntheseDTO construireSynthese(List<Contrat> historique, Contrat contratEnCours) {
         Map<PhaseDemande, Long> parPhase = historique.stream()
                 .collect(Collectors.groupingBy(Contrat::getPhaseDemande, Collectors.counting()));
@@ -128,30 +127,38 @@ public class RapportService {
         BigDecimal montantRestantDu = BigDecimal.ZERO;
         BigDecimal montantImpayes = BigDecimal.ZERO;
         BigDecimal montantTotalDemandes = contratEnCours.getMontantFinance();
+        LocalDate aujourdHui = LocalDate.now();
 
         for (Contrat c : historique) {
             montantTotalDemandes = montantTotalDemandes.add(c.getMontantFinance());
-            List<Echeance> echeances = echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId());
+            if (!PHASES_DECAISSEES.contains(c.getPhaseDemande())) continue;
 
-            for (Echeance e : echeances) {
-                if (e.getStatut() == StatutEcheance.IMPAYE) {
+            for (Echeance e : echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId())) {
+                if (e.getMontantPaye() != null) continue; // déjà soldée : ne compte dans aucun des deux
+
+                if (e.getDateEcheance().isBefore(aujourdHui)) {
                     montantImpayes = montantImpayes.add(e.getMontantDu());
+                } else {
+                    montantRestantDu = montantRestantDu.add(e.getMontantDu());
                 }
-            }
-            if (c.getPhaseDemande() == PhaseDemande.ACTIF) {
-                BigDecimal paye = echeances.stream()
-                        .map(e -> e.getMontantPaye() != null ? e.getMontantPaye() : BigDecimal.ZERO)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-                montantRestantDu = montantRestantDu.add(c.getMontantFinance().subtract(paye).max(BigDecimal.ZERO));
             }
         }
 
-        BigDecimal expositionPotentielle = montantRestantDu.add(contratEnCours.getMontantFinance());
-        int nombreEtablissementsDeclarants = historique.isEmpty() ? 0 : 1;
+        BigDecimal totalGarantieSignature = historique.stream()
+                .filter(c -> c.getRoleClient() == RoleClient.GARANT)
+                .map(Contrat::getMontantFinance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return new SyntheseDTO(
-                historique.size(), nombreEtablissementsDeclarants, "-", "Ariary malgache",
-                expositionPotentielle, montantRestantDu, montantImpayes, montantTotalDemandes, BigDecimal.ZERO,
+                historique.size(),
+                historique.isEmpty() ? 0 : 1,
+                "-",
+                "Ariary malgache",
+                montantRestantDu,
+                montantRestantDu,
+                montantImpayes,
+                montantTotalDemandes,
+                totalGarantieSignature,
                 List.of(
                         financementsAvecEcheancier,
                         new RepartitionLigneDTO("Financements sans Échéancier", 0, 0, 0, 0, 0),

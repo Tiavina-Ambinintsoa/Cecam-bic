@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { contratSchema, type ContratFormValues, type ContratFormInput } from "./contratSchema";
 import { contratApi } from "@/api/contratApi";
 import type { ModeRattachement, RoleClient } from "@/types/contrat";
+import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -18,6 +19,7 @@ export function ContratForm() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+
 
   const form = useForm<ContratFormInput, unknown, ContratFormValues>({
     resolver: zodResolver(contratSchema),
@@ -29,9 +31,6 @@ export function ContratForm() {
     },
   });
 
-  // useWatch (plutôt que form.watch()) permet au React Compiler de mémoïser
-  // ce composant : form.watch() renvoie une fonction non stable qui fait
-  // sauter la mémoïsation ("Use of incompatible library").
   const modeRattachement = useWatch({ control: form.control, name: "modeRattachement" });
 
   async function onSubmit(values: ContratFormValues) {
@@ -44,6 +43,20 @@ export function ContratForm() {
       setSubmitting(false);
     }
   }
+
+  const { setContratId } = useDemandeEnCours();
+
+  async function onSubmit(values: ContratFormValues) {
+  if (!clientId) return;
+  setSubmitting(true);
+  try {
+    const contrat = await contratApi.creer({ ...values, clientId: Number(clientId) });
+    setContratId(contrat.id);
+    navigate(`/demande/rapport/${contrat.id}`);
+  } finally {
+    setSubmitting(false);
+  }
+}
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-3xl space-y-6 p-6">

@@ -5,4 +5,5 @@ import java.util.List;
 
 public interface ContratRepository extends JpaRepository<Contrat, Long> {
     List<Contrat> findByClient_Id(Long clientId);
+    List<Contrat> findAllByOrderByDateDemandeDesc();
 }
