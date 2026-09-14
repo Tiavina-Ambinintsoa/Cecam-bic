@@ -1,6 +1,7 @@
 package mg.cecam.bic.contrat;
 
 import lombok.RequiredArgsConstructor;
+import mg.cecam.bic.audit.AuditService;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.dto.PaiementRequest;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import java.util.List;
 public class EcheanceController {
 
     private final EcheanceRepository echeanceRepository;
+    private final AuditService auditService;
 
     @GetMapping
     public List<Echeance> listerParContrat(@RequestParam Long contratId) {
@@ -29,6 +31,8 @@ public class EcheanceController {
         e.setMontantPaye(req.montantPaye());
         e.setDatePaiement(req.datePaiement());
         e.setStatut(req.datePaiement().isAfter(e.getDateEcheance()) ? StatutEcheance.EN_RETARD : StatutEcheance.PAYE_A_TEMPS);
-        return ResponseEntity.ok(echeanceRepository.save(e));
+        Echeance enregistree = echeanceRepository.save(e);
+        auditService.enregistrer("ECHEANCE", id, "PAIEMENT", "Montant : " + req.montantPaye() + ", date : " + req.datePaiement());
+        return ResponseEntity.ok(enregistree);
     }
 }

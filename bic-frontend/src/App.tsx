@@ -7,7 +7,7 @@ import { ClientForm } from "@/features/client/ClientForm";
 import { ContratForm } from "@/features/contrat/ContratForm";
 import { RapportPage } from "@/pages/RapportPage";
 import { RechercheIndividuPage } from "@/pages/RechercheIndividuPage";
-import { ModifierClientPage } from "@/pages/ModifierClientPage";
+import { MiseAJourDemandePage } from "@/pages/MiseAJourDemandePage";
 import { AlertesPage } from "@/pages/AlertesPage";
 import { HistoriqueRapportsPage } from "@/pages/HistoriqueRapportsPage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -32,7 +32,7 @@ function AppShell() {
         <Route path="/demande/nouvelle/contrat/:clientId" element={<ContratForm />} />
         <Route path="/demande/rapport/:contratId" element={<RapportPageRoute />} />
         <Route path="/recherche/individu" element={<RechercheIndividuPage />} />
-        <Route path="/demande/modifier" element={<ModifierClientPage />} />
+        <Route path="/demande/modifier" element={<MiseAJourDemandePage />} />
         <Route path="/alertes" element={<AlertesPage />} />
         <Route path="/rapports" element={<HistoriqueRapportsPage />} />
       </Routes>

@@ -1,6 +1,7 @@
 package mg.cecam.bic.contrat;
 
 import lombok.RequiredArgsConstructor;
+import mg.cecam.bic.audit.AuditService;
 import mg.cecam.bic.client.Client;
 import mg.cecam.bic.client.ClientRepository;
 import mg.cecam.bic.common.enums.PhaseDemande;
@@ -23,14 +24,17 @@ public class ContratService {
     private final ContratRepository contratRepository;
     private final ClientRepository clientRepository;
     private final EcheanceRepository echeanceRepository;
+    private final AuditService auditService;
 
     @Transactional
-public Contrat changerPhase(Long contratId, PhaseDemande nouvellePhase) {
-    Contrat c = contratRepository.findById(contratId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrat introuvable"));
-    c.setPhaseDemande(nouvellePhase);
-    return contratRepository.save(c);
-}
+    public Contrat changerPhase(Long contratId, PhaseDemande nouvellePhase) {
+        Contrat c = contratRepository.findById(contratId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrat introuvable"));
+        c.setPhaseDemande(nouvellePhase);
+        Contrat enregistre = contratRepository.save(c);
+        auditService.enregistrer("CONTRAT", contratId, "CHANGEMENT_PHASE", "Nouvelle phase : " + nouvellePhase);
+        return enregistre;
+    }
 
     @Transactional
     public Contrat creerDemande(ContratRequest request) {
@@ -55,6 +59,7 @@ public Contrat changerPhase(Long contratId, PhaseDemande nouvellePhase) {
 
         contrat = contratRepository.save(contrat);
         genererEcheances(contrat);
+        auditService.enregistrer("CONTRAT", contrat.getId(), "CREATION", "Montant " + contrat.getMontantFinance());
         return contrat;
     }
 
@@ -63,8 +68,8 @@ public Contrat changerPhase(Long contratId, PhaseDemande nouvellePhase) {
     }
 
     public List<Contrat> listerTous() {
-    return contratRepository.findAllByOrderByDateDemandeDesc();
-}
+        return contratRepository.findAllByOrderByDateDemandeDesc();
+    }
 
     private void genererEcheances(Contrat contrat) {
         BigDecimal montantParEcheance = contrat.getMontantEcheanceMensuelle() != null

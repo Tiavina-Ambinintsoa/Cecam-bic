@@ -23,7 +23,7 @@ public class Client {
     @Column(name = "code_client_cb", unique = true, length = 20)
     private String codeClientCb;
 
-    private String titre; // Mr, Mme, Mademoiselle
+    private String titre; 
 
     @NotBlank
     @Column(name = "categorie_tiers_code", nullable = false)
@@ -60,8 +60,22 @@ public class Client {
     @Column(name = "etat_civil")
     private String etatCivil;
 
-    @Column(name = "date_derniere_modification")
-    private LocalDateTime dateDerniereModification;
+    @Column(name = "date_adhesion", updatable = false)
+private LocalDate dateAdhesion; // fixée une seule fois à la création, jamais modifiée ensuite
+
+@Column(name = "date_derniere_modification")
+private LocalDateTime dateDerniereModification;
+
+@PrePersist
+void onCreate() {
+    this.dateAdhesion = LocalDate.now();
+    this.dateDerniereModification = LocalDateTime.now();
+}
+
+@PreUpdate
+void onUpdate() {
+    this.dateDerniereModification = LocalDateTime.now();
+}
 
     @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -71,9 +85,4 @@ public class Client {
     @Builder.Default
     private List<Identifiant> identifiants = new ArrayList<>();
 
-    @PrePersist
-    @PreUpdate
-    void onSave() {
-        this.dateDerniereModification = LocalDateTime.now();
-    }
 }

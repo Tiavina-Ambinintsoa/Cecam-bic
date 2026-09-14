@@ -17,14 +17,6 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-/**
- * Implémente la pondération décrite dans "Calcul du Score de Solvabilité (Modèle BIC)" :
- * base 300 + jusqu'à 550 points répartis sur 5 facteurs (35/30/15/10/10 %).
- * Adapté à notre schéma (Contrat + Echeance) — pas de notion de "plafond de crédit"
- * ni de "hard inquiry" au sens bancaire classique, donc ces notions sont approximées
- * (voir commentaires par facteur). L'emploi/revenu n'est PAS un facteur du modèle FICO
- * de référence et n'est de toute façon pas encore saisi à l'intake : non inclus pour l'instant.
- */
 @Service
 @RequiredArgsConstructor
 public class ScoreService {
@@ -52,7 +44,7 @@ public class ScoreService {
         ScoreDetail detail = new ScoreDetail(
                 calculerPointsPaiement(historique),
                 calculerPointsUtilisation(historique),
-                calculerPointsAnciennete(historique),
+                calculerPointsAnciennete(client),
                 calculerPointsNouveauxCredits(historique),
                 calculerPointsMixite(historique)
         );
@@ -112,12 +104,10 @@ public class ScoreService {
     }
 
     /** Facteur 3 (15%) : ancienneté moyenne des comptes, plafonnée à 5 ans. */
-    private double calculerPointsAnciennete(List<Contrat> historique) {
-        double ageMoyenMois = historique.stream()
-                .mapToLong(c -> ChronoUnit.MONTHS.between(c.getDateDemande(), LocalDate.now()))
-                .average().orElse(0);
-        return Math.min(MAX_ANCIENNETE, (ageMoyenMois / 60.0) * MAX_ANCIENNETE);
-    }
+    private double calculerPointsAnciennete(Client client) {
+    long moisDepuisAdhesion = ChronoUnit.MONTHS.between(client.getDateAdhesion(), LocalDate.now());
+    return Math.min(MAX_ANCIENNETE, (moisDepuisAdhesion / 60.0) * MAX_ANCIENNETE);
+}
 
     /** Facteur 4 (10%) : nombre de nouvelles demandes dans les 12 derniers mois (proxy des "hard inquiries"). */
     private double calculerPointsNouveauxCredits(List<Contrat> historique) {
