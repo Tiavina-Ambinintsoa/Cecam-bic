@@ -13,6 +13,15 @@ export interface AdresseRequest {
 
 export interface IdentifiantRequest { typeIdentifiant: string; numero: string; }
 
+export interface EmploiRequest {
+  statutEmploi?: string;
+  nomEmployeur?: string;
+  profession?: string;
+  dateEmbauche?: string;
+  revenuAnnuelTotal?: number;
+  devise?: string;
+}
+
 export interface ClientRequest {
   titre?: string;
   categorieTiersCode: string;
@@ -25,8 +34,10 @@ export interface ClientRequest {
   genre: Genre;
   nationalite: string;
   etatCivil?: string;
+  telephone?: string;
   adresses: AdresseRequest[];
   identifiants: IdentifiantRequest[];
+  emploi?: EmploiRequest;
 }
 
 export interface ClientResponse extends ClientRequest {

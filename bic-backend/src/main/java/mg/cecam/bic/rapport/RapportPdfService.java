@@ -26,7 +26,6 @@ public class RapportPdfService {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
             PdfRendererBuilder builder = new PdfRendererBuilder();
-            builder.useFastMode();
             builder.withHtmlContent(html, null);
             builder.toStream(out);
             builder.run();

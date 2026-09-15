@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.audit.AuditService;
 import mg.cecam.bic.client.dto.ClientEnregistrementResponse;
 import mg.cecam.bic.client.dto.ClientRequest;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,41 +17,8 @@ import java.util.stream.Collectors;
 public class ClientService {
 
     private final ClientRepository clientRepository;
+    private final EmploiRepository emploiRepository;
     private final AuditService auditService;
-
-    @Transactional
-    public Client mettreAJour(Long id, ClientRequest request) {
-        Client client = clientRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));
-        client.setTitre(request.titre());
-        client.setPrenom(request.prenom());
-        client.setDeuxiemePrenom(request.deuxiemePrenom());
-        client.setNom(request.nom());
-        client.setDateNaissance(request.dateNaissance());
-        client.setVilleNaissance(request.villeNaissance());
-        client.setPaysNaissance(request.paysNaissance());
-        client.setGenre(request.genre());
-        client.setNationalite(request.nationalite());
-        client.setEtatCivil(request.etatCivil());
-        Client enregistre = clientRepository.save(client);
-        auditService.enregistrer("CLIENT", enregistre.getId(), "MODIFICATION", "Informations personnelles modifiées");
-        return enregistre;
-    }
-
-    @Transactional
-    public Adresse ajouterAdresse(Long clientId, ClientRequest.AdresseRequest req) {
-        Client client = clientRepository.findById(clientId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));
-        Adresse adresse = Adresse.builder()
-                .client(client).typeAdresse(req.typeAdresse()).adresseComplete(req.adresseComplete())
-                .numeroRue(req.numeroRue()).codePostal(req.codePostal()).ville(req.ville())
-                .commune(req.commune()).region(req.region()).pays(req.pays())
-                .build();
-        client.getAdresses().add(adresse);
-        clientRepository.save(client);
-        auditService.enregistrer("CLIENT", clientId, "AJOUT_ADRESSE", adresse.getTypeAdresse() + " : " + adresse.getAdresseComplete());
-        return adresse;
-    }
 
     @Transactional
     public ClientEnregistrementResponse enregistrerOuRecuperer(ClientRequest request) {
@@ -63,17 +29,17 @@ public class ClientService {
                 .orElse(null);
 
         if (cin != null) {
-            List<Client> existants = clientRepository
-                    .findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(cin, "CIN");
+            List<Client> existants = clientRepository.findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(cin, "CIN");
             if (!existants.isEmpty()) {
                 Client existant = existants.get(0);
-                auditService.enregistrer("CLIENT", existant.getId(), "CONSULTATION",
-                        "Nouvelle demande sur client existant, CIN " + cin);
+                auditService.enregistrer("CLIENT", existant.getId(), "CONSULTATION", "Nouvelle demande sur client existant, CIN " + cin);
                 return new ClientEnregistrementResponse(existant, true);
             }
         }
 
-        return new ClientEnregistrementResponse(creerClient(request), false);
+        Client nouveau = creerClient(request);
+        auditService.enregistrer("CLIENT", nouveau.getId(), "CREATION", "Code CB " + nouveau.getCodeClientCb());
+        return new ClientEnregistrementResponse(nouveau, false);
     }
 
     private Client creerClient(ClientRequest request) {
@@ -90,6 +56,7 @@ public class ClientService {
                 .genre(request.genre())
                 .nationalite(request.nationalite())
                 .etatCivil(request.etatCivil())
+                .telephone(request.telephone())
                 .build();
 
         List<Adresse> adresses = request.adresses().stream()
@@ -106,17 +73,63 @@ public class ClientService {
                 .collect(Collectors.toList());
         client.setIdentifiants(identifiants);
 
-        Client enregistre = clientRepository.save(client);
-        auditService.enregistrer("CLIENT", enregistre.getId(), "CREATION", "Code CB " + enregistre.getCodeClientCb());
-        return enregistre;
+        Client sauvegarde = clientRepository.save(client);
+
+        if (request.emploi() != null) {
+            Emploi emploi = Emploi.builder()
+                    .client(sauvegarde)
+                    .statutEmploi(request.emploi().statutEmploi())
+                    .nomEmployeur(request.emploi().nomEmployeur())
+                    .profession(request.emploi().profession())
+                    .dateEmbauche(request.emploi().dateEmbauche())
+                    .revenuAnnuelTotal(request.emploi().revenuAnnuelTotal())
+                    .devise(request.emploi().devise())
+                    .build();
+            emploiRepository.save(emploi);
+        }
+
+        return sauvegarde;
     }
 
     public Client rechercherParIdentifiant(String typeIdentifiant, String numero) {
         return clientRepository
                 .findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(numero, typeIdentifiant)
-                .stream()
-                .findFirst()
-                .orElse(null);
+                .stream().findFirst().orElse(null);
+    }
+
+    @Transactional
+    public Client mettreAJour(Long id, ClientRequest request) {
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));
+        client.setTitre(request.titre());
+        client.setPrenom(request.prenom());
+        client.setDeuxiemePrenom(request.deuxiemePrenom());
+        client.setNom(request.nom());
+        client.setDateNaissance(request.dateNaissance());
+        client.setVilleNaissance(request.villeNaissance());
+        client.setPaysNaissance(request.paysNaissance());
+        client.setGenre(request.genre());
+        client.setNationalite(request.nationalite());
+        client.setEtatCivil(request.etatCivil());
+        client.setTelephone(request.telephone());
+        Client sauvegarde = clientRepository.save(client);
+        auditService.enregistrer("CLIENT", id, "MODIFICATION", "Informations personnelles modifiées");
+        return sauvegarde;
+    }
+
+    @Transactional
+    public Adresse ajouterAdresse(Long clientId, ClientRequest.AdresseRequest req) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));
+        Adresse adresse = Adresse.builder()
+                .client(client).typeAdresse(req.typeAdresse()).adresseComplete(req.adresseComplete())
+                .numeroRue(req.numeroRue()).codePostal(req.codePostal()).ville(req.ville())
+                .commune(req.commune()).region(req.region()).pays(req.pays())
+                .build();
+        client.getAdresses().add(adresse);
+        clientRepository.save(client);
+        auditService.enregistrer("CLIENT", clientId, "AJOUT_ADRESSE", adresse.getTypeAdresse() + " : " + adresse.getAdresseComplete());
+        return adresse;
     }
 
     private String genererCodeClientCb() {

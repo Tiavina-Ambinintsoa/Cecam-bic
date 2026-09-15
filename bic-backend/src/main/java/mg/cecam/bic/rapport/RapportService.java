@@ -3,6 +3,7 @@ package mg.cecam.bic.rapport;
 import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.client.Adresse;
 import mg.cecam.bic.client.Client;
+import mg.cecam.bic.client.EmploiRepository;
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.RoleClient;
 import mg.cecam.bic.common.enums.StatutEcheance;
@@ -12,6 +13,7 @@ import mg.cecam.bic.contrat.Contrat;
 import mg.cecam.bic.contrat.ContratRepository;
 import mg.cecam.bic.contrat.Echeance;
 import mg.cecam.bic.contrat.EcheanceRepository;
+import mg.cecam.bic.contrat.GarantieRepository;
 import mg.cecam.bic.rapport.dto.*;
 import mg.cecam.bic.referentiel.GrilleScore;
 import mg.cecam.bic.referentiel.GrilleScoreRepository;
@@ -35,10 +37,15 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class RapportService {
+
     private static final Set<PhaseDemande> PHASES_DECAISSEES = EnumSet.of(PhaseDemande.ACTIF, PhaseDemande.FERME);
+    private static final String[] MOIS_LABELS_LONG =
+            {"Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"};
 
     private final ContratRepository contratRepository;
     private final EcheanceRepository echeanceRepository;
+    private final EmploiRepository emploiRepository;
+    private final GarantieRepository garantieRepository;
     private final ScoreService scoreService;
     private final CalendrierService calendrierService;
     private final GrilleScoreRepository grilleScoreRepository;
@@ -65,17 +72,24 @@ public class RapportService {
                 .filter(c -> !c.lignes().isEmpty())
                 .toList();
 
+        List<DetailContratDTO> detailContrats = historique.stream().map(this::toDetailContratDto).toList();
+
         List<GrilleScoreDTO> grille = grilleScoreRepository.findAll().stream()
                 .sorted(Comparator.comparing(GrilleScore::getIntervalle).reversed())
                 .map(g -> new GrilleScoreDTO(g.getIntervalle(), g.getCategorieRisque(), ScoreColorMapper.toHex(g.getCouleur())))
                 .toList();
 
+        EmploiDTO emploiDto = emploiRepository.findByClient_Id(client.getId())
+                .map(e -> new EmploiDTO(e.getStatutEmploi(), e.getNomEmployeur(), e.getProfession(),
+                        e.getDateEmbauche(), e.getRevenuAnnuelTotal(), e.getDevise()))
+                .orElse(null);
+
         return new RapportSolvabiliteResponse(
                 UUID.randomUUID().toString(), LocalDateTime.now(),
                 clientTrouve ? "Client trouvé" : "Client Introuvable, Client Nouvellement Créé",
                 client.getCodeClientCb(), toClientInfoDto(client), actuelles, historiques, identifiants,
-                toDetailDemandeDto(contrat), null, List.of(),
-                toScoreDto(scoreResult), grille, construireSynthese(historique, contrat), calendriers
+                toDetailDemandeDto(contrat), emploiDto, List.of(),
+                toScoreDto(scoreResult), grille, construireSynthese(historique, contrat), calendriers, detailContrats
         );
     }
 
@@ -84,7 +98,7 @@ public class RapportService {
                 blankToDash(c.getTitre()), (c.getPrenom() + " " + c.getNom()).trim(),
                 c.getPrenom(), blankToDash(c.getDeuxiemePrenom()), c.getNom(),
                 c.getDateNaissance(), blankToDash(c.getVilleNaissance()), blankToDash(c.getPaysNaissance()),
-                c.getGenre().name(), c.getNationalite(), blankToDash(c.getEtatCivil()),
+                c.getGenre().name(), c.getNationalite(), blankToDash(c.getEtatCivil()), blankToDash(c.getTelephone()),
                 c.getCategorieTiersCode(), c.getDateDerniereModification()
         );
     }
@@ -111,6 +125,49 @@ public class RapportService {
         return new ScoreDTO(true, r.valeur(), r.intervalle(), r.categorieRisque(), r.couleur(), ScoreColorMapper.toHex(r.couleur()), null);
     }
 
+    private DetailContratDTO toDetailContratDto(Contrat c) {
+        List<Echeance> echeances = echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId());
+        LocalDate aujourdHui = LocalDate.now();
+
+        List<HistoriquePaiementLigneDTO> historiquePaiement = echeances.stream()
+                .filter(e -> e.getStatut() != StatutEcheance.A_VENIR)
+                .map(e -> new HistoriquePaiementLigneDTO(
+                        e.getDateEcheance().getYear(),
+                        MOIS_LABELS_LONG[e.getDateEcheance().getMonthValue() - 1],
+                        e.getStatut() == StatutEcheance.IMPAYE ? 1 : 0,
+                        LabelMapper.statutEcheance(e.getStatut())
+                ))
+                .toList();
+
+        int nbRestantes = (int) echeances.stream().filter(e -> e.getMontantPaye() == null).count();
+        BigDecimal restantDu = echeances.stream()
+                .filter(e -> e.getMontantPaye() == null && !e.getDateEcheance().isBefore(aujourdHui))
+                .map(Echeance::getMontantDu).reduce(BigDecimal.ZERO, BigDecimal::add);
+        int nbImpayees = (int) echeances.stream()
+                .filter(e -> e.getMontantPaye() == null && e.getDateEcheance().isBefore(aujourdHui)).count();
+        BigDecimal montantImpayesContrat = echeances.stream()
+                .filter(e -> e.getMontantPaye() == null && e.getDateEcheance().isBefore(aujourdHui))
+                .map(Echeance::getMontantDu).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        String pireStatut = echeances.stream().anyMatch(e -> e.getStatut() == StatutEcheance.IMPAYE) ? "Impayé"
+                : echeances.stream().anyMatch(e -> e.getStatut() == StatutEcheance.EN_RETARD) ? "Retard"
+                : "Payé à temps";
+
+        List<GarantieDTO> garanties = garantieRepository.findByContrat_Id(c.getId()).stream()
+                .map(g -> new GarantieDTO(g.getTypeGarantie(), g.getNomGarant(), g.getCodeClientCbGarant(),
+                        g.getMontantCouvert(), g.getDateDebutValidite(), g.getDateFinValidite()))
+                .toList();
+
+        LocalDate dateFin = echeances.isEmpty() ? null : echeances.get(echeances.size() - 1).getDateEcheance();
+
+        return new DetailContratDTO(
+                c.getCodeContratCb(), c.getTypeContrat(), LabelMapper.phase(c.getPhaseDemande()), LabelMapper.role(c.getRoleClient()),
+                c.getDateDemande(), dateFin, c.getDevise(), c.getMontantFinance(), c.getMontantEcheanceMensuelle(),
+                c.getNombreTotalEcheances(), historiquePaiement, nbRestantes, restantDu, nbImpayees, montantImpayesContrat,
+                pireStatut, garanties
+        );
+    }
+
     private SyntheseDTO construireSynthese(List<Contrat> historique, Contrat contratEnCours) {
         Map<PhaseDemande, Long> parPhase = historique.stream()
                 .collect(Collectors.groupingBy(Contrat::getPhaseDemande, Collectors.counting()));
@@ -134,8 +191,7 @@ public class RapportService {
             if (!PHASES_DECAISSEES.contains(c.getPhaseDemande())) continue;
 
             for (Echeance e : echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId())) {
-                if (e.getMontantPaye() != null) continue; // déjà soldée : ne compte dans aucun des deux
-
+                if (e.getMontantPaye() != null) continue;
                 if (e.getDateEcheance().isBefore(aujourdHui)) {
                     montantImpayes = montantImpayes.add(e.getMontantDu());
                 } else {
@@ -152,9 +208,9 @@ public class RapportService {
         return new SyntheseDTO(
                 historique.size(),
                 historique.isEmpty() ? 0 : 1,
-                "-",
+                "Non", // Contrat manquant pour réciprocité : "Non" tant qu'il n'y a qu'un seul déclarant (CECAM)
                 "Ariary malgache",
-                montantRestantDu,
+                montantRestantDu, // Exposition Potentielle = Montant Total Restant dû (même formule, confirmé)
                 montantRestantDu,
                 montantImpayes,
                 montantTotalDemandes,

@@ -10,6 +10,7 @@ import { RechercheIndividuPage } from "@/pages/RechercheIndividuPage";
 import { MiseAJourDemandePage } from "@/pages/MiseAJourDemandePage";
 import { AlertesPage } from "@/pages/AlertesPage";
 import { HistoriqueRapportsPage } from "@/pages/HistoriqueRapportsPage";
+import { AuditPage } from "@/pages/AuditPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { DemandeEnCoursProvider } from "@/context/DemandeEnCoursContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -35,6 +36,7 @@ function AppShell() {
         <Route path="/demande/modifier" element={<MiseAJourDemandePage />} />
         <Route path="/alertes" element={<AlertesPage />} />
         <Route path="/rapports" element={<HistoriqueRapportsPage />} />
+        <Route path="/audit" element={<AuditPage />} />
       </Routes>
     </div>
   );

@@ -2,6 +2,7 @@ package mg.cecam.bic.common.util;
 
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.RoleClient;
+import mg.cecam.bic.common.enums.StatutEcheance;
 
 public final class LabelMapper {
     private LabelMapper() {}
@@ -21,6 +22,15 @@ public final class LabelMapper {
             case REFUSE -> "Refusé";
             case ABANDONNE -> "Abandonné";
             case FERME -> "Fermé";
+        };
+    }
+
+    public static String statutEcheance(StatutEcheance s) {
+        return switch (s) {
+            case PAYE_A_TEMPS -> "Payé à temps";
+            case EN_RETARD -> "En retard";
+            case IMPAYE -> "Impayé";
+            case A_VENIR -> "À venir";
         };
     }
 }

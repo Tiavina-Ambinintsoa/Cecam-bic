@@ -7,3 +7,10 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   if (!nomUtilisateur) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
+
+export function AdminRoute({ children }: { children: ReactNode }) {
+  const { nomUtilisateur, role } = useAuth();
+  if (!nomUtilisateur) return <Navigate to="/login" replace />;
+  if (role !== "ADMIN") return <Navigate to="/" replace />;
+  return <>{children}</>;
+}

@@ -4,19 +4,22 @@ import {
   DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronRight } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 function segmentsForPath(pathname: string): string[] {
   if (pathname.startsWith("/demande/nouvelle") || pathname.startsWith("/demande/rapport")) return ["Nouvelle demande", "Individu"];
   if (pathname.startsWith("/recherche/individu")) return ["Recherche par individu"];
-  if (pathname.startsWith("/demande/modifier")) return ["Modification demande"];
+  if (pathname.startsWith("/demande/modifier")) return ["Mise à jour demande"];
   if (pathname.startsWith("/alertes")) return ["Alertes"];
   if (pathname.startsWith("/rapports")) return ["Historique des rapports"];
+  if (pathname.startsWith("/audit")) return ["Journal d'audit"];
   return [];
 }
 
 export function AppBreadcrumb() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { role } = useAuth();
   const segments = segmentsForPath(location.pathname);
 
   return (
@@ -34,9 +37,12 @@ export function AppBreadcrumb() {
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuItem onClick={() => navigate("/recherche/individu")}>Recherche par individu</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate("/demande/modifier")}>Modification demande</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate("/demande/modifier")}>Mise à jour demande</DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate("/alertes")}>Alertes</DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate("/rapports")}>Historique des rapports</DropdownMenuItem>
+          {role === "ADMIN" && (
+            <DropdownMenuItem onClick={() => navigate("/audit")}>Journal d'audit</DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -15,11 +15,11 @@ const FIELD_H = "min-h-10 h-auto py-2";
 
 export function ClientForm() {
   const navigate = useNavigate();
+  const { setClientId } = useDemandeEnCours();
   const [submitting, setSubmitting] = useState(false);
   const [categorieLabel, setCategorieLabel] = useState("0215 - I M F");
   const [genreLabel, setGenreLabel] = useState<string>();
   const [titreLabel, setTitreLabel] = useState<string>();
-  const { setClientId } = useDemandeEnCours();
 
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientSchema),
@@ -35,20 +35,10 @@ export function ClientForm() {
   const identifiantsArray = useFieldArray({ control: form.control, name: "identifiants" });
 
   async function onSubmit(values: ClientFormValues) {
-  setSubmitting(true);
-  try {
-    const { client } = await clientApi.creer(values);
-    setClientId(client.id);
-    navigate(`/demande/nouvelle/contrat/${client.id}`);
-  } finally {
-    setSubmitting(false);
-  }
-}
-
-  async function onSubmit(values: ClientFormValues) {
     setSubmitting(true);
     try {
       const { client } = await clientApi.creer(values);
+      setClientId(client.id);
       navigate(`/demande/nouvelle/contrat/${client.id}`);
     } finally {
       setSubmitting(false);
@@ -154,6 +144,25 @@ export function ClientForm() {
 
           <div className="space-y-1.5"><Label>Nationalité <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("nationalite")} /></div>
           <div className="space-y-1.5"><Label>État civil</Label><Input className={FIELD_H} {...form.register("etatCivil")} /></div>
+          <div className="space-y-1.5"><Label>Téléphone</Label><Input className={FIELD_H} {...form.register("telephone")} placeholder="Ex : 0386843401" /></div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Emploi</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1.5"><Label>Statut Emploi</Label><Input className={FIELD_H} {...form.register("emploi.statutEmploi")} /></div>
+          <div className="space-y-1.5"><Label>Nom de l'Employeur</Label><Input className={FIELD_H} {...form.register("emploi.nomEmployeur")} /></div>
+          <div className="space-y-1.5"><Label>Profession</Label><Input className={FIELD_H} {...form.register("emploi.profession")} /></div>
+          <div className="space-y-1.5"><Label>Date d'embauche</Label><Input className={FIELD_H} type="date" {...form.register("emploi.dateEmbauche")} /></div>
+          <div className="space-y-1.5"><Label>Total Revenu Annuel</Label><Input className={FIELD_H} type="number" {...form.register("emploi.revenuAnnuelTotal", { valueAsNumber: true })} /></div>
+          <div className="space-y-1.5">
+            <Label>Devise</Label>
+            <Select defaultValue="Ariary malgache" onValueChange={(v) => form.setValue("emploi.devise", v as string)}>
+              <SelectTrigger className={FIELD_H}><span>Ariary malgache</span></SelectTrigger>
+              <SelectContent><SelectItem value="Ariary malgache">Ariary malgache</SelectItem></SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
@@ -185,7 +194,6 @@ export function ClientForm() {
               </div>
             </div>
           ))}
-          {/* Bouton "+ Ajouter une adresse" retiré ici — il ira dans l'écran Modification demande */}
         </CardContent>
       </Card>
 

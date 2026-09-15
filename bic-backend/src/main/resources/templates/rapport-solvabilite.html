@@ -42,32 +42,46 @@
 
   <div class="section-title">CLIENT</div>
 <table class="data-table">
-  <tr><td class="label">Code Client CB</td><td class="label">Date Dernière Modification</td><td class="label">Titre</td></tr>
+  <tr><td class="label">Titre</td><td class="label">Prénom</td><td class="label">Deuxième Prénom</td><td class="label">Nom</td></tr>
   <tr>
-    <td class="value" th:text="${r.codeClientCb}">-</td>
-    <td class="value" th:text="${#temporals.format(r.client.dateDerniereModification, 'dd/MM/yyyy')}">-</td>
     <td class="value" th:text="${r.client.titre}">-</td>
-  </tr>
-  <tr><td class="label">Nom Complet</td><td class="label">Prénom</td><td class="label">Deuxième Prénom</td><td class="label">Nom</td></tr>
-  <tr>
-    <td class="value" th:text="${r.client.nomComplet}">-</td>
     <td class="value" th:text="${r.client.prenom}">-</td>
     <td class="value" th:text="${r.client.deuxiemePrenom}">-</td>
     <td class="value" th:text="${r.client.nom}">-</td>
   </tr>
-  <tr><td class="label">Date de Naissance</td><td class="label">Ville de Naissance</td><td class="label">Pays de Naissance</td></tr>
+  <tr><td class="label">Date de naissance</td><td class="label">Ville de naissance</td><td class="label">Pays de naissance</td><td class="label">Genre</td></tr>
   <tr>
     <td class="value" th:text="${#temporals.format(r.client.dateNaissance, 'dd/MM/yyyy')}">-</td>
     <td class="value" th:text="${r.client.villeNaissance}">-</td>
     <td class="value" th:text="${r.client.paysNaissance}">-</td>
-  </tr>
-  <tr><td class="label">Genre</td><td class="label">Nationalité</td><td class="label">Etat civil</td></tr>
-  <tr>
     <td class="value" th:text="${r.client.genre == 'FEMME'} ? 'Femme' : 'Homme'">-</td>
+  </tr>
+  <tr><td class="label">Nationalité</td><td class="label">État civil</td><td class="label">Téléphone</td><td class="label">Date dernière modification</td></tr>
+  <tr>
     <td class="value" th:text="${r.client.nationalite}">-</td>
     <td class="value" th:text="${r.client.etatCivil}">-</td>
+    <td class="value" th:text="${r.client.telephone}">-</td>
+    <td class="value" th:text="${#temporals.format(r.client.dateDerniereModification, 'dd/MM/yyyy')}">-</td>
   </tr>
 </table>
+
+<div class="section-title">EMPLOI</div>
+<table class="data-table" th:if="${r.emploi != null}">
+  <tr><td class="label">Statut Emploi</td><td class="label">Nom de l'Employeur</td><td class="label">Profession</td><td class="label">Date d'embauche</td></tr>
+  <tr>
+    <td class="value" th:text="${r.emploi.statutEmploi}">-</td>
+    <td class="value" th:text="${r.emploi.nomEmployeur}">-</td>
+    <td class="value" th:text="${r.emploi.profession}">-</td>
+    <td class="value" th:text="${r.emploi.dateEmbauche != null ? #temporals.format(r.emploi.dateEmbauche, 'dd/MM/yyyy') : '-'}">-</td>
+  </tr>
+  <tr><td class="label">Total Revenu Annuel</td><td class="label">Devise</td><td></td><td></td></tr>
+  <tr>
+    <td class="value" th:text="${r.emploi.revenuAnnuelTotal}">-</td>
+    <td class="value" th:text="${r.emploi.devise}">-</td>
+    <td></td><td></td>
+  </tr>
+</table>
+<div th:unless="${r.emploi != null}" class="label">-</div>
 
   <div class="section-title">ADRESSES</div>
   <div th:each="a : ${r.adressesActuelles}">
@@ -157,6 +171,62 @@
       </table>
     </div>
   </th:block>
+
+  <th:block th:if="${!r.detailContrats.isEmpty()}">
+  <div class="section-title">DÉTAIL DES CONTRATS</div>
+  <div th:each="dc : ${r.detailContrats}" style="margin-bottom: 16px; page-break-inside: avoid;">
+    <table class="data-table">
+      <tr><td class="label">Code Contrat CB</td><td class="label">Type de Contrat</td><td class="label">Phase</td><td class="label">Rôle</td></tr>
+      <tr>
+        <td class="value" th:text="${dc.codeContratCb}">-</td>
+        <td class="value" th:text="${dc.typeContrat}">-</td>
+        <td class="value" th:text="${dc.phase}">-</td>
+        <td class="value" th:text="${dc.role}">-</td>
+      </tr>
+      <tr><td class="label">Montant Financé</td><td class="label">Montant Échéance Mensuelle</td><td class="label">Nombre Total Échéances</td><td class="label">Devise</td></tr>
+      <tr>
+        <td class="value" th:text="${dc.montantFinance}">-</td>
+        <td class="value" th:text="${dc.montantEcheanceMensuelle}">-</td>
+        <td class="value" th:text="${dc.nombreTotalEcheances}">-</td>
+        <td class="value" th:text="${dc.devise}">-</td>
+      </tr>
+    </table>
+
+    <div class="sub-title">Historique de paiement</div>
+    <table class="data-table" th:if="${!dc.historiquePaiement.isEmpty()}">
+      <tr><th>Année</th><th>Mois</th><th>Échéances impayées</th><th>Statut</th></tr>
+      <tr th:each="hp : ${dc.historiquePaiement}">
+        <td th:text="${hp.annee}">-</td><td th:text="${hp.mois}">-</td>
+        <td th:text="${hp.nombreEcheancesImpayees}">0</td><td th:text="${hp.statut}">-</td>
+      </tr>
+    </table>
+    <div th:if="${dc.historiquePaiement.isEmpty()}" class="label">Aucune échéance encore due.</div>
+
+    <table class="data-table">
+      <tr><td class="label">Nombre d'échéances restantes dûes</td><td class="label">Montant Restant dû</td>
+          <td class="label">Nombre Échéances Impayées</td><td class="label">Montant des Impayés</td></tr>
+      <tr>
+        <td class="value" th:text="${dc.nombreEcheancesRestantes}">0</td>
+        <td class="value" th:text="${dc.montantRestantDu}">-</td>
+        <td class="value" th:text="${dc.nombreEcheancesImpayees}">0</td>
+        <td class="value" th:text="${dc.montantImpayes}">-</td>
+      </tr>
+      <tr><td class="label">Pire Statut</td><td></td><td></td><td></td></tr>
+      <tr><td class="value" th:text="${dc.pireStatut}">-</td><td></td><td></td><td></td></tr>
+    </table>
+
+    <div th:if="${!dc.garanties.isEmpty()}">
+      <div class="sub-title">Garanties</div>
+      <table class="data-table">
+        <tr><th>Type</th><th>Nom du garant</th><th>Code Client CB</th><th>Montant couvert</th></tr>
+        <tr th:each="g : ${dc.garanties}">
+          <td th:text="${g.typeGarantie}">-</td><td th:text="${g.nomGarant}">-</td>
+          <td th:text="${g.codeClientCbGarant}">-</td><td th:text="${g.montantCouvert}">-</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</th:block>
 
   <table class="footer-table"><tr><td>RAPPORT DE SOLVABILITÉ — BIC CECAM</td><td style="text-align:right">CONFIDENTIEL</td></tr></table>
 </body>

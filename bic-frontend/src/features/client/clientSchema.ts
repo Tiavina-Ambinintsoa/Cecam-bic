@@ -11,6 +11,15 @@ const adresseSchema = z.object({
   pays: z.string().optional(),
 });
 
+const emploiSchema = z.object({
+  statutEmploi: z.string().optional(),
+  nomEmployeur: z.string().optional(),
+  profession: z.string().optional(),
+  dateEmbauche: z.string().optional(),
+  revenuAnnuelTotal: z.number().optional(),
+  devise: z.string().optional(),
+});
+
 export const clientSchema = z.object({
   titre: z.string().optional(),
   categorieTiersCode: z.string().min(1, "La catégorie tiers est requise"),
@@ -23,8 +32,10 @@ export const clientSchema = z.object({
   genre: z.enum(["FEMME", "HOMME"], { message: "Le genre est requis" }),
   nationalite: z.string().min(1, "La nationalité est requise"),
   etatCivil: z.string().optional(),
+  telephone: z.string().optional(),
   adresses: z.array(adresseSchema).min(1),
   identifiants: z.array(z.object({ typeIdentifiant: z.string().min(1), numero: z.string().min(1, "Numéro requis") })).min(1),
+  emploi: emploiSchema.optional(),
 });
 
 export type ClientFormValues = z.infer<typeof clientSchema>;

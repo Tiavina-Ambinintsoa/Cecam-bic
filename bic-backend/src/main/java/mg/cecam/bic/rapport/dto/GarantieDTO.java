@@ -1,0 +1,8 @@
+// GarantieDTO.java
+package mg.cecam.bic.rapport.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+public record GarantieDTO(String typeGarantie, String nomGarant, String codeClientCbGarant,
+                           BigDecimal montantCouvert, LocalDate dateDebutValidite, LocalDate dateFinValidite) {}

@@ -22,11 +22,12 @@ import java.util.List;
 public class ScoreService {
 
     private static final int SCORE_BASE = 300;
-    private static final double MAX_PAIEMENT = 192.5;   // 35 %
-    private static final double MAX_UTILISATION = 165;  // 30 %
-    private static final double MAX_ANCIENNETE = 82.5;  // 15 %
-    private static final double MAX_NOUVEAUX = 55;       // 10 %
-    private static final double MAX_MIXITE = 55;         // 10 %
+    private static final double MAX_PAIEMENT = 192.5;
+    private static final double MAX_UTILISATION = 165;
+    private static final double MAX_ANCIENNETE = 82.5;
+    private static final double MAX_NOUVEAUX = 55;
+    private static final double MAX_MIXITE = 55;
+    private static final double MAX_SECONDAIRE = MAX_UTILISATION + MAX_ANCIENNETE + MAX_NOUVEAUX + MAX_MIXITE;
 
     private final ContratRepository contratRepository;
     private final EcheanceRepository echeanceRepository;
@@ -41,15 +42,17 @@ public class ScoreService {
             return ScoreResult.nonCalculable("Ce client a été nouvellement créé dans le système");
         }
 
-        ScoreDetail detail = new ScoreDetail(
-                calculerPointsPaiement(historique),
-                calculerPointsUtilisation(historique),
-                calculerPointsAnciennete(client),
-                calculerPointsNouveauxCredits(historique),
-                calculerPointsMixite(historique)
-        );
+        double pointsPaiement = calculerPointsPaiement(historique);
+        double pointsUtilisation = calculerPointsUtilisation(historique);
+        double pointsAnciennete = calculerPointsAnciennete(client);
+        double pointsNouveaux = calculerPointsNouveauxCredits(historique);
+        double pointsMixite = calculerPointsMixite(historique);
 
-        int score = (int) Math.round(SCORE_BASE + detail.total());
+        double secondaireBrut = pointsUtilisation + pointsAnciennete + pointsNouveaux + pointsMixite;
+        double plafondSecondaire = MAX_SECONDAIRE * (0.4 + 0.6 * (pointsPaiement / MAX_PAIEMENT));
+        double secondaireRetenu = Math.min(secondaireBrut, plafondSecondaire);
+
+        int score = (int) Math.round(SCORE_BASE + pointsPaiement + secondaireRetenu);
         score = Math.max(300, Math.min(850, score));
 
         int scoreFinal = score;
@@ -61,7 +64,6 @@ public class ScoreService {
         return ScoreResult.calcule(score, grille.getIntervalle(), grille.getCategorieRisque(), grille.getCouleur());
     }
 
-    /** Facteur 1 (35%) : historique de paiement, avec dépréciation temporelle des incidents. */
     private double calculerPointsPaiement(List<Contrat> historique) {
         double brut = 0;
         for (Contrat c : historique) {
@@ -80,7 +82,6 @@ public class ScoreService {
         return Math.max(0, Math.min(MAX_PAIEMENT, brut));
     }
 
-    /** Facteur 2 (30%) : "taux d'utilisation" approximé par solde restant dû / montant financé, sur les contrats ACTIFS. */
     private double calculerPointsUtilisation(List<Contrat> historique) {
         BigDecimal soldeRestant = BigDecimal.ZERO;
         BigDecimal totalFinance = BigDecimal.ZERO;
@@ -94,7 +95,7 @@ public class ScoreService {
             totalFinance = totalFinance.add(c.getMontantFinance());
         }
 
-        if (totalFinance.signum() == 0) return MAX_UTILISATION; // pas de crédit actif = pas de surendettement actuel
+        if (totalFinance.signum() == 0) return MAX_UTILISATION;
         double ratio = soldeRestant.doubleValue() / totalFinance.doubleValue();
 
         if (ratio < 0.10) return MAX_UTILISATION;
@@ -103,21 +104,25 @@ public class ScoreService {
         return 0;
     }
 
-    /** Facteur 3 (15%) : ancienneté moyenne des comptes, plafonnée à 5 ans. */
     private double calculerPointsAnciennete(Client client) {
-    long moisDepuisAdhesion = ChronoUnit.MONTHS.between(client.getDateAdhesion(), LocalDate.now());
-    return Math.min(MAX_ANCIENNETE, (moisDepuisAdhesion / 60.0) * MAX_ANCIENNETE);
-}
+        long moisDepuisAdhesion = ChronoUnit.MONTHS.between(client.getDateAdhesion(), LocalDate.now());
+        return Math.min(MAX_ANCIENNETE, (moisDepuisAdhesion / 60.0) * MAX_ANCIENNETE);
+    }
 
-    /** Facteur 4 (10%) : nombre de nouvelles demandes dans les 12 derniers mois (proxy des "hard inquiries"). */
     private double calculerPointsNouveauxCredits(List<Contrat> historique) {
         long recents = historique.stream()
                 .filter(c -> ChronoUnit.MONTHS.between(c.getDateDemande(), LocalDate.now()) <= 12)
                 .count();
-        return Math.max(0, MAX_NOUVEAUX - recents * 8);
+
+        long demandesEnAttentePersistantes = historique.stream()
+                .filter(c -> c.getPhaseDemande() == PhaseDemande.DEMANDE_EN_COURS)
+                .filter(c -> ChronoUnit.DAYS.between(c.getDateDemande(), LocalDate.now()) > 60)
+                .count();
+
+        double points = MAX_NOUVEAUX - recents * 8 - demandesEnAttentePersistantes * 15;
+        return Math.max(0, points);
     }
 
-    /** Facteur 5 (10%) : diversité des types de contrat (limité tant qu'un seul type existe dans le référentiel). */
     private double calculerPointsMixite(List<Contrat> historique) {
         long typesDistincts = historique.stream().map(Contrat::getTypeContrat).distinct().count();
         if (typesDistincts >= 3) return MAX_MIXITE;
