@@ -1,3 +1,4 @@
+// mg/cecam/bic/contrat/Echeance.java  — MODIFIÉ
 package mg.cecam.bic.contrat;
 
 import jakarta.persistence.*;
@@ -6,11 +7,15 @@ import mg.cecam.bic.common.enums.StatutEcheance;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "echeance")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Echeance {
+
+    /** Au-delà de ce délai, un impayé n'est plus un simple retard. */
+    public static final int SEUIL_IMPAYE_JOURS = 30;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,7 +40,47 @@ public class Echeance {
     @Column(name = "date_paiement")
     private LocalDate datePaiement;
 
+    /**
+     * Statut persisté. NE PLUS L'UTILISER directement dans les calculs :
+     * il ne vieillit pas et une échéance A_VENIR dont la date est passée
+     * reste A_VENIR indéfiniment. Utiliser statutEffectif(reference).
+     * Conservé pour l'historique et la saisie manuelle.
+     */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private StatutEcheance statut;
+
+    @Transient
+    public boolean estPayee() {
+        return montantPaye != null && montantPaye.signum() > 0;
+    }
+
+    /** Jours de retard constatés. 0 si payée à temps ou pas encore échue. */
+    @Transient
+    public int joursDeRetard(LocalDate reference) {
+        LocalDate fin = estPayee()
+                ? (datePaiement != null ? datePaiement : dateEcheance)
+                : reference;
+        if (!fin.isAfter(dateEcheance)) return 0;
+        return (int) ChronoUnit.DAYS.between(dateEcheance, fin);
+    }
+
+    /**
+     * Statut recalculé à la date de référence. C'est la seule source de
+     * vérité pour le score, les agrégats et les grilles du rapport.
+     */
+    @Transient
+    public StatutEcheance statutEffectif(LocalDate reference) {
+        if (estPayee()) {
+            return joursDeRetard(reference) > 0 ? StatutEcheance.EN_RETARD : StatutEcheance.PAYE_A_TEMPS;
+        }
+        if (dateEcheance.isAfter(reference)) return StatutEcheance.A_VENIR;
+        return joursDeRetard(reference) > SEUIL_IMPAYE_JOURS ? StatutEcheance.IMPAYE : StatutEcheance.EN_RETARD;
+    }
+
+    /** Échue et non soldée à la date de référence. */
+    @Transient
+    public boolean estEnSouffrance(LocalDate reference) {
+        return !estPayee() && !dateEcheance.isAfter(reference);
+    }
 }

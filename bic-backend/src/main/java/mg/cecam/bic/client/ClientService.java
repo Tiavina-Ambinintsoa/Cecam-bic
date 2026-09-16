@@ -92,9 +92,14 @@ public class ClientService {
     }
 
     public Client rechercherParIdentifiant(String typeIdentifiant, String numero) {
-        return clientRepository
-                .findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(numero, typeIdentifiant)
-                .stream().findFirst().orElse(null);
+        List<Client> trouves = clientRepository
+                .findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(numero, typeIdentifiant);
+        if (trouves.size() > 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Doublon détecté : " + trouves.size() + " clients portent le " + typeIdentifiant
+                  + " " + numero + ". Corrigez la base avant de poursuivre.");
+        }
+        return trouves.isEmpty() ? null : trouves.get(0);
     }
 
     @Transactional
@@ -121,18 +126,28 @@ public class ClientService {
     public Adresse ajouterAdresse(Long clientId, ClientRequest.AdresseRequest req) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));
+ 
+        client.getAdresses().stream()
+                .filter(a -> a.getTypeAdresse() != null
+                          && a.getTypeAdresse().equalsIgnoreCase(req.typeAdresse()))
+                .filter(a -> Boolean.TRUE.equals(a.getActuelle()))
+                .forEach(a -> a.setActuelle(false));
+ 
         Adresse adresse = Adresse.builder()
                 .client(client).typeAdresse(req.typeAdresse()).adresseComplete(req.adresseComplete())
                 .numeroRue(req.numeroRue()).codePostal(req.codePostal()).ville(req.ville())
                 .commune(req.commune()).region(req.region()).pays(req.pays())
+                .actuelle(true)
                 .build();
+ 
         client.getAdresses().add(adresse);
         clientRepository.save(client);
-        auditService.enregistrer("CLIENT", clientId, "AJOUT_ADRESSE", adresse.getTypeAdresse() + " : " + adresse.getAdresseComplete());
+        auditService.enregistrer("CLIENT", clientId, "AJOUT_ADRESSE",
+                adresse.getTypeAdresse() + " : " + adresse.getAdresseComplete());
         return adresse;
     }
 
     private String genererCodeClientCb() {
-        return "L" + String.format("%08d", (long) (Math.random() * 100_000_000));
+        return "L" + String.format("%08d", clientRepository.prochainCodeClientCb());
     }
 }

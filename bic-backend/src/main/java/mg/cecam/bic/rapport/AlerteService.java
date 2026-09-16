@@ -1,3 +1,4 @@
+// mg/cecam/bic/rapport/AlerteService.java  — MODIFIÉ
 package mg.cecam.bic.rapport;
 
 import lombok.RequiredArgsConstructor;
@@ -6,13 +7,26 @@ import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.Contrat;
 import mg.cecam.bic.contrat.ContratRepository;
+import mg.cecam.bic.contrat.Echeance;
 import mg.cecam.bic.contrat.EcheanceRepository;
 import mg.cecam.bic.rapport.dto.AlerteDTO;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Deux corrections :
+ *  - les échéances étaient lues DEUX FOIS par contrat (une passe pour les
+ *    impayés, une pour les retards) ;
+ *  - le statut persisté servait de critère, alors qu'il ne vieillit pas.
+ *    On recalcule à la date du jour.
+ *
+ * Ajout : listerParClient(), pour que le rapport puisse enfin afficher ses
+ * alertes — le champ existait dans la réponse mais recevait toujours List.of().
+ */
 @Service
 @RequiredArgsConstructor
 public class AlerteService {
@@ -20,22 +34,39 @@ public class AlerteService {
     private final ContratRepository contratRepository;
     private final EcheanceRepository echeanceRepository;
 
+    @Transactional(readOnly = true)
     public List<AlerteDTO> lister() {
+        LocalDate reference = LocalDate.now();
         return contratRepository.findAll().stream()
                 .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF)
-                .map(this::toAlerte)
+                .map(c -> toAlerte(c, reference))
                 .filter(Objects::nonNull)
                 .toList();
     }
 
-    private AlerteDTO toAlerte(Contrat c) {
-        long impayees = echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId()).stream()
-                .filter(e -> e.getStatut() == StatutEcheance.IMPAYE).count();
-        long enRetard = echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId()).stream()
-                .filter(e -> e.getStatut() == StatutEcheance.EN_RETARD).count();
+    @Transactional(readOnly = true)
+    public List<AlerteDTO> listerParClient(Long clientId, LocalDate reference) {
+        return contratRepository.findByClient_Id(clientId).stream()
+                .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF)
+                .map(c -> toAlerte(c, reference))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private AlerteDTO toAlerte(Contrat c, LocalDate reference) {
+        List<Echeance> echeances = echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId());
+        long impayees = 0;
+        long enRetard = 0;
+        for (Echeance e : echeances) {
+            StatutEcheance s = e.statutEffectif(reference);
+            if (s == StatutEcheance.IMPAYE) impayees++;
+            else if (s == StatutEcheance.EN_RETARD && !e.estPayee()) enRetard++;
+        }
         if (impayees == 0 && enRetard == 0) return null;
+
         Client client = c.getClient();
-        return new AlerteDTO(client.getId(), client.getCodeClientCb(), client.getPrenom() + " " + client.getNom(),
+        return new AlerteDTO(client.getId(), client.getCodeClientCb(),
+                (client.getPrenom() + " " + client.getNom()).trim(),
                 c.getId(), c.getCodeContratCb(), impayees, enRetard);
     }
 }
