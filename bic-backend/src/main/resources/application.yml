@@ -27,13 +27,12 @@ spring.sql.init.data-locations: classpath:data.sql, classpath:data-crif.sql
 app:
   jwt:
     secret: change-this-secret-key-in-production-please-make-it-long-and-random-1234567890
-    expiration-ms: 28800000  # 8h
+    expiration-ms: 28800000 
 
   score:
     score-base: 300
     score-max: 850
 
-    # --- Poids des six axes (somme = 550) ---
     max-paiement: 200
     max-endettement: 120
     max-exposition: 100
@@ -41,45 +40,35 @@ app:
     max-nouveaux: 40
     max-mixite: 30
 
-    # --- Comportement de paiement ---
-    maturite-echeances: 36        # nb d'échéances échues pour une confiance pleine
+    maturite-mois: 36       
     plancher-confiance: 0.50
-    poids-recent: 1.00            # échéance de moins de 12 mois
-    poids-moyen: 0.60             # de 12 à 36 mois
-    poids-ancien: 0.30            # au-delà de 36 mois
+    poids-recent: 1.00          
+    poids-moyen: 0.60        
+    poids-ancien: 0.30           
     qualite-paye-a-temps: 1.00
-    qualite-retard-court: 0.50    # payée avec 30 jours de retard ou moins
-    qualite-retard-long: 0.15     # payée avec plus de 30 jours de retard
-    qualite-impaye: 0.00          # échue et toujours non soldée
+    qualite-retard-court: 0.50   
+    qualite-retard-long: 0.15     
+    qualite-impaye: 0.00          
 
-    # --- Endettement : charge mensuelle / revenu mensuel ---
     endettement-seuil-vert: 0.33
     endettement-seuil-rouge: 0.70
     malus-surendettement-coef: 60
     malus-surendettement-max: 90
 
-    # --- Exposition : engagement total / revenu annuel ---
     exposition-seuil-vert: 0.25
     exposition-seuil-rouge: 0.75
 
-    # --- Ancienneté ---
     anciennete-mois-plein: 84
 
-    # --- Appétit de crédit récent ---
     malus-par-contrat-recent: 8
     malus-par-demande-en-attente: 12
     fenetre-contrat-recent-mois: 12
     seuil-demande-en-attente-jours: 60
 
-    # --- Mixité ---
     mixite-ratio-deux-types: 0.60
     mixite-ratio-un-type: 0.20
 
-    # --- Plafonnement des axes secondaires par la qualité de paiement ---
-    # Ancienne formule : 0,40 + 0,60 x ratio. Elle écrêtait systématiquement
-    # et réduisait le score à une fonction du seul axe paiement.
     plafond-secondaire-base: 0.70
     plafond-secondaire-part: 0.30
 
-    # --- Valeur neutre des axes financiers si le revenu n'est pas déclaré ---
     neutre-sans-revenu: 0.60

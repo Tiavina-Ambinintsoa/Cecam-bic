@@ -1,19 +1,3 @@
--- ============================================================================
--- BIC CECAM — Données de référence et jeu de test
--- ============================================================================
--- Structure du fichier :
---   1. Référentiel : grille de score (A-E)
---   2. Référentiel : catégories tiers
---   3. Comptes utilisateurs de connexion
---   4. Clients fictifs de test (tous à Fianarantsoa)
---   5. Remise à niveau des séquences d'ID (obligatoire après des INSERT avec ID fixes)
---   6. GABARIT en commentaire à la fin : copier pour ajouter un nouveau client fictif
--- ============================================================================
-
-
--- ============================================================================
--- 1. GRILLE DE SCORE (A = meilleur/vert sombre, E = pire/rouge)
--- ============================================================================
 INSERT INTO grille_score (intervalle, score_min, score_max, categorie_risque, couleur) VALUES
 ('A', 580, 850, 'Risque très faible', 'Vert sombre'),
 ('B', 500, 579, 'Risque faible', 'Vert clair'),
@@ -22,12 +6,6 @@ INSERT INTO grille_score (intervalle, score_min, score_max, categorie_risque, co
 ('E', 300, 399, 'Risque très élevé', 'Rouge')
 ON CONFLICT (intervalle) DO NOTHING;
 
-
--- ============================================================================
--- 2. CATÉGORIES TIERS (référentiel — cf. cahier des charges §6.6)
--- ============================================================================
--- Le code 0215 (IMF) ne rentre dans aucune famille officielle transmise
--- (0002xx / 0003xx) — gardé tel quel en attendant confirmation du maître de stage.
 INSERT INTO categorie_tiers (code, libelle, code_parent) VALUES
 ('0004', 'Ménages', NULL),
 ('0215', 'Institution de Micro-Finance (IMF)', NULL),
@@ -53,25 +31,11 @@ INSERT INTO categorie_tiers (code, libelle, code_parent) VALUES
 ('0329', 'NCA (non classé ailleurs)', '0003')
 ON CONFLICT (code) DO NOTHING;
 
-
--- ============================================================================
--- 3. COMPTES UTILISATEURS
--- ============================================================================
--- agent1 / agent123  -> rôle AGENT_CREDIT
--- admin1 / admin123  -> rôle ADMIN
 INSERT INTO utilisateur (id, nom_utilisateur, mot_de_passe, role, actif) VALUES
 (1, 'agent1', '$2b$10$MUvYPyZABeOBL1/EZwstXOV7mYuNfE/fDnfHB0Am1C8B9IoYsC6Ga', 'AGENT_CREDIT', true),
 (2, 'admin1', '$2b$10$.1JeAl8BY/PxPtOGfNKPW.B/gRltqFF9sePuEFBrx4hyuV2q.kS3K', 'ADMIN', true)
 ON CONFLICT (id) DO NOTHING;
 
-
--- ============================================================================
--- 4. CLIENTS FICTIFS DE TEST — tous à Fianarantsoa / Haute Matsiatra
--- ============================================================================
-
--- ----------------------------------------------------------------------------
--- CLIENT 9001 — Hanta Rakoto — profil mixte (un crédit fermé correct, un actif avec quelques retards)
--- ----------------------------------------------------------------------------
 INSERT INTO client (id, code_client_cb, titre, categorie_tiers_code, prenom, nom, date_naissance,
                      ville_naissance, pays_naissance, genre, nationalite, etat_civil, date_adhesion, date_derniere_modification)
 VALUES (9001, 'L00190001', 'Mme', '0215', 'Hanta', 'Rakoto', '1985-04-12',
@@ -124,10 +88,6 @@ INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance, montant_du
 (90038, 9002, 8, '2026-11-01', 100000, NULL, NULL, 'A_VENIR')
 ON CONFLICT (id) DO NOTHING;
 
-
--- ----------------------------------------------------------------------------
--- CLIENT 9003 — Voahangy Rasoanirina — bon payeur (score attendu : A, vert sombre)
--- ----------------------------------------------------------------------------
 INSERT INTO client (id, code_client_cb, titre, categorie_tiers_code, prenom, nom, date_naissance,
                      ville_naissance, pays_naissance, genre, nationalite, etat_civil, date_adhesion, date_derniere_modification)
 VALUES (9003, 'L00190003', 'Mme', '0004', 'Voahangy', 'Rasoanirina', '1990-03-22',
@@ -190,10 +150,6 @@ INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance, montant_du
 (910206, 9102, 6, '2025-07-10', 83333, 83333, '2025-07-10', 'PAYE_A_TEMPS')
 ON CONFLICT (id) DO NOTHING;
 
-
--- ----------------------------------------------------------------------------
--- CLIENT 9004 — Fenohasina Andrianarimanana — retards occasionnels (score attendu : B/C)
--- ----------------------------------------------------------------------------
 INSERT INTO client (id, code_client_cb, titre, categorie_tiers_code, prenom, nom, date_naissance,
                      ville_naissance, pays_naissance, genre, nationalite, etat_civil, date_adhesion, date_derniere_modification)
 VALUES (9004, 'L00190004', 'Mr', '0004', 'Fenohasina', 'Andrianarimanana', '1988-11-05',
@@ -250,10 +206,6 @@ INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance, montant_du
 (920206, 9202, 6, '2026-12-15', 100000, NULL, NULL, 'A_VENIR')
 ON CONFLICT (id) DO NOTHING;
 
-
--- ----------------------------------------------------------------------------
--- CLIENT 9005 — Tovoniaina Razafindrakoto — mauvais payeur / défaut (score attendu : D/E)
--- ----------------------------------------------------------------------------
 INSERT INTO client (id, code_client_cb, titre, categorie_tiers_code, prenom, nom, date_naissance,
                      ville_naissance, pays_naissance, genre, nationalite, etat_civil, date_adhesion, date_derniere_modification)
 VALUES (9005, 'L00190005', 'Mr', '0004', 'Tovoniaina', 'Razafindrakoto', '1995-07-19',
@@ -306,10 +258,6 @@ INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance, montant_du
 (930208, 9302, 8, '2026-10-01', 50000, NULL, NULL, 'A_VENIR')
 ON CONFLICT (id) DO NOTHING;
 
-
--- ----------------------------------------------------------------------------
--- CLIENT 9006 — Nirina Rakotomanana — historique long, un seul incident ancien (score attendu : A/B)
--- ----------------------------------------------------------------------------
 INSERT INTO client (id, code_client_cb, titre, categorie_tiers_code, prenom, nom, date_naissance,
                      ville_naissance, pays_naissance, genre, nationalite, etat_civil, date_adhesion, date_derniere_modification)
 VALUES (9006, 'L00190006', 'Mr', '0004', 'Nirina', 'Rakotomanana', '1980-09-02',
@@ -383,50 +331,9 @@ INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance, montant_du
 (940205, 9402, 5, '2026-10-01', 100000, NULL, NULL, 'A_VENIR')
 ON CONFLICT (id) DO NOTHING;
 
-
--- ============================================================================
--- 5. REMISE À NIVEAU DES SÉQUENCES — obligatoire après des INSERT à ID fixes,
---    sinon le prochain client/contrat créé depuis l'appli entre en collision d'ID.
--- ============================================================================
 SELECT setval(pg_get_serial_sequence('client', 'id'), (SELECT MAX(id) FROM client));
 SELECT setval(pg_get_serial_sequence('adresse', 'id'), (SELECT MAX(id) FROM adresse));
 SELECT setval(pg_get_serial_sequence('identifiant', 'id'), (SELECT MAX(id) FROM identifiant));
 SELECT setval(pg_get_serial_sequence('contrat', 'id'), (SELECT MAX(id) FROM contrat));
 SELECT setval(pg_get_serial_sequence('echeance', 'id'), (SELECT MAX(id) FROM echeance));
 SELECT setval(pg_get_serial_sequence('utilisateur', 'id'), (SELECT MAX(id) FROM utilisateur));
-
-
--- ============================================================================
--- 6. GABARIT — copier ce bloc pour ajouter un nouveau client fictif
--- ============================================================================
--- Choisissez une plage d'ID libre (ex : 9500+) pour ne pas entrer en collision
--- avec les clients existants ni avec ceux créés depuis l'application.
---
--- INSERT INTO client (id, code_client_cb, titre, categorie_tiers_code, prenom, nom, date_naissance,
---                      ville_naissance, pays_naissance, genre, nationalite, etat_civil, date_adhesion, date_derniere_modification)
--- VALUES (9501, 'L00190501', 'Mme', '0004', 'Prenom', 'Nom', 'AAAA-MM-JJ',
---         'Fianarantsoa', 'Madagascar', 'FEMME', 'Malgache', 'Célibataire', 'AAAA-MM-JJ', now())
--- ON CONFLICT (id) DO NOTHING;
---
--- INSERT INTO adresse (id, client_id, type_adresse, adresse_complete, numero_rue, code_postal, ville, commune, region, pays, actuelle, date_derniere_modification)
--- VALUES (9501, 9501, 'Individu - Adresse principale', 'Adresse complète', 'N°', '301', 'Fianarantsoa', 'Commune', 'Haute Matsiatra', 'Madagascar', true, now())
--- ON CONFLICT (id) DO NOTHING;
---
--- INSERT INTO identifiant (id, client_id, type_identifiant, numero) VALUES (9501, 9501, 'CIN', 'NUMERO_CIN_UNIQUE') ON CONFLICT (id) DO NOTHING;
---
--- -- Un contrat = une demande de crédit. phase_demande : DEMANDE_EN_COURS / ACTIF / FERME / REFUSE / ABANDONNE
--- INSERT INTO contrat (id, code_contrat_cb, client_id, mode_rattachement, type_contrat, role_client,
---                       date_demande, montant_finance, montant_echeance_mensuelle, nombre_total_echeances,
---                       devise, periodicite_paiement, phase_demande, date_derniere_modification)
--- VALUES (9501, '600950001', 9501, 'NOUVELLE_DEMANDE', 'Prêt personnel', 'TITULAIRE',
---         'AAAA-MM-JJ', 1000000, 100000, 10, 'Ariary malgache', 'Mensuelle', 'ACTIF', now())
--- ON CONFLICT (id) DO NOTHING;
---
--- -- Une ligne par échéance mensuelle. statut : A_VENIR / PAYE_A_TEMPS / EN_RETARD / IMPAYE
--- -- montant_paye et date_paiement restent NULL tant que rien n'a été payé.
--- INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance, montant_du, montant_paye, date_paiement, statut) VALUES
--- (950101, 9501, 1, 'AAAA-MM-JJ', 100000, 100000, 'AAAA-MM-JJ', 'PAYE_A_TEMPS')
--- ON CONFLICT (id) DO NOTHING;
---
--- -- Ne pas oublier de relancer la section 5 (setval) après ajout, ou de la placer après ce bloc.
--- ============================================================================
