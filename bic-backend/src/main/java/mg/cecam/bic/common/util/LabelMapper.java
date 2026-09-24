@@ -1,4 +1,3 @@
-// mg/cecam/bic/common/util/LabelMapper.java  — MODIFIÉ
 package mg.cecam.bic.common.util;
 
 import mg.cecam.bic.common.enums.MotifCloture;
@@ -18,15 +17,10 @@ public final class LabelMapper {
         };
     }
 
-    /** Libellé simple, sans distinction de motif de clôture. */
     public static String phase(PhaseDemande p) {
         return phase(p, null);
     }
 
-    /**
-     * Libellé CRIF. Une phase FERME se lit « Fin à terme » ou « Fin Anticipée »
-     * selon le motif, comme dans le rapport CRIF page 3.
-     */
     public static String phase(PhaseDemande p, MotifCloture motif) {
         if (p == null) return "-";
         return switch (p) {
@@ -48,7 +42,6 @@ public final class LabelMapper {
         };
     }
 
-    /** Code court affiché dans la grille mensuelle, façon CRIF (« OK », « R », « IMP »). */
     public static String codeGrille(StatutEcheance s) {
         if (s == null) return "";
         return switch (s) {

@@ -9,7 +9,7 @@ import lombok.*;
 public class GrilleScore {
 
     @Id
-    private String intervalle; // A, B, C, D, E
+    private String intervalle;
 
     @Column(name = "score_min", nullable = false)
     private Integer scoreMin;

@@ -17,7 +17,7 @@ public class Utilisateur {
     private String nomUtilisateur;
 
     @Column(name = "mot_de_passe", nullable = false)
-    private String motDePasse; // haché BCrypt
+    private String motDePasse; 
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

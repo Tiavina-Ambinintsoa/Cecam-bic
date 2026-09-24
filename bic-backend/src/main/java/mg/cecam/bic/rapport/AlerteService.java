@@ -1,4 +1,3 @@
-// mg/cecam/bic/rapport/AlerteService.java  — MODIFIÉ
 package mg.cecam.bic.rapport;
 
 import lombok.RequiredArgsConstructor;
@@ -17,16 +16,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Deux corrections :
- *  - les échéances étaient lues DEUX FOIS par contrat (une passe pour les
- *    impayés, une pour les retards) ;
- *  - le statut persisté servait de critère, alors qu'il ne vieillit pas.
- *    On recalcule à la date du jour.
- *
- * Ajout : listerParClient(), pour que le rapport puisse enfin afficher ses
- * alertes — le champ existait dans la réponse mais recevait toujours List.of().
- */
 @Service
 @RequiredArgsConstructor
 public class AlerteService {

@@ -1,4 +1,3 @@
-// RoleClient.java
 package mg.cecam.bic.common.enums;
 
 public enum RoleClient {

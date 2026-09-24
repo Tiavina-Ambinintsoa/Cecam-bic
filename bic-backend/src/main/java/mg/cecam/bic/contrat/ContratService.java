@@ -1,4 +1,3 @@
-// mg/cecam/bic/contrat/ContratService.java  — MODIFIÉ
 package mg.cecam.bic.contrat;
 
 import lombok.RequiredArgsConstructor;
@@ -29,12 +28,6 @@ public class ContratService {
     private final EcheanceRepository echeanceRepository;
     private final AuditService auditService;
 
-    /**
-     * Le passage à ACTIF déclenche le déblocage : c'est là que se fixent la
-     * date de début de contrat et l'échéancier, et non à la saisie de la
-     * demande. La version initiale générait l'échéancier dès la création,
-     * y compris pour des demandes jamais accordées.
-     */
     @Transactional
     public Contrat changerPhase(Long contratId, PhaseDemande nouvellePhase, MotifCloture motif) {
         Contrat c = contratRepository.findById(contratId)
@@ -103,18 +96,6 @@ public class ContratService {
         return contratRepository.findAllByOrderByDateDemandeDesc();
     }
 
-    /**
-     * Trois corrections par rapport à la version initiale :
-     *
-     *  1. La périodicité est respectée. Avant, plusMonths(i) imposait le
-     *     mensuel même sur un contrat trimestriel.
-     *  2. Le reste de division tombe sur la DERNIÈRE échéance. Avant,
-     *     500 000 sur 6 à 83 333 donnait 499 998 : 2 Ar disparaissaient,
-     *     et le restant dû ne pouvait jamais atteindre le montant financé.
-     *  3. L'échéancier part de datePremiereEcheance (ou de la date de
-     *     déblocage), pas de la date de demande : un différé de
-     *     remboursement est désormais représentable.
-     */
     private void genererEcheances(Contrat contrat) {
         int nb = contrat.getNombreTotalEcheances();
         int pas = contrat.pasEnMois();
@@ -151,11 +132,6 @@ public class ContratService {
         echeanceRepository.saveAll(echeances);
     }
 
-    /**
-     * Séquence PostgreSQL au lieu de Math.random() sur une colonne unique.
-     * À créer une fois :
-     *   CREATE SEQUENCE IF NOT EXISTS seq_code_contrat_cb START WITH 700000001;
-     */
     private String genererCodeContratCb() {
         Long n = contratRepository.prochainCodeContratCb();
         return String.valueOf(n);

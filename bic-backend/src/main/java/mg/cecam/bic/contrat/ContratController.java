@@ -1,4 +1,3 @@
-// mg/cecam/bic/contrat/ContratController.java  — MODIFIÉ
 package mg.cecam.bic.contrat;
 
 import jakarta.validation.Valid;
@@ -32,7 +31,6 @@ public class ContratController {
         return ResponseEntity.ok(contrats);
     }
 
-    /** motif n'est lu que pour un passage en FERME ; null vaut FIN_A_TERME. */
     public record PhaseRequest(PhaseDemande phase, MotifCloture motif) {}
 
     @PatchMapping("/{id}/phase")

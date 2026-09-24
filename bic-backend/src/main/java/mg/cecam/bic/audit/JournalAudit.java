@@ -20,13 +20,13 @@ public class JournalAudit {
     private String utilisateur;
 
     @Column(nullable = false)
-    private String entite; // "CLIENT", "CONTRAT", "ECHEANCE"
+    private String entite; 
 
     @Column(name = "entite_id", nullable = false)
     private Long entiteId;
 
     @Column(nullable = false)
-    private String action; // "CREATION", "MODIFICATION", "AJOUT_ADRESSE", "CHANGEMENT_PHASE", "PAIEMENT"
+    private String action;
 
     @Column(length = 1000)
     private String detail;

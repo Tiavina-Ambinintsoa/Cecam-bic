@@ -1,4 +1,3 @@
-// LienClientDTO.java
 package mg.cecam.bic.rapport.dto;
 
 import java.time.LocalDateTime;

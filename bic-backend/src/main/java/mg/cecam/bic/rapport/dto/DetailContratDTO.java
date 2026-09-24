@@ -1,4 +1,3 @@
-// mg/cecam/bic/rapport/dto/DetailContratDTO.java  — MODIFIÉ
 package mg.cecam.bic.rapport.dto;
 
 import java.math.BigDecimal;
@@ -6,12 +5,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Bloc « Détail du Financement avec échéancier N » du rapport CRIF.
- * Les champs ajoutés sont ceux que CRIF affiche et que le modèle savait
- * déjà calculer ou stocker : dates de contrat, prochaine échéance, dernier
- * règlement, pires indicateurs de retard.
- */
 public record DetailContratDTO(
         String codeContratCb,
         String codeContratEtablissement,
@@ -32,6 +25,7 @@ public record DetailContratDTO(
         BigDecimal montantEcheanceMensuelle,
         int nombreTotalEcheances,
         String periodicitePaiement,
+        String modeReglement,
 
         BigDecimal montantProchaineEcheance,
         LocalDate dateProchaineEcheance,
@@ -45,6 +39,7 @@ public record DetailContratDTO(
         BigDecimal montantImpayes,
         BigDecimal maxMontantImpayes,
         int maxNombreEcheancesImpayees,
+        LocalDate dateMaxNombreEcheancesImpayees,
         int nombreJoursRetard,
         int maxNombreJoursRetard,
         LocalDate dateMaxNombreJoursRetard,
@@ -53,8 +48,12 @@ public record DetailContratDTO(
         LocalDate datePireStatut,
 
         String codeRestructuration,
+        LocalDate dateCodeRestructuration,
         String contratOrigine,
         String nouveauContrat,
+        String note,                    
 
+        BienLeasingDTO bienLeasing,       
+        List<LienClientDTO> clientsLies,   
         List<GarantieDTO> garanties
 ) {}

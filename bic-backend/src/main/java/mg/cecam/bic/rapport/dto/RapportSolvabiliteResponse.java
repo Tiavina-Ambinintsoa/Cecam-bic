@@ -1,4 +1,3 @@
-// mg/cecam/bic/rapport/dto/RapportSolvabiliteResponse.java  — MODIFIÉ
 package mg.cecam.bic.rapport.dto;
 
 import java.time.LocalDateTime;
@@ -17,12 +16,15 @@ public record RapportSolvabiliteResponse(
         DetailDemandeDTO detailDemande,
         EmploiDTO emploi,
         List<LienClientDTO> liens,
-        List<AlerteDTO> alertes,                       // AJOUT : AlerteService était ignoré
+        List<AlerteDTO> alertes,
         ScoreDTO score,
         List<GrilleScoreDTO> grille,
         SyntheseDTO synthese,
         List<SyntheseCategorieDTO> syntheseParCategorie,
-        List<EncoursCategorieDTO> encoursParCategorie,  // AJOUT : section CRIF manquante
-        List<CalendrierCreditDTO> calendriers,
+        List<EncoursCategorieDTO> encoursParCategorie,
+
+        List<LigneFinancementDTO> financementsNonDecaisses, 
+        List<LigneFinancementDTO> financementsDecaisses,    
+
         List<DetailContratDTO> detailContrats
 ) {}

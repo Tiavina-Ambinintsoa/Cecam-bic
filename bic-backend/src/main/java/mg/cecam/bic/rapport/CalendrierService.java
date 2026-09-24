@@ -1,4 +1,3 @@
-// mg/cecam/bic/rapport/CalendrierService.java  — RÉÉCRIT
 package mg.cecam.bic.rapport;
 
 import lombok.RequiredArgsConstructor;
@@ -7,7 +6,6 @@ import mg.cecam.bic.common.util.LabelMapper;
 import mg.cecam.bic.common.util.MontantFormatUtil;
 import mg.cecam.bic.contrat.Contrat;
 import mg.cecam.bic.contrat.Echeance;
-import mg.cecam.bic.rapport.dto.CalendrierCreditDTO;
 import mg.cecam.bic.rapport.dto.CelluleMoisDTO;
 import mg.cecam.bic.rapport.dto.EncoursCategorieDTO;
 import mg.cecam.bic.rapport.dto.LigneAnneeDTO;
@@ -16,26 +14,10 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
-/**
- * Deux grilles distinctes, là où la version initiale n'en produisait qu'une
- * qui mélangeait les deux :
- *
- *  - grilleStatut(...)      : une grille PAR CONTRAT, cellule = OK / R / IMP,
- *                             équivalent des bandeaux verts de CRIF page 3.
- *  - encoursParCategorie(...) : une grille PAR CATÉGORIE, cellule = encours
- *                             restant au mois considéré. C'est la section
- *                             « Situation Financière par Catégorie » de CRIF,
- *                             qui était totalement absente.
- *
- * Deux corrections de fond :
- *  - Collectors.toMap recevait des clés en doublon dès que deux échéances
- *    tombaient dans le même mois, ce qui levait IllegalStateException.
- *    Les échéances d'un même mois sont désormais agrégées.
- *  - Une échéance À VENIR était peinte en vert avec un montant vide : le mois
- *    apparaissait « validé » alors que rien n'était payé. Le futur reste neutre.
- */
 @Service
 @RequiredArgsConstructor
 public class CalendrierService {
@@ -43,75 +25,63 @@ public class CalendrierService {
     private static final String[] MOIS =
             {"JAN", "FÉV", "MARS", "AVR", "MAI", "JUIN", "JUILL", "AOÛT", "SEP", "OCT", "NOV", "DÉC"};
 
-    private static final String VERT        = "#C8E6C9";
-    private static final String ORANGE      = "#FFE0B2";
-    private static final String ROUGE       = "#FFCDD2";
-    private static final String NEUTRE      = "#F5F5F5";
-    private static final String TRANSPARENT = "transparent";
+    private static final String VERT   = "#C8E6C9";
+    private static final String ORANGE = "#FFE0B2";
+    private static final String ROUGE  = "#FFCDD2";
+    private static final String GRIS   = "#E8E8E4";   
 
-    // ------------------------------------------------------------------
-    // Grille de statut, par contrat
-    // ------------------------------------------------------------------
-    public CalendrierCreditDTO grilleStatut(Contrat contrat, List<Echeance> echeances, LocalDate reference) {
-        if (echeances.isEmpty()) {
-            return new CalendrierCreditDTO(contrat.getCodeContratCb(), contrat.getCodeContratEtablissement(),
-                    contrat.getTypeContrat(), null, contrat.getMontantFinance(), List.of());
-        }
-
-        // Une échéance par mois au pire des cas : on garde la PIRE du mois.
-        Map<YearMonth, StatutEcheance> parMois = new HashMap<>();
-        for (Echeance e : echeances) {
-            YearMonth ym = YearMonth.from(e.getDateEcheance());
-            StatutEcheance courant = e.statutEffectif(reference);
-            parMois.merge(ym, courant, CalendrierService::pire);
-        }
-
-        YearMonth debut = YearMonth.from(Collections.min(
-                echeances.stream().map(Echeance::getDateEcheance).toList()));
-        YearMonth fin = YearMonth.from(Collections.max(
-                echeances.stream().map(Echeance::getDateEcheance).toList()));
+    public List<LigneAnneeDTO> grilleStatut(Contrat contrat, List<Echeance> echeances, LocalDate reference) {
+        YearMonth debut = moisDebutDeclaration(contrat);
+        YearMonth fin = moisFinDeclaration(contrat, reference);
+        if (debut == null || fin == null || debut.isAfter(fin)) return List.of();
 
         List<LigneAnneeDTO> lignes = new ArrayList<>();
         for (int annee = debut.getYear(); annee <= fin.getYear(); annee++) {
             List<CelluleMoisDTO> cellules = new ArrayList<>(12);
             for (int m = 1; m <= 12; m++) {
                 YearMonth courant = YearMonth.of(annee, m);
-                StatutEcheance statut = parMois.get(courant);
-                if (statut == null) {
+                if (courant.isBefore(debut) || courant.isAfter(fin)) {
                     cellules.add(CelluleMoisDTO.vide(MOIS[m - 1]));
                     continue;
                 }
-                cellules.add(new CelluleMoisDTO(
-                        MOIS[m - 1], true, null, statut.name(),
+                StatutEcheance statut = statutAuMois(echeances, courant, reference);
+                cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, null, statut.name(),
                         LabelMapper.codeGrille(statut), couleur(statut)));
             }
             lignes.add(new LigneAnneeDTO(annee, cellules));
         }
-
-        return new CalendrierCreditDTO(contrat.getCodeContratCb(), contrat.getCodeContratEtablissement(),
-                contrat.getTypeContrat(), null, contrat.getMontantFinance(), lignes);
+        return lignes;
     }
 
-    // ------------------------------------------------------------------
-    // Grille d'encours, par catégorie
-    // ------------------------------------------------------------------
+    private StatutEcheance statutAuMois(List<Echeance> echeances, YearMonth mois, LocalDate reference) {
+        LocalDate finDeMois = mois.atEndOfMonth();
+        StatutEcheance pire = StatutEcheance.PAYE_A_TEMPS;
+        for (Echeance e : echeances) {
+            if (e.getDateEcheance().isAfter(finDeMois)) continue;
+            LocalDate dateObservation = finDeMois.isAfter(reference) ? reference : finDeMois;
+            StatutEcheance s = e.statutEffectif(dateObservation);
+            if (s == StatutEcheance.A_VENIR) continue;
+            if (rang(s) > rang(pire)) pire = s;
+        }
+        return pire;
+    }
 
-    /**
-     * Encours restant au dernier jour de chaque mois, tous contrats de la
-     * catégorie confondus. Un mois sans aucun contrat en vie reste vide.
-     */
     public EncoursCategorieDTO encours(String categorie, String codeEtablissement,
                                        List<Contrat> contrats,
-                                       Map<Long, List<Echeance>> echeancesParContrat) {
-        List<Echeance> toutes = contrats.stream()
-                .flatMap(c -> echeancesParContrat.getOrDefault(c.getId(), List.of()).stream())
-                .toList();
-        if (toutes.isEmpty()) {
+                                       Map<Long, List<Echeance>> echeancesParContrat,
+                                       LocalDate reference) {
+        YearMonth debut = null;
+        YearMonth fin = null;
+        for (Contrat c : contrats) {
+            YearMonth d = moisDebutDeclaration(c);
+            YearMonth f = moisFinDeclaration(c, reference);
+            if (d == null || f == null) continue;
+            if (debut == null || d.isBefore(debut)) debut = d;
+            if (fin == null || f.isAfter(fin)) fin = f;
+        }
+        if (debut == null || fin == null) {
             return new EncoursCategorieDTO(categorie, codeEtablissement, List.of());
         }
-
-        YearMonth debut = YearMonth.from(Collections.min(toutes.stream().map(Echeance::getDateEcheance).toList()));
-        YearMonth fin   = YearMonth.from(Collections.max(toutes.stream().map(Echeance::getDateEcheance).toList()));
 
         List<LigneAnneeDTO> lignes = new ArrayList<>();
         for (int annee = debut.getYear(); annee <= fin.getYear(); annee++) {
@@ -120,22 +90,28 @@ public class CalendrierService {
                 YearMonth courant = YearMonth.of(annee, m);
                 LocalDate finDeMois = courant.atEndOfMonth();
 
+                boolean declare = false;
                 BigDecimal encours = BigDecimal.ZERO;
+
                 for (Contrat c : contrats) {
-                    LocalDate debutContrat = c.getDateDebutContrat() != null
-                            ? c.getDateDebutContrat() : c.getDateDemande();
-                    if (debutContrat.isAfter(finDeMois)) continue;   // contrat pas encore né
+                    YearMonth d = moisDebutDeclaration(c);
+                    YearMonth f = moisFinDeclaration(c, reference);
+                    if (d == null || f == null) continue;
+                    if (courant.isBefore(d) || courant.isAfter(f)) continue;
+                    declare = true;
                     for (Echeance e : echeancesParContrat.getOrDefault(c.getId(), List.of())) {
-                        if (estSolde(e, finDeMois)) continue;        // déjà remboursée à cette date
+                        if (estSolde(e, finDeMois)) continue;
                         encours = encours.add(e.getMontantDu());
                     }
                 }
 
-                if (encours.signum() == 0) {
+                if (!declare) {
                     cellules.add(CelluleMoisDTO.vide(MOIS[m - 1]));
+                } else if (encours.signum() == 0) {
+                    cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, BigDecimal.ZERO, null, "", GRIS));
                 } else {
                     cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, encours, null,
-                            MontantFormatUtil.formatMontant(encours), NEUTRE));
+                            MontantFormatUtil.formatMontant(encours), GRIS));
                 }
             }
             lignes.add(new LigneAnneeDTO(annee, cellules));
@@ -143,13 +119,28 @@ public class CalendrierService {
         return new EncoursCategorieDTO(categorie, codeEtablissement, lignes);
     }
 
-    /** Une échéance est soldée à une date donnée si elle a été payée avant. */
-    private boolean estSolde(Echeance e, LocalDate date) {
-        return e.estPayee() && e.getDatePaiement() != null && !e.getDatePaiement().isAfter(date);
+    public YearMonth moisDebutDeclaration(Contrat c) {
+        LocalDate debut = c.getDateDebutContrat();
+        if (debut == null) return null;         
+        return YearMonth.from(debut);
     }
 
-    private static StatutEcheance pire(StatutEcheance a, StatutEcheance b) {
-        return rang(a) >= rang(b) ? a : b;
+    public YearMonth moisFinDeclaration(Contrat c, LocalDate reference) {
+        if (c.getDateDebutContrat() == null) return null;
+        LocalDate borne = reference;
+        if (c.getDateDerniereModification() != null) {
+            LocalDate derniere = c.getDateDerniereModification().toLocalDate();
+            if (derniere.isBefore(borne)) borne = derniere;
+        }
+        if (c.getDateFinContrat() != null && c.getDateFinContrat().isBefore(borne)) {
+            borne = c.getDateFinContrat();
+        }
+        if (borne.isBefore(c.getDateDebutContrat())) borne = c.getDateDebutContrat();
+        return YearMonth.from(borne);
+    }
+
+    private boolean estSolde(Echeance e, LocalDate date) {
+        return e.estPayee() && e.getDatePaiement() != null && !e.getDatePaiement().isAfter(date);
     }
 
     private static int rang(StatutEcheance s) {
@@ -166,7 +157,7 @@ public class CalendrierService {
             case PAYE_A_TEMPS -> VERT;
             case EN_RETARD -> ORANGE;
             case IMPAYE -> ROUGE;
-            case A_VENIR -> TRANSPARENT;   // le futur n'est pas un succès
+            case A_VENIR -> GRIS;
         };
     }
 }

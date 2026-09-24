@@ -1,4 +1,3 @@
-// Identifiant.java
 package mg.cecam.bic.client;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;

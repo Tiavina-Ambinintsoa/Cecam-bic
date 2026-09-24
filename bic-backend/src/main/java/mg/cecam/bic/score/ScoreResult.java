@@ -1,4 +1,3 @@
-// mg/cecam/bic/score/ScoreResult.java  — MODIFIÉ
 package mg.cecam.bic.score;
 
 public record ScoreResult(

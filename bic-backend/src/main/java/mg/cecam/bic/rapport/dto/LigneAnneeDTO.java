@@ -1,4 +1,3 @@
-// LigneAnneeDTO.java
 package mg.cecam.bic.rapport.dto;
 
 import java.util.List;

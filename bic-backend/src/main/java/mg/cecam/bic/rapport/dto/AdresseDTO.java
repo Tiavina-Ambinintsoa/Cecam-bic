@@ -1,4 +1,3 @@
-// AdresseDTO.java (remplace l'ancien)
 package mg.cecam.bic.rapport.dto;
 
 import java.time.LocalDateTime;

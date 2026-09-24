@@ -1,11 +1,5 @@
-// mg/cecam/bic/score/ScoreDetail.java  — MODIFIÉ
 package mg.cecam.bic.score;
 
-/**
- * Décomposition du score, désormais exposée dans le rapport.
- * Un score de solvabilité opposable doit être auditable : l'agent de crédit
- * comme le client doivent pouvoir voir d'où viennent les points.
- */
 public record ScoreDetail(
         double pointsPaiement,
         double pointsEndettement,
@@ -18,6 +12,7 @@ public record ScoreDetail(
         double plafondSecondaire,
         double secondaireRetenu,
         int echeancesEchues,
+        int moisObserves,
         double tauxQualitePaiement,
         Double tauxEndettement,
         Double tauxExposition

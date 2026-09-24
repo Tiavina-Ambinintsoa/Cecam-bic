@@ -1,4 +1,3 @@
-// mg/cecam/bic/contrat/dto/ContratRequest.java  — MODIFIÉ
 package mg.cecam.bic.contrat.dto;
 
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +14,7 @@ public record ContratRequest(
         @NotNull String typeContrat,
         String typeRelationEntreprise,
         String codeClientCbCible,
-        String codeContratEtablissement,   // AJOUT : référence interne CECAM
+        String codeContratEtablissement, 
         @NotNull RoleClient roleClient,
         @NotNull LocalDate dateDemande,
         @NotNull @Positive BigDecimal montantFinance,

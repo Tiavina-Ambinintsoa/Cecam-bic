@@ -1,4 +1,3 @@
-// DetailDemandeDTO.java
 package mg.cecam.bic.rapport.dto;
 
 import java.math.BigDecimal;

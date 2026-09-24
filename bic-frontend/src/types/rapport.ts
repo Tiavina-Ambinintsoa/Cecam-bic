@@ -1,14 +1,3 @@
-// bic-frontend/src/types/rapport.ts  — RESYNCHRONISÉ
-//
-// L'interface avait divergé du backend : contacts, emploi, liens, alertes,
-// syntheseParCategorie et detailContrats n'étaient pas déclarés, et
-// ClientInfo n'avait ni codeClientCb ni telephone. TypeScript ne voyait
-// donc pas la moitié de la réponse.
-//
-// À terme, générer ce fichier depuis la spec OpenAPI plutôt que de le
-// maintenir à la main :
-//   npx openapi-typescript http://localhost:8080/v3/api-docs -o src/types/api.ts
-
 export interface ClientInfo {
   codeClientCb: string;
   titre?: string;
@@ -115,7 +104,6 @@ export interface RepartitionLigne {
   ferme: number;
 }
 
-/** Les montants sont nullables : « - » quand le client n'a aucun contrat. */
 export interface Synthese {
   nombreTotalContrat: number;
   nombreEtablissementsDeclarants: number;
@@ -155,7 +143,6 @@ export interface LigneAnnee {
   mois: CelluleMois[];
 }
 
-/** Grille de statut mensuelle d'un contrat (OK / R / IMP). */
 export interface CalendrierCredit {
   codeContratCb: string;
   codeContratEtablissement?: string;
@@ -165,7 +152,6 @@ export interface CalendrierCredit {
   lignes: LigneAnnee[];
 }
 
-/** Grille d'encours mensuel par catégorie. */
 export interface EncoursCategorie {
   categorie: string;
   codeEtablissement?: string;
