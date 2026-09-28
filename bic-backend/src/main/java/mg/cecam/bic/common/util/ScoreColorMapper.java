@@ -1,4 +1,3 @@
-// common/util/ScoreColorMapper.java
 package mg.cecam.bic.common.util;
 
 public final class ScoreColorMapper {
@@ -6,11 +5,11 @@ public final class ScoreColorMapper {
 
     public static String toHex(String couleur) {
         return switch (couleur) {
-            case "Vert sombre" -> "#1B5E20";
-            case "Vert clair" -> "#66BB6A";
-            case "Jaune" -> "#F9A825";
-            case "Rouge verdâtre" -> "#B71C1C";
-            case "Rouge" -> "#D32F2F";
+            case "Chartreuse" -> "#99d26c";
+            case "Jaune moutarde" -> "#c7cd41";
+            case "Jaune Or" -> "#f7ca17";
+            case "Rouge verdâtre" -> "#e67213";
+            case "Rouge" -> "#d71d0e ";
             default -> "#94A3B8";
         };
     }

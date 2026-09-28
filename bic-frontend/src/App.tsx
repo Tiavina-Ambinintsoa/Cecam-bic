@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useParams, useLocation } from "react-router-dom";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { TopBar } from "@/components/layout/TopBar";
 import { AppBreadcrumb } from "@/components/layout/AppBreadcrumb";
 import { NouvelleDemandeTabs } from "@/components/layout/NouvelleDemandeTabs";
@@ -21,45 +22,65 @@ function RapportPageRoute() {
   return <RapportPage key={contratId} />;
 }
 
+const pageTransition = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
+};
+
 function AppShell() {
+  const location = useLocation();
   return (
     <div className="min-h-screen bg-slate-50">
       <TopBar />
       <AppBreadcrumb />
       <NouvelleDemandeTabs />
-      <Routes>
-        <Route path="/" element={<HomeMenu />} />
-        <Route path="/demande/nouvelle/individu" element={<ClientForm />} />
-        <Route path="/demande/nouvelle/contrat/:clientId" element={<ContratForm />} />
-        <Route path="/demande/rapport/:contratId" element={<RapportPageRoute />} />
-        <Route path="/recherche/individu" element={<RechercheIndividuPage />} />
-        <Route path="/demande/modifier" element={<MiseAJourDemandePage />} />
-        <Route path="/alertes" element={<AlertesPage />} />
-        <Route path="/rapports" element={<HistoriqueRapportsPage />} />
-        <Route path="/audit" element={<AuditPage />} />
-      </Routes>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={location.pathname}
+          variants={pageTransition}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={{ duration: 0.18, ease: "easeInOut" }}
+        >
+          <Routes location={location}>
+            <Route path="/" element={<HomeMenu />} />
+            <Route path="/demande/nouvelle/individu" element={<ClientForm />} />
+            <Route path="/demande/nouvelle/contrat/:clientId" element={<ContratForm />} />
+            <Route path="/demande/rapport/:contratId" element={<RapportPageRoute />} />
+            <Route path="/recherche/individu" element={<RechercheIndividuPage />} />
+            <Route path="/demande/modifier" element={<MiseAJourDemandePage />} />
+            <Route path="/alertes" element={<AlertesPage />} />
+            <Route path="/rapports" element={<HistoriqueRapportsPage />} />
+            <Route path="/audit" element={<AuditPage />} />
+          </Routes>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <DemandeEnCoursProvider>
-                  <AppShell />
-                </DemandeEnCoursProvider>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <MotionConfig reducedMotion="user">
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <DemandeEnCoursProvider>
+                    <AppShell />
+                  </DemandeEnCoursProvider>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </MotionConfig>
   );
 }
