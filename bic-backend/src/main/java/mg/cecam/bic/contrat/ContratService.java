@@ -4,10 +4,13 @@ import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.audit.AuditService;
 import mg.cecam.bic.client.Client;
 import mg.cecam.bic.client.ClientRepository;
+import mg.cecam.bic.common.enums.ModeRattachement;
 import mg.cecam.bic.common.enums.MotifCloture;
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.dto.ContratRequest;
+import mg.cecam.bic.contrat.dto.HistoriqueContratRequest;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,6 +90,77 @@ public class ContratService {
                 "Montant " + contrat.getMontantFinance());
         return contrat;
     }
+
+    @Transactional
+public Contrat saisirHistorique(HistoriqueContratRequest req) {
+    Client client = clientRepository.findById(req.clientId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));
+
+    Contrat contrat = Contrat.builder()
+            .client(client)
+            .codeContratCb(req.codeContratCb())
+            .codeContratEtablissement(req.codeContratEtablissement())
+            .typeContrat(req.typeContrat())
+            .roleClient(req.roleClient())
+            .modeRattachement(ModeRattachement.NOUVELLE_DEMANDE)
+            .phaseDemande(req.phaseDemande())
+            .dateDemande(req.dateDemande())
+            .dateDebutContrat(req.dateDebutContrat())
+            .dateFinContrat(req.dateFinContrat())
+            .montantFinance(req.montantFinance())
+            .montantTotalDu(req.montantTotalDu() != null ? req.montantTotalDu() : req.montantFinance())
+            .montantEcheanceMensuelle(req.montantEcheanceMensuelle())
+            .nombreTotalEcheances(req.nombreTotalEcheances())
+            .devise(req.devise())
+            .periodicitePaiement(req.periodicitePaiement())
+            .build();
+
+    Contrat sauvegarde = contratRepository.save(contrat);
+
+    List<Echeance> echeances = req.echeances().stream()
+            .map(e -> Echeance.builder()
+                    .contrat(sauvegarde)
+                    .numeroEcheance(e.numeroEcheance())
+                    .dateEcheance(e.dateEcheance())
+                    .montantDu(e.montantDu())
+                    .montantPaye(e.montantPaye())
+                    .datePaiement(e.datePaiement())
+                    .statut(StatutEcheance.valueOf(e.statut()))
+                    .build())
+            .toList();
+    echeanceRepository.saveAll(echeances);
+
+    auditService.enregistrer("CONTRAT", sauvegarde.getId(), "SAISIE_HISTORIQUE",
+            "Contrat historique saisi manuellement par admin : " + req.codeContratCb());
+
+    return sauvegarde;
+}
+
+@Transactional
+public void modifierHistorique(Long contratId, HistoriqueContratRequest req) {
+    Contrat contrat = contratRepository.findById(contratId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrat introuvable"));
+
+    contrat.setPhaseDemande(req.phaseDemande());
+    contrat.setDateDebutContrat(req.dateDebutContrat());
+    contrat.setDateFinContrat(req.dateFinContrat());
+    contrat.setMontantFinance(req.montantFinance());
+    contrat.setMontantTotalDu(req.montantTotalDu());
+    contrat.setMontantEcheanceMensuelle(req.montantEcheanceMensuelle());
+    contratRepository.save(contrat);
+
+    echeanceRepository.deleteAll(echeanceRepository.findByContrat_IdOrderByNumeroEcheance(contratId));
+    List<Echeance> echeances = req.echeances().stream()
+            .map(e -> Echeance.builder()
+                    .contrat(contrat).numeroEcheance(e.numeroEcheance()).dateEcheance(e.dateEcheance())
+                    .montantDu(e.montantDu()).montantPaye(e.montantPaye()).datePaiement(e.datePaiement())
+                    .statut(StatutEcheance.valueOf(e.statut()))
+                    .build())
+            .toList();
+    echeanceRepository.saveAll(echeances);
+
+    auditService.enregistrer("CONTRAT", contratId, "MODIFICATION_HISTORIQUE", "Historique modifié par admin");
+}
 
     public List<Contrat> listerParClient(Long clientId) {
         return contratRepository.findByClient_Id(clientId);

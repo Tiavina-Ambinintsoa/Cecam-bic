@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { clientSchema, type ClientFormValues } from "./clientSchema";
 import { clientApi } from "@/api/clientApi";
 import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
+import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note"
 
 const FIELD_H = "min-h-10 h-auto py-2";
 
@@ -24,6 +25,7 @@ export function ClientForm() {
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
+      titre: "M.",
       nationalite: "Malgache",
       categorieTiersCode: "0215",
       adresses: [{ typeAdresse: "Individu - Adresse principale", adresseComplete: "" }],
@@ -47,6 +49,7 @@ export function ClientForm() {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-4xl space-y-6 p-6">
+  <ChampsObligatoiresNote />
       <Card>
         <CardHeader><CardTitle>Détails client</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">

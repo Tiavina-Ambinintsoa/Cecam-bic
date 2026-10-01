@@ -1,25 +1,29 @@
 CREATE SEQUENCE IF NOT EXISTS seq_code_contrat_cb START WITH 700000001;
 CREATE SEQUENCE IF NOT EXISTS seq_code_client_cb  START WITH 190001;
 
-DELETE FROM echeance    WHERE contrat_id IN (9701,9702,9703,9704,9705,9801,9956);
-DELETE FROM garantie    WHERE contrat_id IN (9701,9702,9703,9704,9705,9801,9956);
-CREATE SEQUENCE IF NOT EXISTS seq_code_contrat_cb START WITH 700000001;
-CREATE SEQUENCE IF NOT EXISTS seq_code_client_cb  START WITH 190001;
+DELETE FROM echeance
+ WHERE contrat_id IN (SELECT id FROM contrat WHERE client_id IN (9007, 9008, 9956));
 
-DELETE FROM echeance     WHERE contrat_id IN (9701,9702,9703,9704,9705,9801,9956);
-DELETE FROM garantie     WHERE contrat_id IN (9701,9702,9703,9704,9705,9801,9956);
-DELETE FROM contrat_lien WHERE contrat_id IN (9701,9702,9703,9704,9705,9801,9956);
-DELETE FROM bien_leasing WHERE contrat_id IN (9701,9702,9703,9704,9705,9801,9956);
-DELETE FROM contrat      WHERE id         IN (9701,9702,9703,9704,9705,9801,9956);
-DELETE FROM identifiant  WHERE client_id  IN (9007,9008,9956);
-DELETE FROM adresse      WHERE client_id  IN (9007,9008,9956);
-DELETE FROM emploi       WHERE client_id  IN (9007,9008,9956);
-DELETE FROM client       WHERE id         IN (9007,9008,9956);
-DELETE FROM contrat     WHERE id         IN (9701,9702,9703,9704,9705,9801,9956);
-DELETE FROM identifiant WHERE client_id  IN (9007,9008,9956);
-DELETE FROM adresse     WHERE client_id  IN (9007,9008,9956);
-DELETE FROM emploi      WHERE client_id  IN (9007,9008,9956);
-DELETE FROM client      WHERE id         IN (9007,9008,9956);
+DELETE FROM garantie
+ WHERE contrat_id IN (SELECT id FROM contrat WHERE client_id IN (9007, 9008, 9956));
+
+DELETE FROM bien_leasing
+ WHERE contrat_id IN (SELECT id FROM contrat WHERE client_id IN (9007, 9008, 9956));
+
+DELETE FROM contrat_lien
+ WHERE contrat_id IN (SELECT id FROM contrat WHERE client_id IN (9007, 9008, 9956));
+
+DELETE FROM contrat
+ WHERE client_id IN (9007, 9008, 9956);
+
+DELETE FROM identifiant WHERE client_id IN (9007, 9008, 9956);
+DELETE FROM adresse     WHERE client_id IN (9007, 9008, 9956);
+DELETE FROM emploi      WHERE client_id IN (9007, 9008, 9956);
+DELETE FROM client      WHERE id         IN (9007, 9008, 9956);
+
+-- ============================================================================
+-- CLIENT 9007 — CHRISTIAN RADERA
+-- ============================================================================
 
 INSERT INTO client (id, code_client_cb, titre, categorie_tiers_code,
                     prenom, deuxieme_prenom, nom, date_naissance,
@@ -46,6 +50,8 @@ INSERT INTO emploi (id, client_id, statut_emploi, nom_employeur, profession,
                     date_embauche, revenu_annuel_total, devise)
 VALUES (9007, 9007, NULL, NULL, 'Planteur de riz', NULL, 7200000, 'Ariary malgache');
 
+-- --- 9701 — L00730033 — demande en cours, jamais décaissée -----------------
+
 INSERT INTO contrat (id, code_contrat_cb, code_etablissement_declarant, client_id,
                      mode_rattachement, type_contrat, role_client,
                      date_demande, montant_finance, montant_total_du,
@@ -55,6 +61,8 @@ VALUES (9701, 'L00730033', '001', 9007, 'NOUVELLE_DEMANDE',
         'Prêt Personnel', 'TITULAIRE', '2026-03-16',
         2500000, 2500000, NULL, 2,
         'Ariary malgache', NULL, 'DEMANDE_EN_COURS', '2026-03-16 00:00:00');
+
+-- --- 9702 — T00728181 — prêt personnel actif --------------------------------
 
 INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etablissement_declarant,
                      client_id, mode_rattachement, type_contrat, role_client,
@@ -83,6 +91,8 @@ INSERT INTO garantie (id, contrat_id, nature, type_garantie, code_etablissement_
 VALUES (9702, 9702, 'REELLE', 'Nantissement sur Outillage, Matériel, d''Equipement Professionnel',
         'NAM11327 (5)', 'CHRISTIAN RADERA', 'C00130366', 2600000, NULL, NULL);
 
+-- --- 9703 — 500562397 — préfinancement de collecte, soldé -------------------
+
 INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etablissement_declarant,
                      client_id, mode_rattachement, type_contrat, role_client,
                      date_demande, date_debut_contrat, date_premiere_echeance, date_fin_contrat,
@@ -108,6 +118,8 @@ INSERT INTO garantie (id, contrat_id, nature, type_garantie, code_etablissement_
                       date_debut_validite, date_fin_validite)
 VALUES (9703, 9703, 'REELLE', 'Nantissement sur Outillage, Matériel, d''Equipement Professionnel',
         'NAN4535 (60)', 'CHRISTIAN RADERA', 'C00130366', 1089000, NULL, NULL);
+
+-- --- 9704 — I00568335 — préfinancement de collecte, soldé -------------------
 
 INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etablissement_declarant,
                      client_id, mode_rattachement, type_contrat, role_client,
@@ -135,6 +147,8 @@ INSERT INTO garantie (id, contrat_id, nature, type_garantie, code_etablissement_
 VALUES (9704, 9704, 'REELLE', 'Nantissement sur Outillage, Matériel, d''Equipement Professionnel',
         'NAN4536 (55)', 'CHRISTIAN RADERA', 'C00130366', 264000, NULL, NULL);
 
+-- --- 9705 — 300767570 — la demande saisie du rapport CRIF -------------------
+
 INSERT INTO contrat (id, code_contrat_cb, code_etablissement_declarant, client_id,
                      mode_rattachement, type_contrat, role_client,
                      date_demande, montant_finance, montant_total_du,
@@ -144,6 +158,10 @@ VALUES (9705, '300767570', '001', 9007, 'DEMANDE_EXISTANTE',
         'Prêt Personnel', 'TITULAIRE', '2026-09-14',
         1500000, 1500000, NULL, 3,
         'Ariary malgache', NULL, 'DEMANDE_EN_COURS', '2026-09-14 00:00:00');
+
+-- ============================================================================
+-- CLIENT 9008 — JULIETTE RASOAMIARIMBOLANA
+-- ============================================================================
 
 INSERT INTO client (id, code_client_cb, titre, categorie_tiers_code,
                     prenom, deuxieme_prenom, nom, date_naissance,

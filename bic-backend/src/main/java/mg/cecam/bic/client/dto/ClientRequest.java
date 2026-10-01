@@ -21,6 +21,8 @@ public record ClientRequest(
         @NotNull Genre genre,
         @NotBlank String nationalite,
         String etatCivil,
+        String codeClientEtablissement,
+        String agence,
         String telephone,
         @Valid @NotNull List<AdresseRequest> adresses,
         @Valid @NotNull List<IdentifiantRequest> identifiants,

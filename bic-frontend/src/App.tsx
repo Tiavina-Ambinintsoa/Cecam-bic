@@ -16,6 +16,8 @@ import { LoginPage } from "@/pages/LoginPage";
 import { DemandeEnCoursProvider } from "@/context/DemandeEnCoursContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { ImportPage } from "@/pages/admin/ImportPage";
+import { ToastProvider } from "./components/ui/toast";
 
 function RapportPageRoute() {
   const { contratId } = useParams();
@@ -54,6 +56,7 @@ function AppShell() {
             <Route path="/alertes" element={<AlertesPage />} />
             <Route path="/rapports" element={<HistoriqueRapportsPage />} />
             <Route path="/audit" element={<AuditPage />} />
+            <Route path="/admin/import" element={<ImportPage />} />
           </Routes>
         </motion.div>
       </AnimatePresence>
@@ -64,6 +67,7 @@ function AppShell() {
 export default function App() {
   return (
     <MotionConfig reducedMotion="user">
+      <ToastProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
@@ -81,6 +85,7 @@ export default function App() {
           </Routes>
         </BrowserRouter>
       </AuthProvider>
+      </ToastProvider>
     </MotionConfig>
   );
 }

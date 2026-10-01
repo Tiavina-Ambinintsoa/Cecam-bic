@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,14 +12,16 @@ import { contratSchema, type ContratFormValues, type ContratFormInput } from "./
 import { contratApi } from "@/api/contratApi";
 import type { ModeRattachement, RoleClient } from "@/types/contrat";
 import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
+import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note";
+import { MontantInput } from "@/components/ui/montant-input";
 
 const today = new Date().toISOString().slice(0, 10);
 
 export function ContratForm() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
+  const { setContratId } = useDemandeEnCours();
   const [submitting, setSubmitting] = useState(false);
-
 
   const form = useForm<ContratFormInput, unknown, ContratFormValues>({
     resolver: zodResolver(contratSchema),
@@ -38,28 +40,17 @@ export function ContratForm() {
     setSubmitting(true);
     try {
       const contrat = await contratApi.creer({ ...values, clientId: Number(clientId) });
+      setContratId(contrat.id);
       navigate(`/demande/rapport/${contrat.id}`);
     } finally {
       setSubmitting(false);
     }
   }
 
-  const { setContratId } = useDemandeEnCours();
-
-  async function onSubmit(values: ContratFormValues) {
-  if (!clientId) return;
-  setSubmitting(true);
-  try {
-    const contrat = await contratApi.creer({ ...values, clientId: Number(clientId) });
-    setContratId(contrat.id);
-    navigate(`/demande/rapport/${contrat.id}`);
-  } finally {
-    setSubmitting(false);
-  }
-}
-
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-3xl space-y-6 p-6">
+      <ChampsObligatoiresNote />
+
       <Card>
         <CardHeader><CardTitle>Données sur la demande</CardTitle></CardHeader>
         <CardContent className="space-y-6">
@@ -131,7 +122,13 @@ export function ContratForm() {
 
             <div className="space-y-1.5">
               <Label>Montant Financé <span className="text-red-500">*</span></Label>
-              <Input type="number" step="0.01" {...form.register("montantFinance")} />
+              <Controller
+                control={form.control}
+                name="montantFinance"
+                render={({ field }) => (
+                  <MontantInput className="h-10" value={String(field.value ?? "")} onValueChange={(v) => field.onChange(Number(v))} />
+                )}
+              />
               {form.formState.errors.montantFinance && (
                 <p className="text-sm text-red-500">{form.formState.errors.montantFinance.message}</p>
               )}

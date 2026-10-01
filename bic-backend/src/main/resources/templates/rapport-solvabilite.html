@@ -301,6 +301,7 @@
   </tr>
 </table>
 
+<th:block th:if="${r.score.calculable}">
 <div class="sous-section">Synthèse Contrats par Catégorie</div>
 <div th:each="sc : ${r.syntheseParCategorie}" class="eviter-coupure" style="margin-bottom:8px">
   <div class="bloc-titre" th:text="${sc.categorie}">-</div>
@@ -578,6 +579,7 @@
     </div>
   </div>
 </div>
+</th:block>
 
 <div th:if="${!r.alertes.isEmpty()}" class="eviter-coupure">
   <div class="sous-section">Alertes</div>

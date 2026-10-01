@@ -128,3 +128,8 @@
     @apply font-sans;
     }
 }
+
+@layer base {
+  button, input, select { @apply text-base; }
+  h1, h2, h3 { @apply tracking-tight; }
+}

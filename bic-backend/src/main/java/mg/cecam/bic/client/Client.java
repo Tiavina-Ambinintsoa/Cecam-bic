@@ -60,6 +60,12 @@ public class Client {
     @Column(name = "etat_civil")
     private String etatCivil;
 
+    @Column(name = "code_client_etablissement")
+    private String codeClientEtablissement;
+
+    @Column(name = "agence")
+    private String agence;
+
     @Column(name = "telephone")
     private String telephone;
 

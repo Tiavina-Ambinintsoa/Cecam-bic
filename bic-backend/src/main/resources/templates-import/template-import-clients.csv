@@ -1,0 +1,2 @@
+cin,prenom,deuxieme_prenom,nom,titre,date_naissance,genre,nationalite,categorie_tiers_code,ville_naissance,pays_naissance,telephone,adresse_complete,code_contrat_cb,type_contrat,role_client,phase_demande,date_demande,date_debut_contrat,date_fin_contrat,montant_finance,montant_echeance_mensuelle,devise
+301021985001,Hanta,,Rakoto,Mme,1985-04-12,FEMME,Malgache,0215,Fianarantsoa,Madagascar,0341234567,"Lot II M 45 Tsianolondroa Fianarantsoa",600900001,Pret personnel,TITULAIRE,FERME,2024-01-15,2024-01-15,2025-01-15,1200000,100000,Ariary malgache

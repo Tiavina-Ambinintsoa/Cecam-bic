@@ -1,10 +1,10 @@
 INSERT INTO grille_score (intervalle, score_min, score_max, categorie_risque, couleur) VALUES
-('A', 580, 850, 'Risque très faible', 'Vert sombre'),
-('B', 500, 579, 'Risque faible', 'Vert clair'),
-('C', 460, 499, 'Risque moyen', 'Jaune'),
-('D', 400, 459, 'Risque élevé', 'Rouge verdâtre'),
-('E', 300, 399, 'Risque très élevé', 'Rouge')
-ON CONFLICT (intervalle) DO NOTHING;
+('A', 580, 850, 'Risque très faible', 'Pistache'),
+('B', 500, 579, 'Risque faible', 'Jaune moutarde'),
+('C', 460, 499, 'Risque moyen', 'Jaune Or'),
+('D', 400, 459, 'Risque élevé', 'Orange citrouille'),
+('E', 300, 399, 'Risque très élevé', 'Rouge Vif')
+ON CONFLICT (intervalle) DO UPDATE SET couleur = EXCLUDED.couleur;
 
 INSERT INTO categorie_tiers (code, libelle, code_parent) VALUES
 ('0004', 'Ménages', NULL),

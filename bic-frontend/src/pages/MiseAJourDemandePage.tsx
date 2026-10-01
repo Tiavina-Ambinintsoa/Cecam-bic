@@ -8,6 +8,7 @@ import { clientApi } from "@/api/clientApi";
 import { contratApi } from "@/api/contratApi";
 import type { ClientResponse } from "@/types/client";
 import type { ContratResponse } from "@/types/contrat";
+import { useToast } from "@/hooks/use-toast";
 
 const PHASES = [
   { value: "DEMANDE_EN_COURS", label: "Demande en cours" },
@@ -30,19 +31,21 @@ export function MiseAJourDemandePage() {
     if (found) setContrats(await contratApi.listerParClient(found.id));
   }
 
+  const { toast } = useToast();
+  
   async function appliquerPhase(contratId: number) {
     const phase = nouvellesPhases[contratId];
     if (!phase) return;
     await contratApi.changerPhase(contratId, phase);
     if (client) setContrats(await contratApi.listerParClient(client.id));
-    window.alert("Phase mise à jour.");
+    toast({ title: "Phase mise à jour." });
   }
 
   async function ajouterAdresse() {
     if (!client || !nouvelleAdresse.adresseComplete) return;
     await clientApi.ajouterAdresse(client.id, nouvelleAdresse);
     setNouvelleAdresse({ typeAdresse: "Individu - Adresse secondaire", adresseComplete: "" });
-    window.alert("Adresse ajoutée.");
+    toast({ title: "Adresse ajoutée." });
   }
 
   return (
