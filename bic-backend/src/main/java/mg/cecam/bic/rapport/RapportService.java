@@ -1,6 +1,8 @@
 package mg.cecam.bic.rapport;
 
 import lombok.RequiredArgsConstructor;
+import mg.cecam.bic.audit.AuditService;
+import mg.cecam.bic.audit.JournalAuditRepository;
 import mg.cecam.bic.client.Client;
 import mg.cecam.bic.client.Emploi;
 import mg.cecam.bic.client.EmploiRepository;
@@ -55,6 +57,8 @@ public class RapportService {
     private final CalendrierService calendrierService;
     private final AlerteService alerteService;
     private final GrilleScoreRepository grilleScoreRepository;
+    private final AuditService auditService;
+    private final JournalAuditRepository journalAuditRepository;
 
     @Transactional(readOnly = true)
     public RapportSolvabiliteResponse construire(Long contratId) {
@@ -63,6 +67,8 @@ public class RapportService {
                         "Contrat introuvable : " + contratId));
         Client client = contrat.getClient();
         LocalDate reference = LocalDate.now();
+
+        auditService.enregistrer("CLIENT", client.getId(), "CONSULTATION", "Consultation du rapport de solvabilité");
 
         List<Contrat> tous = contratRepository.findByClient_Id(client.getId());
         List<Contrat> historique = tous.stream()
@@ -85,15 +91,29 @@ public class RapportService {
                 .collect(Collectors.groupingBy(l -> l.getContrat().getId()));
 
         Emploi emploi = emploiRepository.findByClient_Id(client.getId()).orElse(null);
-        BigDecimal revenuAnnuel = emploi != null ? emploi.getRevenuAnnuelTotal() : null;
 
-        ScoreResult score = scoreService.calculer(
-                client, contrat, historique, echeances, revenuAnnuel, reference);
+        // [CORRIGÉ] "clientTrouve" n'existait nulle part : c'est le même booléen que celui déjà
+        // utilisé par statutClient(...) plus bas, je l'ai factorisé dans clientPreexistant(...)
+        // pour ne calculer la règle qu'à un seul endroit.
+        boolean clientTrouve = clientPreexistant(client, contrat, historique);
+        ScoreResult scoreResult = scoreService.calculer(client, contrat, clientTrouve);
+
+        // [RÉINTÉGRÉ] ce bloc était à la fin du fichier collé, EN DEHORS de toute méthode
+        // (après la fermeture de tiret()), et référençait client/journalAuditRepository qui
+        // n'existent pas à portée de classe. Il a tout l'air d'une variable locale de
+        // construire() oubliée en dehors : je l'ai remise ici, avec le DTO ConsultationDTO et
+        // le champ RapportSolvabiliteResponse.historiqueConsultations créés en complément.
+        List<ConsultationDTO> historiqueConsultations = journalAuditRepository
+                .findByEntiteAndEntiteIdOrderByDateEvenementDesc("CLIENT", client.getId()).stream()
+                .filter(a -> a.getAction().equals("CREATION") || a.getAction().equals("CONSULTATION"))
+                .map(a -> new ConsultationDTO("001", a.getDateEvenement().toLocalDate(),
+                        a.getAction().equals("CREATION") ? "Nouvelle Demande" : "Suivi Client"))
+                .toList();
 
         return new RapportSolvabiliteResponse(
                 UUID.randomUUID().toString(),
                 LocalDateTime.now(),
-                statutClient(client, contrat, historique),
+                statutClient(clientTrouve),
                 client.getCodeClientCb(),
                 toClientInfo(client),
                 contacts(client),
@@ -107,14 +127,16 @@ public class RapportService {
                         emploi.getRevenuAnnuelTotal(), emploi.getDevise()),
                 tousLesLiens(historique, liensParContrat, garanties, client),
                 alerteService.listerParClient(client.getId(), reference),
-                toScoreDto(score),
+                // [CORRIGÉ] c'était toScoreDto(score) alors que la variable s'appelle scoreResult
+                toScoreDto(scoreResult),
                 grille(),
                 synthese(historique, echeances, garanties, reference),
                 syntheseParCategorie(historique, echeances, reference),
                 encoursParCategorie(historique, echeances, reference),
                 financements(historique, echeances, liensParContrat, NON_DECAISSEES, false, reference),
                 financements(historique, echeances, liensParContrat, DECAISSEES, true, reference),
-                detailContrats(historique, echeances, garanties, leasings, liensParContrat, reference)
+                detailContrats(historique, echeances, garanties, leasings, liensParContrat, reference),
+                historiqueConsultations
         );
     }
 
@@ -484,11 +506,17 @@ public class RapportService {
         };
     }
 
-    private String statutClient(Client client, Contrat saisi, List<Contrat> historique) {
-        boolean preexistant = !historique.isEmpty()
+    // [AJOUTÉ] factorise la règle déjà présente avant (comparaison dateAdhesion/historique) pour
+    // qu'elle serve à la fois au libellé affiché (statutClient) et au message de score
+    // (ScoreService.calculer reçoit maintenant ce booléen).
+    private boolean clientPreexistant(Client client, Contrat saisi, List<Contrat> historique) {
+        return !historique.isEmpty()
                 || client.getDateAdhesion() == null
                 || client.getDateAdhesion().isBefore(saisi.getDateDemande());
-        return preexistant ? "Client Trouvé" : "Client Introuvable, Client Nouvellement Créé";
+    }
+
+    private String statutClient(boolean clientTrouve) {
+        return clientTrouve ? "Client Trouvé" : "Client Introuvable, Client Nouvellement Créé";
     }
 
     private ClientInfoDTO toClientInfo(Client c) {

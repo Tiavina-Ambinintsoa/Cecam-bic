@@ -1,3 +1,4 @@
+// mg/cecam/bic/rapport/AlerteService.java — fichier complet, à remplacer
 package mg.cecam.bic.rapport;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class AlerteService {
     private final ContratRepository contratRepository;
     private final EcheanceRepository echeanceRepository;
 
+    /** Alertes sur l'ensemble des clients — page "Alertes". */
     @Transactional(readOnly = true)
     public List<AlerteDTO> lister() {
         LocalDate reference = LocalDate.now();
@@ -33,6 +35,7 @@ public class AlerteService {
                 .toList();
     }
 
+    /** Alertes d'un seul client — affichées dans son rapport de solvabilité. */
     @Transactional(readOnly = true)
     public List<AlerteDTO> listerParClient(Long clientId, LocalDate reference) {
         return contratRepository.findByClient_Id(clientId).stream()
@@ -42,6 +45,7 @@ public class AlerteService {
                 .toList();
     }
 
+    /** null si le contrat n'a ni impayé ni retard : pas d'alerte à générer. */
     private AlerteDTO toAlerte(Contrat c, LocalDate reference) {
         List<Echeance> echeances = echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId());
         long impayees = 0;

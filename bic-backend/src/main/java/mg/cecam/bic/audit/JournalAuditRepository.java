@@ -1,3 +1,9 @@
 package mg.cecam.bic.audit;
+
 import org.springframework.data.jpa.repository.JpaRepository;
-public interface JournalAuditRepository extends JpaRepository<JournalAudit, Long> {}
+
+import java.util.List;
+
+public interface JournalAuditRepository extends JpaRepository<JournalAudit, Long> {
+    List<JournalAudit> findByEntiteAndEntiteIdOrderByDateEvenementDesc(String entite, Long entiteId);
+}

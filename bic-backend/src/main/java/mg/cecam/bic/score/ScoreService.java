@@ -2,11 +2,15 @@ package mg.cecam.bic.score;
 
 import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.client.Client;
+import mg.cecam.bic.client.Emploi;
+import mg.cecam.bic.client.EmploiRepository;
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.RoleClient;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.Contrat;
+import mg.cecam.bic.contrat.ContratRepository;
 import mg.cecam.bic.contrat.Echeance;
+import mg.cecam.bic.contrat.EcheanceRepository;
 import mg.cecam.bic.referentiel.GrilleScore;
 import mg.cecam.bic.referentiel.GrilleScoreRepository;
 import org.springframework.stereotype.Service;
@@ -23,18 +27,40 @@ import java.util.*;
 public class ScoreService {
 
     private final GrilleScoreRepository grilleScoreRepository;
+    private final ContratRepository contratRepository;
+    private final EcheanceRepository echeanceRepository;
+    private final EmploiRepository emploiRepository;
     private final ScoreProperties p;
 
-    public ScoreResult calculer(Client client,
-                                Contrat contratSaisi,
-                                List<Contrat> historique,
-                                Map<Long, List<Echeance>> echeancesParContrat,
-                                BigDecimal revenuAnnuel,
-                                LocalDate reference) {
+    public ScoreResult calculer(Client client, Contrat contratEnCours, boolean clientTrouve) {
+
+        LocalDate reference = LocalDate.now();
+
+        List<Contrat> historique = contratRepository.findByClient_Id(client.getId()).stream()
+                .filter(c -> !c.getId().equals(contratEnCours.getId()))
+                .toList();
 
         if (historique.isEmpty()) {
-            return ScoreResult.nonCalculable("Ce client a été nouvellement créé dans le système");
+            return ScoreResult.nonCalculable(
+                    clientTrouve ? "Le sujet n'a pas de contrats à évaluer" : "Ce client a été nouvellement créé dans le système"
+            );
         }
+
+        List<Contrat> decaisses = historique.stream()
+                .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF || c.getPhaseDemande() == PhaseDemande.FERME)
+                .toList();
+
+        if (decaisses.isEmpty()) {
+            return ScoreResult.nonCalculable("Le Client a seulement des contrats trop récents pour être évalué");
+        }
+
+        Map<Long, List<Echeance>> echeancesParContrat = new HashMap<>();
+        for (Contrat c : historique) {
+            echeancesParContrat.put(c.getId(), echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId()));
+        }
+
+        Emploi emploi = emploiRepository.findByClient_Id(client.getId()).orElse(null);
+        BigDecimal revenuAnnuel = emploi != null ? emploi.getRevenuAnnuelTotal() : null;
 
         List<Echeance> echues = historique.stream()
                 .flatMap(c -> echeancesParContrat.getOrDefault(c.getId(), List.of()).stream())
@@ -68,7 +94,7 @@ public class ScoreService {
                 ? revenuAnnuel.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP)
                 : null;
 
-        BigDecimal chargeMensuelle = chargeMensuelle(historique, contratSaisi);
+        BigDecimal chargeMensuelle = chargeMensuelle(historique, contratEnCours);
         BigDecimal exposition = expositionDejaPortee(historique, echeancesParContrat);
 
         Double tauxEndettement = null;
@@ -147,7 +173,7 @@ public class ScoreService {
     private int moisObserves(List<Contrat> historique, LocalDate reference) {
         Set<YearMonth> mois = new HashSet<>();
         for (Contrat c : historique) {
-            if (c.getDateDebutContrat() == null) continue;   
+            if (c.getDateDebutContrat() == null) continue;
             LocalDate fin = c.getDateFinContrat() != null && c.getDateFinContrat().isBefore(reference)
                     ? c.getDateFinContrat() : reference;
             YearMonth courant = YearMonth.from(c.getDateDebutContrat());
@@ -181,14 +207,14 @@ public class ScoreService {
                 : p.getQualiteRetardLong();
     }
 
-    private BigDecimal chargeMensuelle(List<Contrat> historique, Contrat contratSaisi) {
+    private BigDecimal chargeMensuelle(List<Contrat> historique, Contrat contratEnCours) {
         BigDecimal total = historique.stream()
                 .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF)
                 .filter(c -> c.getRoleClient() != RoleClient.GARANT)
                 .map(this::mensualite)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (contratSaisi != null) {
-            total = total.add(mensualite(contratSaisi));
+        if (contratEnCours != null) {
+            total = total.add(mensualite(contratEnCours));
         }
         return total;
     }

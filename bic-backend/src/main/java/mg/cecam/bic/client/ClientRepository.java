@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ClientRepository extends JpaRepository<Client, Long> {
 
@@ -11,4 +12,7 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
 
     @Query(value = "SELECT nextval('seq_code_client_cb')", nativeQuery = true)
     Long prochainCodeClientCb();
+
+    Optional<Client> findByCodeClientCb(String codeClientCb);
+    Optional<Client> findByCodeClientEtablissement(String codeClientEtablissement);
 }

@@ -6,12 +6,12 @@ import mg.cecam.bic.common.enums.MotifCloture;
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.contrat.dto.ContratRequest;
 import mg.cecam.bic.contrat.dto.HistoriqueContratRequest;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -20,10 +20,26 @@ import java.util.List;
 public class ContratController {
 
     private final ContratService contratService;
+    private final ContratRepository contratRepository;
 
     @PostMapping
     public ResponseEntity<Contrat> creer(@Valid @RequestBody ContratRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(contratService.creerDemande(request));
+    }
+
+    @GetMapping("/recherche")
+    public ResponseEntity<Contrat> rechercher(@RequestParam(required = false) String codeContratEtablissement) {
+        return contratRepository.findByCodeContratEtablissement(codeContratEtablissement)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    public record EcheanceMensuelleRequest(BigDecimal montantEcheanceMensuelle, String devise) {}
+
+    @PatchMapping("/{id}/echeance-mensuelle")
+    public ResponseEntity<Void> changerEcheanceMensuelle(@PathVariable Long id, @RequestBody EcheanceMensuelleRequest req) {
+        contratService.changerEcheanceMensuelle(id, req.montantEcheanceMensuelle(), req.devise());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping
@@ -35,17 +51,17 @@ public class ContratController {
     }
 
     @PostMapping("/historique")
-@PreAuthorize("hasRole('ADMIN')")
-public ResponseEntity<Contrat> saisirHistorique(@RequestBody HistoriqueContratRequest req) {
-    return ResponseEntity.status(HttpStatus.CREATED).body(contratService.saisirHistorique(req));
-}
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Contrat> saisirHistorique(@Valid @RequestBody HistoriqueContratRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(contratService.saisirHistorique(req));
+    }
 
-@PutMapping("/{id}/historique")
-@PreAuthorize("hasRole('ADMIN')")
-public ResponseEntity<Void> modifierHistorique(@PathVariable Long id, @RequestBody HistoriqueContratRequest req) {
-    contratService.modifierHistorique(id, req);
-    return ResponseEntity.noContent().build();
-}
+    @PutMapping("/{id}/historique")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> modifierHistorique(@PathVariable Long id, @Valid @RequestBody HistoriqueContratRequest req) {
+        contratService.modifierHistorique(id, req);
+        return ResponseEntity.noContent().build();
+    }
 
     public record PhaseRequest(PhaseDemande phase, MotifCloture motif) {}
 

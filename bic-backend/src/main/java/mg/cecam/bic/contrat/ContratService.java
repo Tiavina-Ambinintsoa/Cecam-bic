@@ -57,6 +57,15 @@ public class ContratService {
     }
 
     @Transactional
+public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise) {
+    Contrat c = contratRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    c.setMontantEcheanceMensuelle(montant);
+    c.setDevise(devise);
+    contratRepository.save(c);
+    auditService.enregistrer("CONTRAT", id, "MODIFICATION", "Échéance mensuelle modifiée : " + montant);
+}
+
+    @Transactional
     public Contrat creerDemande(ContratRequest request) {
         Client client = clientRepository.findById(request.clientId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,

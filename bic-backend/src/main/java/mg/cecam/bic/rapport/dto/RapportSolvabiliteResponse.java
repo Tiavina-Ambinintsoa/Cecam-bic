@@ -26,5 +26,7 @@ public record RapportSolvabiliteResponse(
         List<LigneFinancementDTO> financementsNonDecaisses, 
         List<LigneFinancementDTO> financementsDecaisses,    
 
-        List<DetailContratDTO> detailContrats
+        List<DetailContratDTO> detailContrats,
+
+        List<ConsultationDTO> historiqueConsultations
 ) {}

@@ -1,5 +1,9 @@
 package mg.cecam.bic.contrat.dto;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import mg.cecam.bic.common.enums.MotifCloture;
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.RoleClient;
 
@@ -8,25 +12,34 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record HistoriqueContratRequest(
-        Long clientId,
+        @NotNull Long clientId,
         String codeContratCb,
         String codeContratEtablissement,
-        String typeContrat,
-        RoleClient roleClient,
-        PhaseDemande phaseDemande,
-        LocalDate dateDemande,
+        String codeEtablissementDeclarant,
+        @NotNull String typeContrat,
+        String typeRelationEntreprise,
+        @NotNull RoleClient roleClient,
+        @NotNull LocalDate dateDemande,
         LocalDate dateDebutContrat,
         LocalDate dateFinContrat,
-        BigDecimal montantFinance,
-        BigDecimal montantTotalDu,
+        LocalDate datePremiereEcheance,
+        @NotNull @Positive BigDecimal montantFinance,
         BigDecimal montantEcheanceMensuelle,
-        Integer nombreTotalEcheances,
-        String devise,
+        @NotNull @Positive Integer nombreTotalEcheances,
+        @NotNull String devise,
         String periodicitePaiement,
-        List<EcheanceSaisie> echeances
+        @NotNull PhaseDemande phaseDemande,
+        MotifCloture motifCloture,
+        String codeRestructuration,
+        LocalDate dateCodeRestructuration,
+        String note,
+        @Valid List<EcheanceHistoriqueRequest> echeances
 ) {
-    public record EcheanceSaisie(
-            int numeroEcheance, LocalDate dateEcheance, BigDecimal montantDu,
-            BigDecimal montantPaye, LocalDate datePaiement, String statut
+    public record EcheanceHistoriqueRequest(
+            @NotNull Integer numeroEcheance,
+            @NotNull LocalDate dateEcheance,
+            @NotNull BigDecimal montantDu,
+            BigDecimal montantPaye,
+            LocalDate datePaiement
     ) {}
 }
