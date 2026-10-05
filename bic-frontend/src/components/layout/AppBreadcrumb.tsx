@@ -8,11 +8,12 @@ import { useAuth } from "@/context/AuthContext";
 
 function segmentsForPath(pathname: string): string[] {
   if (pathname.startsWith("/demande/nouvelle") || pathname.startsWith("/demande/rapport")) return ["Nouvelle demande", "Individu"];
-  if (pathname.startsWith("/recherche/individu")) return ["Recherche par individu"];
-  if (pathname.startsWith("/demande/modifier")) return ["Mise à jour demande"];
-  if (pathname.startsWith("/alertes")) return ["Alertes"];
+  if (pathname.startsWith("/recherche/individu")) return ["Suivi client", "Recherche par identifiant"];
+  if (pathname.startsWith("/demande/modifier")) return ["Mise à jour demande", "Saisie"];
+  if (pathname.startsWith("/alertes")) return ["Sommaire des alertes", "Sommaire des alertes"];
   if (pathname.startsWith("/rapports")) return ["Historique des rapports"];
   if (pathname.startsWith("/audit")) return ["Journal d'audit"];
+  if (pathname.startsWith("/admin/saisie-historique")) return ["Saisie d'historique"];
   return [];
 }
 
@@ -36,20 +37,26 @@ export function AppBreadcrumb() {
               <DropdownMenuItem disabled>Entreprise (à venir)</DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuItem onClick={() => navigate("/recherche/individu")}>Recherche par individu</DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Suivi client</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem onClick={() => navigate("/recherche/individu")}>Recherche par identifiant</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuItem onClick={() => navigate("/demande/modifier")}>Mise à jour demande</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate("/alertes")}>Alertes</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => navigate("/alertes")}>Sommaire des alertes</DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate("/rapports")}>Historique des rapports</DropdownMenuItem>
           {role === "ADMIN" && (
-            <DropdownMenuItem onClick={() => navigate("/audit")}>Journal d'audit</DropdownMenuItem>
+            <>
+              <DropdownMenuItem onClick={() => navigate("/admin/saisie-historique")}>Saisie d'historique (Admin)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/audit")}>Journal d'audit (Admin)</DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-
       {segments.map((seg, i) => (
         <span key={i} className="flex items-center gap-2 text-slate-500">
-          <ChevronRight className="size-3.5" />
-          {seg}
+          <ChevronRight className="size-3.5" />{seg}
         </span>
       ))}
     </div>

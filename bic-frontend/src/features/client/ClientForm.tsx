@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { clientSchema, type ClientFormValues } from "./clientSchema";
 import { clientApi } from "@/api/clientApi";
 import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
-import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note"
+import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note";
+import { DateInput } from "@/components/ui/date-input";
+import { MontantInput } from "@/components/ui/montant-input";
 
 const FIELD_H = "min-h-10 h-auto py-2";
 
@@ -49,7 +51,8 @@ export function ClientForm() {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-4xl space-y-6 p-6">
-  <ChampsObligatoiresNote />
+      <ChampsObligatoiresNote />
+
       <Card>
         <CardHeader><CardTitle>Détails client</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -66,7 +69,7 @@ export function ClientForm() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="categorieTiersCode">Catégorie Tiers <span className="text-red-500">*</span></Label>
+            <Label htmlFor="categorieTiersCode" className="font-semibold">Catégorie Tiers <span className="text-red-500">*</span></Label>
             <Select
               defaultValue="0215"
               onValueChange={(v) => {
@@ -126,15 +129,22 @@ export function ClientForm() {
             {form.formState.errors.categorieTiersCode && <p className="text-sm text-red-500">{form.formState.errors.categorieTiersCode.message}</p>}
           </div>
 
-          <div className="space-y-1.5"><Label>Prénom <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("prenom")} /></div>
+          <div className="space-y-1.5"><Label className="font-semibold">Prénom <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("prenom")} /></div>
           <div className="space-y-1.5"><Label>Deuxième Prénom</Label><Input className={FIELD_H} {...form.register("deuxiemePrenom")} /></div>
-          <div className="space-y-1.5"><Label>Nom <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("nom")} /></div>
-          <div className="space-y-1.5"><Label>Date de naissance <span className="text-red-500">*</span></Label><Input className={FIELD_H} type="date" {...form.register("dateNaissance")} /></div>
+          <div className="space-y-1.5"><Label className="font-semibold">Nom <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("nom")} /></div>
+
+          <div className="space-y-1.5">
+            <Label className="font-semibold">Date de naissance <span className="text-red-500">*</span></Label>
+            <Controller control={form.control} name="dateNaissance" render={({ field }) => (
+              <DateInput className={FIELD_H} value={field.value} onValueChange={field.onChange} />
+            )} />
+          </div>
+
           <div className="space-y-1.5"><Label>Ville de naissance</Label><Input className={FIELD_H} {...form.register("villeNaissance")} /></div>
           <div className="space-y-1.5"><Label>Pays de naissance</Label><Input className={FIELD_H} {...form.register("paysNaissance")} /></div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="genre">Genre <span className="text-red-500">*</span></Label>
+            <Label htmlFor="genre" className="font-semibold">Genre <span className="text-red-500">*</span></Label>
             <Select onValueChange={(v) => { form.setValue("genre", v as "FEMME" | "HOMME", { shouldValidate: true }); setGenreLabel(v === "FEMME" ? "Femme" : "Homme"); }}>
               <SelectTrigger id="genre" className={FIELD_H}><span>{genreLabel ?? "Sélectionner"}</span></SelectTrigger>
               <SelectContent>
@@ -145,9 +155,9 @@ export function ClientForm() {
             {form.formState.errors.genre && <p className="text-sm text-red-500">{form.formState.errors.genre.message}</p>}
           </div>
 
-          <div className="space-y-1.5"><Label>Nationalité <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("nationalite")} /></div>
+          <div className="space-y-1.5"><Label className="font-semibold">Nationalité <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("nationalite")} /></div>
           <div className="space-y-1.5"><Label>État civil</Label><Input className={FIELD_H} {...form.register("etatCivil")} /></div>
-          <div className="space-y-1.5"><Label>Téléphone</Label><Input className={FIELD_H} {...form.register("telephone")} placeholder="Ex : 0386843401" /></div>
+          {/* Téléphone retiré : c'est une information de la fiche client, pas de la demande */}
         </CardContent>
       </Card>
 
@@ -157,8 +167,18 @@ export function ClientForm() {
           <div className="space-y-1.5"><Label>Statut Emploi</Label><Input className={FIELD_H} {...form.register("emploi.statutEmploi")} /></div>
           <div className="space-y-1.5"><Label>Nom de l'Employeur</Label><Input className={FIELD_H} {...form.register("emploi.nomEmployeur")} /></div>
           <div className="space-y-1.5"><Label>Profession</Label><Input className={FIELD_H} {...form.register("emploi.profession")} /></div>
-          <div className="space-y-1.5"><Label>Date d'embauche</Label><Input className={FIELD_H} type="date" {...form.register("emploi.dateEmbauche")} /></div>
-          <div className="space-y-1.5"><Label>Total Revenu Annuel</Label><Input className={FIELD_H} type="number" {...form.register("emploi.revenuAnnuelTotal", { valueAsNumber: true })} /></div>
+          <div className="space-y-1.5">
+            <Label>Date d'embauche</Label>
+            <Controller control={form.control} name="emploi.dateEmbauche" render={({ field }) => (
+              <DateInput className={FIELD_H} value={field.value} onValueChange={field.onChange} />
+            )} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Total Revenu Annuel</Label>
+            <Controller control={form.control} name="emploi.revenuAnnuelTotal" render={({ field }) => (
+              <MontantInput className={FIELD_H} value={String(field.value ?? "")} onValueChange={(v) => field.onChange(v ? Number(v) : undefined)} />
+            )} />
+          </div>
           <div className="space-y-1.5">
             <Label>Devise</Label>
             <Select defaultValue="Ariary malgache" onValueChange={(v) => form.setValue("emploi.devise", v as string)}>
@@ -176,7 +196,7 @@ export function ClientForm() {
             <div key={field.id} className="space-y-3">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label>Type d'adresse <span className="text-red-500">*</span></Label>
+                  <Label className="font-semibold">Type d'adresse <span className="text-red-500">*</span></Label>
                   <Select defaultValue={field.typeAdresse} onValueChange={(v) => form.setValue(`adresses.${index}.typeAdresse`, v as string)}>
                     <SelectTrigger className={FIELD_H}><span>{field.typeAdresse}</span></SelectTrigger>
                     <SelectContent>
@@ -185,7 +205,7 @@ export function ClientForm() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5"><Label>Adresse complète <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register(`adresses.${index}.adresseComplete` as const)} /></div>
+                <div className="space-y-1.5"><Label className="font-semibold">Adresse complète <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register(`adresses.${index}.adresseComplete` as const)} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                 <div className="space-y-1.5"><Label>N° et nom de la rue</Label><Input className={FIELD_H} {...form.register(`adresses.${index}.numeroRue` as const)} /></div>
@@ -205,8 +225,8 @@ export function ClientForm() {
         <CardContent className="space-y-4">
           {identifiantsArray.fields.map((field, index) => (
             <div key={field.id} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-1.5"><Label>Type identifiant <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register(`identifiants.${index}.typeIdentifiant` as const)} /></div>
-              <div className="space-y-1.5"><Label>Numéro <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register(`identifiants.${index}.numero` as const)} /></div>
+              <div className="space-y-1.5"><Label className="font-semibold">Type identifiant <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register(`identifiants.${index}.typeIdentifiant` as const)} /></div>
+              <div className="space-y-1.5"><Label className="font-semibold">Numéro <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register(`identifiants.${index}.numero` as const)} /></div>
             </div>
           ))}
         </CardContent>
