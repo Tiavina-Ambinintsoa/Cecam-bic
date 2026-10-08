@@ -7,6 +7,11 @@ DELETE FROM echeance
 DELETE FROM garantie
  WHERE contrat_id IN (SELECT id FROM contrat WHERE client_id IN (9007, 9008, 9956));
 
+ DELETE FROM historique_paiement_mensuel
+ WHERE contrat_id IN (SELECT id FROM contrat WHERE client_id IN (9007, 9008, 9956));
+
+DELETE FROM contrat_lien WHERE client_lie_id IN (9007, 9008, 9956);
+
 DELETE FROM bien_leasing
  WHERE contrat_id IN (SELECT id FROM contrat WHERE client_id IN (9007, 9008, 9956));
 

@@ -7,9 +7,18 @@ export interface ClientEnregistrementResponse {
 }
 
 export const clientApi = {
+    rechercherParCodeCb: async (codeClientCb: string): Promise<ClientResponse | null> => {
+    try {
+      const { data } = await axiosClient.get<ClientResponse>("/clients/recherche", { params: { codeClientCb } });
+      return data;
+    } catch {
+      return null;
+    }
+  },
   creer: async (payload: ClientRequest): Promise<ClientEnregistrementResponse> => {
     const { data } = await axiosClient.post<ClientEnregistrementResponse>("/clients", payload);
     return data;
+  
   },
 
   mettreAJour: async (id: number, payload: ClientRequest) => {

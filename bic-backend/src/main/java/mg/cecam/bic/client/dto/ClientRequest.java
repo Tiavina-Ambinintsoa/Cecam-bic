@@ -26,7 +26,8 @@ public record ClientRequest(
         String telephone,
         @Valid @NotNull List<AdresseRequest> adresses,
         @Valid @NotNull List<IdentifiantRequest> identifiants,
-        EmploiRequest emploi
+        EmploiRequest emploi,
+        AffaireRequest affaireIndividuelle
 ) {
     public record AdresseRequest(
             @NotBlank String typeAdresse, @NotBlank String adresseComplete,
@@ -38,5 +39,11 @@ public record ClientRequest(
     public record EmploiRequest(
             String statutEmploi, String nomEmployeur, String profession,
             LocalDate dateEmbauche, BigDecimal revenuAnnuelTotal, String devise
+    ) {}
+
+    /** Facultative : ignorée si le nom de l'affaire est vide. */
+    public record AffaireRequest(
+            String nomAffaire, String adresseComplete, String numeroRue, String codePostal,
+            String ville, String commune, String region, String pays
     ) {}
 }

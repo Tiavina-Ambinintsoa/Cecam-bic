@@ -22,7 +22,7 @@ spring:
   thymeleaf:
     cache: false
 
-spring.sql.init.data-locations: classpath:data.sql, classpath:data-crif.sql
+spring.sql.init.data-locations: classpath:data.sql, classpath:data-crif.sql, classpath:data-clients-crif.sql
 
 app:
   jwt:

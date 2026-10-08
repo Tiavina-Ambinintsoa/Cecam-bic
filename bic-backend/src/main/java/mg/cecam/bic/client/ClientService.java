@@ -1,3 +1,4 @@
+// ClientService.java (remplace)
 package mg.cecam.bic.client;
 
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ public class ClientService {
 
     private final ClientRepository clientRepository;
     private final EmploiRepository emploiRepository;
+    private final AffaireIndividuelleRepository affaireRepository;
     private final AuditService auditService;
 
     @Transactional
@@ -45,6 +47,8 @@ public class ClientService {
     private Client creerClient(ClientRequest request) {
         Client client = Client.builder()
                 .codeClientCb(genererCodeClientCb())
+                .codeClientEtablissement(vide(request.codeClientEtablissement()))
+                .agence(vide(request.agence()))
                 .titre(request.titre())
                 .categorieTiersCode(request.categorieTiersCode())
                 .prenom(request.prenom())
@@ -88,6 +92,7 @@ public class ClientService {
             emploiRepository.save(emploi);
         }
 
+        enregistrerAffaire(sauvegarde, request.affaireIndividuelle());
         return sauvegarde;
     }
 
@@ -117,7 +122,10 @@ public class ClientService {
         client.setNationalite(request.nationalite());
         client.setEtatCivil(request.etatCivil());
         client.setTelephone(request.telephone());
+        if (vide(request.codeClientEtablissement()) != null) client.setCodeClientEtablissement(request.codeClientEtablissement().trim());
+        if (vide(request.agence()) != null) client.setAgence(request.agence().trim());
         Client sauvegarde = clientRepository.save(client);
+        enregistrerAffaire(sauvegarde, request.affaireIndividuelle());
         auditService.enregistrer("CLIENT", id, "MODIFICATION", "Informations personnelles modifiées");
         return sauvegarde;
     }
@@ -126,25 +134,45 @@ public class ClientService {
     public Adresse ajouterAdresse(Long clientId, ClientRequest.AdresseRequest req) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));
- 
+
         client.getAdresses().stream()
                 .filter(a -> a.getTypeAdresse() != null
                           && a.getTypeAdresse().equalsIgnoreCase(req.typeAdresse()))
                 .filter(a -> Boolean.TRUE.equals(a.getActuelle()))
                 .forEach(a -> a.setActuelle(false));
- 
+
         Adresse adresse = Adresse.builder()
                 .client(client).typeAdresse(req.typeAdresse()).adresseComplete(req.adresseComplete())
                 .numeroRue(req.numeroRue()).codePostal(req.codePostal()).ville(req.ville())
                 .commune(req.commune()).region(req.region()).pays(req.pays())
                 .actuelle(true)
                 .build();
- 
+
         client.getAdresses().add(adresse);
         clientRepository.save(client);
         auditService.enregistrer("CLIENT", clientId, "AJOUT_ADRESSE",
                 adresse.getTypeAdresse() + " : " + adresse.getAdresseComplete());
         return adresse;
+    }
+
+    /** Crée ou met à jour l'affaire individuelle du client ; sans nom d'affaire, rien n'est fait. */
+    private void enregistrerAffaire(Client client, ClientRequest.AffaireRequest req) {
+        if (req == null || vide(req.nomAffaire()) == null) return;
+        AffaireIndividuelle affaire = affaireRepository.findByClient_Id(client.getId())
+                .orElseGet(() -> AffaireIndividuelle.builder().client(client).build());
+        affaire.setNomAffaire(req.nomAffaire().trim());
+        affaire.setAdresseComplete(vide(req.adresseComplete()));
+        affaire.setNumeroRue(vide(req.numeroRue()));
+        affaire.setCodePostal(vide(req.codePostal()));
+        affaire.setVille(vide(req.ville()));
+        affaire.setCommune(vide(req.commune()));
+        affaire.setRegion(vide(req.region()));
+        affaire.setPays(vide(req.pays()));
+        affaireRepository.save(affaire);
+    }
+
+    private String vide(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 
     private String genererCodeClientCb() {

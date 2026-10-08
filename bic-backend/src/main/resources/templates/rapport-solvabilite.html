@@ -162,8 +162,9 @@
   </tr>
 </table>
 
+<th:block th:if="${r.emploi != null}">
 <div class="sous-section">Emploi</div>
-<table class="grille" th:if="${r.emploi != null}">
+<table class="grille">
   <tr>
     <td><div class="lib">Statut Emploi</div><div class="val" th:text="${r.emploi.statutEmploi} ?: '-'">-</div></td>
     <td><div class="lib">Nom de l'Employeur</div><div class="val" th:text="${r.emploi.nomEmployeur} ?: '-'">-</div></td>
@@ -178,7 +179,36 @@
     <td colspan="2"></td>
   </tr>
 </table>
-<div th:unless="${r.emploi != null}" class="lib">Aucune information d'emploi déclarée.</div>
+</th:block>
+
+<th:block th:if="${r.affaireIndividuelle != null}">
+<div class="section">AFFAIRE INDIVIDUELLE</div>
+<div class="sous-section" th:text="${r.affaireIndividuelle.nomAffaire}">-</div>
+<table class="grille">
+  <tr>
+    <td><div class="lib">Nom de l'Affaire Individuelle</div><div class="val" th:text="${r.affaireIndividuelle.nomAffaire}">-</div></td>
+    <td><div class="lib">Date Dernière Modification</div>
+        <div class="val" th:text="${r.affaireIndividuelle.dateDerniereModification != null ? #temporals.format(r.affaireIndividuelle.dateDerniereModification,'dd/MM/yyyy') : '-'}">-</div></td>
+    <td colspan="2"></td>
+  </tr>
+</table>
+<div class="sous-section">Adresses</div>
+<div class="bloc-titre" th:text="'Actuelle - ' + ${r.affaireIndividuelle.adresse.typeAdresse}">-</div>
+<table class="grille">
+  <tr>
+    <td><div class="lib">Adresse Complète</div><div class="val" th:text="${r.affaireIndividuelle.adresse.adresseComplete}">-</div></td>
+    <td><div class="lib">N° et Nom de la Rue</div><div class="val" th:text="${r.affaireIndividuelle.adresse.numeroRue}">-</div></td>
+    <td><div class="lib">Code Postal</div><div class="val" th:text="${r.affaireIndividuelle.adresse.codePostal}">-</div></td>
+    <td><div class="lib">Ville</div><div class="val" th:text="${r.affaireIndividuelle.adresse.ville}">-</div></td>
+  </tr>
+  <tr>
+    <td><div class="lib">Commune</div><div class="val" th:text="${r.affaireIndividuelle.adresse.commune}">-</div></td>
+    <td><div class="lib">Région</div><div class="val" th:text="${r.affaireIndividuelle.adresse.region}">-</div></td>
+    <td><div class="lib">Pays</div><div class="val" th:text="${r.affaireIndividuelle.adresse.pays}">-</div></td>
+    <td></td>
+  </tr>
+</table>
+</th:block>
 
 <div class="section">DÉTAILS DE LA DEMANDE SAISIE</div>
 <table class="grille">
@@ -237,38 +267,6 @@
   </tr>
 </table>
 
-<div th:if="${r.score.calculable and r.score.detail != null}" class="eviter-coupure">
-  <div class="sous-section">Décomposition du score</div>
-  <table class="liste">
-    <tr><th>Axe</th><th style="text-align:right">Points</th><th>Base de calcul</th></tr>
-    <tr><td>Comportement de paiement</td><td class="num" th:text="${r.score.detail.pointsPaiement}">0</td>
-        <td th:text="${r.score.detail.moisObserves} + ' mois de relation observés, '
-                   + ${r.score.detail.echeancesEchues} + ' échéance(s) échue(s), qualité '
-                   + ${#numbers.formatPercent(r.score.detail.tauxQualitePaiement, 1, 0)}">-</td></tr>
-    <tr><td>Taux d'endettement</td><td class="num" th:text="${r.score.detail.pointsEndettement}">0</td>
-        <td th:text="${r.score.detail.tauxEndettement != null}
-                   ? 'charge mensuelle / revenu mensuel = ' + ${r.score.detail.tauxEndettement}
-                   : 'revenu non déclaré — axe neutralisé'">-</td></tr>
-    <tr><td>Exposition déjà portée</td><td class="num" th:text="${r.score.detail.pointsExposition}">0</td>
-        <td th:text="${r.score.detail.tauxExposition != null}
-                   ? 'engagements en cours / revenu annuel = ' + ${r.score.detail.tauxExposition}
-                   : 'revenu non déclaré — axe neutralisé'">-</td></tr>
-    <tr><td>Ancienneté de la relation</td><td class="num" th:text="${r.score.detail.pointsAnciennete}">0</td><td></td></tr>
-    <tr><td>Nouveaux crédits</td><td class="num" th:text="${r.score.detail.pointsNouveauxCredits}">0</td><td></td></tr>
-    <tr><td>Mixité des produits</td><td class="num" th:text="${r.score.detail.pointsMixite}">0</td><td></td></tr>
-    <tr th:if="${r.score.detail.plafondApplique()}">
-      <td>Plafonnement des axes secondaires</td>
-      <td class="num" th:text="'-' + ${#numbers.formatDecimal(r.score.detail.secondaireBrut - r.score.detail.secondaireRetenu,1,2)}">0</td>
-      <td th:text="'brut ' + ${r.score.detail.secondaireBrut} + ' plafonné à ' + ${r.score.detail.plafondSecondaire}">-</td></tr>
-    <tr th:if="${r.score.detail.malusSurendettement > 0}">
-      <td><strong>Malus de surendettement</strong></td>
-      <td class="num" style="color:#b4532a" th:text="'-' + ${r.score.detail.malusSurendettement}">0</td>
-      <td>charge mensuelle au-delà du seuil d'alerte</td></tr>
-    <tr><td><strong>Total</strong></td><td class="num"><strong th:text="${r.score.valeur}">-</strong></td>
-        <td>base 300 + points retenus</td></tr>
-  </table>
-</div>
-
 <div class="section">SYNTHÈSE RAPPORT DE SOLVABILITÉ</div>
 <div class="sous-section">Chiffres Clés</div>
 <table class="grille">
@@ -301,7 +299,8 @@
   </tr>
 </table>
 
-<th:block th:if="${r.score.calculable}">
+<!-- Tout ce qui suit n'existe que si le client a au moins un contrat dans son historique -->
+<th:block th:if="${r.synthese.nombreTotalContrat > 0}">
 <div class="sous-section">Synthèse Contrats par Catégorie</div>
 <div th:each="sc : ${r.syntheseParCategorie}" class="eviter-coupure" style="margin-bottom:8px">
   <div class="bloc-titre" th:text="${sc.categorie}">-</div>
@@ -320,10 +319,11 @@
   </table>
 </div>
 
-<div th:if="${!r.encoursParCategorie.isEmpty()}" class="eviter-coupure">
+<div th:if="${!r.encoursParCategorie.isEmpty()}">
   <div class="sous-section">Situation Financière par Catégorie</div>
   <div th:each="enc : ${r.encoursParCategorie}" style="margin-bottom:10px">
     <div class="bloc-titre" th:text="${enc.categorie}">-</div>
+
     <div class="lib">Montant Encours</div>
     <table class="calendrier">
       <tr><th th:text="${enc.codeEtablissement} ?: '001'">001</th>
@@ -336,6 +336,21 @@
             th:text="${c.libelle}"></td>
       </tr>
     </table>
+
+    <div th:if="${!enc.impayes.isEmpty()}" style="margin-top:6px">
+      <div class="lib">Montant Impayés</div>
+      <table class="calendrier">
+        <tr><th th:text="${enc.codeEtablissement} ?: '001'">001</th>
+            <th>JAN</th><th>FÉV</th><th>MARS</th><th>AVR</th><th>MAI</th><th>JUIN</th>
+            <th>JUILL</th><th>AOÛT</th><th>SEP</th><th>OCT</th><th>NOV</th><th>DÉC</th></tr>
+        <tr th:each="ligne : ${enc.impayes}">
+          <td th:text="${ligne.annee}">-</td>
+          <td th:each="c : ${ligne.mois}"
+              th:style="${c.dansPeriode} ? 'background-color:' + ${c.couleurHex} : ''"
+              th:text="${c.libelle}"></td>
+        </tr>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -368,8 +383,8 @@
       <td th:text="${f.dateDerniereModification != null ? #temporals.format(f.dateDerniereModification,'dd/MM/yyyy') : '-'}">-</td>
       <td>
         <span th:if="${f.clientsLies.isEmpty()}">-</span>
-        <span th:each="l : ${f.clientsLies}"
-              th:text="${l.codeClientCb} + ' ' + ${l.typeRelation} + ' ' + (${l.nom} ?: '')">-</span>
+        <div th:each="l : ${f.clientsLies}"
+             th:text="${l.codeClientCb} + ' ' + ${l.typeRelation} + ' ' + (${l.nom} ?: '')">-</div>
       </td>
     </tr>
   </table>
@@ -396,8 +411,8 @@
         <td th:text="${f.codeEtablissementDeclarant}">-</td>
         <td>
           <span th:if="${f.clientsLies.isEmpty()}">-</span>
-          <span th:each="l : ${f.clientsLies}"
-                th:text="${l.codeClientCb} + ' ' + ${l.typeRelation} + ' ' + (${l.nom} ?: '')">-</span>
+          <div th:each="l : ${f.clientsLies}"
+               th:text="${l.codeClientCb} + ' ' + ${l.typeRelation} + ' ' + (${l.nom} ?: '')">-</div>
         </td>
         <td th:text="${f.note}">-</td>
       </tr>
@@ -454,7 +469,7 @@
     <tr th:each="h : ${d.historiquePaiement}">
       <td th:text="${h.annee}">-</td><td th:text="${h.mois}">-</td>
       <td th:text="${h.nombreEcheancesImpayees}">0</td>
-      <td th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatJoursRetard(h.joursDeRetard)}">-</td>
+      <td th:text="${h.retard}">-</td>
       <td th:text="${h.statut}">-</td>
     </tr>
   </table>
@@ -519,9 +534,9 @@
       <td><div class="lib">Date Max Nombre Echéances Impayées</div>
           <div class="val" th:text="${d.dateMaxNombreEcheancesImpayees != null ? #temporals.format(d.dateMaxNombreEcheancesImpayees,'dd/MM/yyyy') : '-'}">-</div></td>
       <td><div class="lib">Max Nombre de jours de retard</div>
-          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatJoursRetard(d.maxNombreJoursRetard)}">-</div></td>
+          <div class="val" th:text="${T(mg.cecam.bic.common.enums.TrancheRetard).libelleDepuisJours(d.maxNombreJoursRetard)}">-</div></td>
       <td><div class="lib">Nombre Jours de retard</div>
-          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatJoursRetard(d.nombreJoursRetard)}">-</div></td>
+          <div class="val" th:text="${T(mg.cecam.bic.common.enums.TrancheRetard).libelleDepuisJours(d.nombreJoursRetard)}">-</div></td>
       <td><div class="lib">Date Max Nombre de jours de retard</div>
           <div class="val" th:text="${d.dateMaxNombreJoursRetard != null ? #temporals.format(d.dateMaxNombreJoursRetard,'dd/MM/yyyy') : '-'}">-</div></td>
     </tr>
@@ -578,6 +593,18 @@
       </table>
     </div>
   </div>
+</div>
+
+<div th:if="${!r.historiqueConsultations.isEmpty()}" class="eviter-coupure" style="margin-top:16px">
+  <div class="sous-section">Historique des Consultations</div>
+  <table class="liste">
+    <tr><th>Code Etablissement Crypté</th><th>Date de la Demande</th><th>Type de Consultation</th></tr>
+    <tr th:each="h : ${r.historiqueConsultations}">
+      <td th:text="${h.codeEtablissement}">-</td>
+      <td th:text="${#temporals.format(h.date,'dd/MM/yyyy')}">-</td>
+      <td th:text="${h.type}">-</td>
+    </tr>
+  </table>
 </div>
 </th:block>
 

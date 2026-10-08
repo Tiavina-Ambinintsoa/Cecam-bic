@@ -1,3 +1,4 @@
+// bic-backend/src/main/java/mg/cecam/bic/contrat/ContratService.java (remplace)
 package mg.cecam.bic.contrat;
 
 import lombok.RequiredArgsConstructor;
@@ -6,11 +7,14 @@ import mg.cecam.bic.client.Client;
 import mg.cecam.bic.client.ClientRepository;
 import mg.cecam.bic.common.enums.ModeRattachement;
 import mg.cecam.bic.common.enums.MotifCloture;
+import mg.cecam.bic.common.enums.NatureGarantie;
 import mg.cecam.bic.common.enums.PhaseDemande;
+import mg.cecam.bic.common.enums.RoleClient;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.dto.ContratRequest;
 import mg.cecam.bic.contrat.dto.HistoriqueContratRequest;
-
+import mg.cecam.bic.contrat.dto.HistoriqueContratRequest.EcheanceHistoriqueRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +24,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +36,8 @@ public class ContratService {
     private final ContratRepository contratRepository;
     private final ClientRepository clientRepository;
     private final EcheanceRepository echeanceRepository;
+    private final GarantieRepository garantieRepository;
+    private final ContratLienRepository contratLienRepository;
     private final AuditService auditService;
 
     @Transactional
@@ -48,22 +57,25 @@ public class ContratService {
         if (nouvellePhase == PhaseDemande.FERME) {
             c.setMotifCloture(motif != null ? motif : MotifCloture.FIN_A_TERME);
             if (c.getDateFinContrat() == null) c.setDateFinContrat(LocalDate.now());
+        } else if (motif != null
+                && (nouvellePhase == PhaseDemande.ABANDONNE || nouvellePhase == PhaseDemande.REFUSE)) {
+            c.setMotifCloture(motif);
         }
 
         Contrat enregistre = contratRepository.save(c);
-        auditService.enregistrer("CONTRAT", contratId, "CHANGEMENT_PHASE",
-                ancienne + " -> " + nouvellePhase);
+        auditService.enregistrer("CONTRAT", contratId, "CHANGEMENT_PHASE", ancienne + " -> " + nouvellePhase);
         return enregistre;
     }
 
     @Transactional
-public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise) {
-    Contrat c = contratRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-    c.setMontantEcheanceMensuelle(montant);
-    c.setDevise(devise);
-    contratRepository.save(c);
-    auditService.enregistrer("CONTRAT", id, "MODIFICATION", "Échéance mensuelle modifiée : " + montant);
-}
+    public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise) {
+        Contrat c = contratRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrat introuvable"));
+        c.setMontantEcheanceMensuelle(montant);
+        c.setDevise(devise);
+        contratRepository.save(c);
+        auditService.enregistrer("CONTRAT", id, "MODIFICATION", "Échéance mensuelle modifiée : " + montant);
+    }
 
     @Transactional
     public Contrat creerDemande(ContratRequest request) {
@@ -100,76 +112,220 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
         return contrat;
     }
 
+    // ------------------------------------------------------------------
+    // Saisie d'historique (ADMIN)
+    // ------------------------------------------------------------------
+
     @Transactional
-public Contrat saisirHistorique(HistoriqueContratRequest req) {
-    Client client = clientRepository.findById(req.clientId())
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));
+    public Contrat saisirHistorique(HistoriqueContratRequest req) {
+        Client client = clientRepository.findById(req.clientId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Client introuvable : " + req.clientId()));
 
-    Contrat contrat = Contrat.builder()
-            .client(client)
-            .codeContratCb(req.codeContratCb())
-            .codeContratEtablissement(req.codeContratEtablissement())
-            .typeContrat(req.typeContrat())
-            .roleClient(req.roleClient())
-            .modeRattachement(ModeRattachement.NOUVELLE_DEMANDE)
-            .phaseDemande(req.phaseDemande())
-            .dateDemande(req.dateDemande())
-            .dateDebutContrat(req.dateDebutContrat())
-            .dateFinContrat(req.dateFinContrat())
-            .montantFinance(req.montantFinance())
-            .montantTotalDu(req.montantTotalDu() != null ? req.montantTotalDu() : req.montantFinance())
-            .montantEcheanceMensuelle(req.montantEcheanceMensuelle())
-            .nombreTotalEcheances(req.nombreTotalEcheances())
-            .devise(req.devise())
-            .periodicitePaiement(req.periodicitePaiement())
-            .build();
+        List<EcheanceHistoriqueRequest> saisies = verifierHistorique(req);
 
-    Contrat sauvegarde = contratRepository.save(contrat);
+        Contrat contrat = Contrat.builder()
+                .client(client)
+                .modeRattachement(ModeRattachement.NOUVELLE_DEMANDE)
+                .codeContratCb(req.codeContratCb() != null && !req.codeContratCb().isBlank()
+                        ? req.codeContratCb().trim()
+                        : genererCodeContratCb())
+                .build();
+        appliquer(contrat, req, saisies);
 
-    List<Echeance> echeances = req.echeances().stream()
-            .map(e -> Echeance.builder()
-                    .contrat(sauvegarde)
+        Contrat sauvegarde;
+        try {
+            sauvegarde = contratRepository.saveAndFlush(contrat);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Ce code contrat CB existe déjà : " + contrat.getCodeContratCb());
+        }
+
+        echeanceRepository.saveAll(construireEcheances(sauvegarde, saisies));
+        enregistrerAnnexes(sauvegarde, req, false);
+        auditService.enregistrer("CONTRAT", sauvegarde.getId(), "SAISIE_HISTORIQUE",
+                "Contrat historique saisi par un administrateur : " + sauvegarde.getCodeContratCb());
+        return sauvegarde;
+    }
+
+    @Transactional
+    public void modifierHistorique(Long contratId, HistoriqueContratRequest req) {
+        Contrat contrat = contratRepository.findById(contratId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrat introuvable"));
+
+        if (!contrat.getClient().getId().equals(req.clientId())) {
+            throw invalide("Ce contrat n'appartient pas au client indiqué.");
+        }
+
+        List<EcheanceHistoriqueRequest> saisies = verifierHistorique(req);
+        appliquer(contrat, req, saisies);
+        contratRepository.save(contrat);
+
+        // Le code contrat CB est un identifiant : il n'est jamais modifié ici.
+        echeanceRepository.deleteAll(echeanceRepository.findByContrat_IdOrderByNumeroEcheance(contratId));
+        echeanceRepository.saveAll(construireEcheances(contrat, saisies));
+        enregistrerAnnexes(contrat, req, true);
+
+        auditService.enregistrer("CONTRAT", contratId, "MODIFICATION_HISTORIQUE",
+                "Historique modifié par un administrateur");
+    }
+
+    /** Garanties et clients liés. Une liste null laisse l'existant intact. */
+    private void enregistrerAnnexes(Contrat contrat, HistoriqueContratRequest req, boolean remplacer) {
+        if (req.garanties() != null) {
+            if (remplacer) garantieRepository.deleteAll(garantieRepository.findByContrat_Id(contrat.getId()));
+            List<Garantie> garanties = req.garanties().stream()
+                    .map(g -> Garantie.builder()
+                            .contrat(contrat)
+                            .nature(g.nature() != null ? g.nature() : NatureGarantie.REELLE)
+                            .typeGarantie(g.typeGarantie().trim())
+                            .codeEtablissementGarantie(vide(g.codeEtablissementGarantie()))
+                            .nomGarant(vide(g.nomGarant()))
+                            .codeClientCbGarant(vide(g.codeClientCbGarant()))
+                            .montantCouvert(g.montantCouvert())
+                            .dateDebutValidite(g.dateDebutValidite())
+                            .dateFinValidite(g.dateFinValidite())
+                            .build())
+                    .toList();
+            garantieRepository.saveAll(garanties);
+        }
+
+        if (req.liens() != null) {
+            if (remplacer) {
+                contratLienRepository.deleteAll(contratLienRepository.findByContrat_IdIn(List.of(contrat.getId())));
+            }
+            String codeTitulaire = contrat.getClient().getCodeClientCb();
+            List<ContratLien> liens = new ArrayList<>();
+            for (HistoriqueContratRequest.LienSaisie l : req.liens()) {
+                String code = l.codeClientCb().trim();
+                if (code.equals(codeTitulaire)) {
+                    throw invalide("Un client ne peut pas être lié à son propre contrat : " + code);
+                }
+                if (l.roleClient() == RoleClient.TITULAIRE) {
+                    throw invalide("Le titulaire est le client du contrat : liez un co-titulaire ou un garant.");
+                }
+                String nom = vide(l.nomClient());
+                if (nom == null) {
+                    nom = clientRepository.findByCodeClientCb(code).map(this::nomComplet).orElse(null);
+                }
+                liens.add(ContratLien.builder()
+                        .contrat(contrat).codeClientCb(code).nomClient(nom).roleClient(l.roleClient()).build());
+            }
+            contratLienRepository.saveAll(liens);
+        }
+    }
+
+    /** Règles d'intégrité de la saisie ; renvoie les échéances triées par numéro. */
+    private List<EcheanceHistoriqueRequest> verifierHistorique(HistoriqueContratRequest req) {
+        List<EcheanceHistoriqueRequest> saisies = req.echeances() == null
+                ? List.of()
+                : req.echeances().stream()
+                        .sorted(Comparator.comparing(EcheanceHistoriqueRequest::numeroEcheance))
+                        .toList();
+
+        boolean decaisse = req.phaseDemande() == PhaseDemande.ACTIF || req.phaseDemande() == PhaseDemande.FERME;
+        if (decaisse && saisies.isEmpty()) {
+            throw invalide("Un contrat Actif ou Fermé doit avoir au moins une échéance.");
+        }
+
+        if (req.dateDebutContrat() != null && req.dateFinContrat() != null
+                && req.dateFinContrat().isBefore(req.dateDebutContrat())) {
+            throw invalide("La date de fin de contrat est antérieure à la date de début.");
+        }
+
+        LocalDate aujourdHui = LocalDate.now();
+        Set<Integer> numeros = new HashSet<>();
+        for (EcheanceHistoriqueRequest e : saisies) {
+            int n = e.numeroEcheance();
+            if (n <= 0 || !numeros.add(n)) {
+                throw invalide("Numéro d'échéance invalide ou en double : " + n);
+            }
+            if (e.montantDu().signum() <= 0) {
+                throw invalide("Échéance " + n + " : le montant dû doit être positif.");
+            }
+            if (e.montantPaye() != null && e.montantPaye().signum() < 0) {
+                throw invalide("Échéance " + n + " : le montant payé ne peut pas être négatif.");
+            }
+            boolean payee = e.montantPaye() != null && e.montantPaye().signum() > 0;
+            if (payee && e.datePaiement() == null) {
+                throw invalide("Échéance " + n + " : la date de paiement est obligatoire quand un montant est payé.");
+            }
+            if (e.datePaiement() != null && e.datePaiement().isAfter(aujourdHui)) {
+                throw invalide("Échéance " + n + " : la date de paiement est dans le futur.");
+            }
+        }
+        return saisies;
+    }
+
+    private void appliquer(Contrat c, HistoriqueContratRequest req, List<EcheanceHistoriqueRequest> saisies) {
+        c.setCodeContratEtablissement(vide(req.codeContratEtablissement()));
+        if (vide(req.codeEtablissementDeclarant()) != null) {
+            c.setCodeEtablissementDeclarant(req.codeEtablissementDeclarant().trim());
+        }
+        c.setTypeContrat(req.typeContrat());
+        c.setTypeRelationEntreprise(vide(req.typeRelationEntreprise()));
+        c.setRoleClient(req.roleClient());
+        c.setPhaseDemande(req.phaseDemande());
+
+        MotifCloture motif = req.motifCloture();
+        if (motif == null && req.phaseDemande() == PhaseDemande.FERME) motif = MotifCloture.FIN_A_TERME;
+        c.setMotifCloture(motif);
+
+        c.setDateDemande(req.dateDemande());
+        c.setDateDebutContrat(req.dateDebutContrat());
+
+        LocalDate premiere = saisies.stream().map(EcheanceHistoriqueRequest::dateEcheance)
+                .min(Comparator.naturalOrder()).orElse(null);
+        LocalDate derniere = saisies.stream().map(EcheanceHistoriqueRequest::dateEcheance)
+                .max(Comparator.naturalOrder()).orElse(null);
+        c.setDatePremiereEcheance(req.datePremiereEcheance() != null ? req.datePremiereEcheance() : premiere);
+        c.setDateFinContrat(req.dateFinContrat() != null ? req.dateFinContrat() : derniere);
+
+        c.setMontantFinance(req.montantFinance());
+        c.setMontantTotalDu(req.montantTotalDu() != null ? req.montantTotalDu() : req.montantFinance());
+        c.setMontantEcheanceMensuelle(req.montantEcheanceMensuelle());
+        c.setNombreTotalEcheances(req.nombreTotalEcheances());
+        c.setDevise(req.devise());
+        c.setPeriodicitePaiement(vide(req.periodicitePaiement()));
+        c.setCodeRestructuration(vide(req.codeRestructuration()));
+        c.setDateCodeRestructuration(req.dateCodeRestructuration());
+        c.setNote(vide(req.note()));
+    }
+
+    /** Le statut stocké est dérivé des dates et du paiement : jamais saisi à la main. */
+    private List<Echeance> construireEcheances(Contrat contrat, List<EcheanceHistoriqueRequest> saisies) {
+        LocalDate reference = LocalDate.now();
+        List<Echeance> resultat = new ArrayList<>(saisies.size());
+        for (EcheanceHistoriqueRequest e : saisies) {
+            Echeance echeance = Echeance.builder()
+                    .contrat(contrat)
                     .numeroEcheance(e.numeroEcheance())
                     .dateEcheance(e.dateEcheance())
                     .montantDu(e.montantDu())
                     .montantPaye(e.montantPaye())
                     .datePaiement(e.datePaiement())
-                    .statut(e.statut())
-                    .build())
-            .toList();
-    echeanceRepository.saveAll(echeances);
+                    .statut(StatutEcheance.A_VENIR)
+                    .build();
+            echeance.setStatut(echeance.statutEffectif(reference));
+            resultat.add(echeance);
+        }
+        return resultat;
+    }
 
-    auditService.enregistrer("CONTRAT", sauvegarde.getId(), "SAISIE_HISTORIQUE",
-            "Contrat historique saisi manuellement par admin : " + req.codeContratCb());
+    private ResponseStatusException invalide(String message) {
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    }
 
-    return sauvegarde;
-}
+    private String vide(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
 
-@Transactional
-public void modifierHistorique(Long contratId, HistoriqueContratRequest req) {
-    Contrat contrat = contratRepository.findById(contratId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrat introuvable"));
+    private String nomComplet(Client c) {
+        return ((c.getPrenom() == null ? "" : c.getPrenom()) + " "
+                + (c.getNom() == null ? "" : c.getNom())).trim();
+    }
 
-    contrat.setPhaseDemande(req.phaseDemande());
-    contrat.setDateDebutContrat(req.dateDebutContrat());
-    contrat.setDateFinContrat(req.dateFinContrat());
-    contrat.setMontantFinance(req.montantFinance());
-    contrat.setMontantTotalDu(req.montantTotalDu());
-    contrat.setMontantEcheanceMensuelle(req.montantEcheanceMensuelle());
-    contratRepository.save(contrat);
-
-    echeanceRepository.deleteAll(echeanceRepository.findByContrat_IdOrderByNumeroEcheance(contratId));
-    List<Echeance> echeances = req.echeances().stream()
-            .map(e -> Echeance.builder()
-                    .contrat(contrat).numeroEcheance(e.numeroEcheance()).dateEcheance(e.dateEcheance())
-                    .montantDu(e.montantDu()).montantPaye(e.montantPaye()).datePaiement(e.datePaiement())
-                    .statut(e.statut())
-                    .build())
-            .toList();
-    echeanceRepository.saveAll(echeances);
-
-    auditService.enregistrer("CONTRAT", contratId, "MODIFICATION_HISTORIQUE", "Historique modifié par admin");
-}
+    // ------------------------------------------------------------------
 
     public List<Contrat> listerParClient(Long clientId) {
         return contratRepository.findByClient_Id(clientId);

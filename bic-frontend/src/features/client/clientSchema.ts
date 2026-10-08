@@ -20,6 +20,17 @@ const emploiSchema = z.object({
   devise: z.string().optional(),
 });
 
+const affaireSchema = z.object({
+  nomAffaire: z.string().optional(),
+  adresseComplete: z.string().optional(),
+  numeroRue: z.string().optional(),
+  codePostal: z.string().optional(),
+  ville: z.string().optional(),
+  commune: z.string().optional(),
+  region: z.string().optional(),
+  pays: z.string().optional(),
+});
+
 export const clientSchema = z.object({
   titre: z.string().optional(),
   categorieTiersCode: z.string().min(1, "La catégorie tiers est requise"),
@@ -36,6 +47,7 @@ export const clientSchema = z.object({
   adresses: z.array(adresseSchema).min(1),
   identifiants: z.array(z.object({ typeIdentifiant: z.string().min(1), numero: z.string().min(1, "Numéro requis") })).min(1),
   emploi: emploiSchema.optional(),
+    affaireIndividuelle: affaireSchema.optional(),
 });
 
 export type ClientFormValues = z.infer<typeof clientSchema>;

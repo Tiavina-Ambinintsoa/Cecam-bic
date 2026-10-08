@@ -38,10 +38,15 @@ export function ClientForm() {
   const adressesArray = useFieldArray({ control: form.control, name: "adresses" });
   const identifiantsArray = useFieldArray({ control: form.control, name: "identifiants" });
 
-  async function onSubmit(values: ClientFormValues) {
+    async function onSubmit(values: ClientFormValues) {
     setSubmitting(true);
     try {
-      const { client } = await clientApi.creer(values);
+      const { client } = await clientApi.creer({
+        ...values,
+        affaireIndividuelle: values.affaireIndividuelle?.nomAffaire?.trim()
+          ? values.affaireIndividuelle
+          : undefined,
+      });
       setClientId(client.id);
       navigate(`/demande/nouvelle/contrat/${client.id}`);
     } finally {
@@ -217,6 +222,20 @@ export function ClientForm() {
               </div>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+            <Card>
+        <CardHeader><CardTitle>Affaire individuelle (facultatif)</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1.5"><Label>Nom de l'affaire individuelle</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.nomAffaire")} /></div>
+          <div className="space-y-1.5"><Label>Adresse complète</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresseComplete")} /></div>
+          <div className="space-y-1.5"><Label>N° et nom de la rue</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.numeroRue")} /></div>
+          <div className="space-y-1.5"><Label>Code postal</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.codePostal")} /></div>
+          <div className="space-y-1.5"><Label>Ville</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.ville")} /></div>
+          <div className="space-y-1.5"><Label>Commune</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.commune")} /></div>
+          <div className="space-y-1.5"><Label>Région</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.region")} /></div>
+          <div className="space-y-1.5"><Label>Pays</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.pays")} /></div>
         </CardContent>
       </Card>
 

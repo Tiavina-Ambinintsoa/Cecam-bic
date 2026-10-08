@@ -15,6 +15,7 @@ public record RapportSolvabiliteResponse(
         List<IdentifiantDTO> identifiants,
         DetailDemandeDTO detailDemande,
         EmploiDTO emploi,
+        AffaireIndividuelleDTO affaireIndividuelle,
         List<LienClientDTO> liens,
         List<AlerteDTO> alertes,
         ScoreDTO score,
@@ -22,11 +23,8 @@ public record RapportSolvabiliteResponse(
         SyntheseDTO synthese,
         List<SyntheseCategorieDTO> syntheseParCategorie,
         List<EncoursCategorieDTO> encoursParCategorie,
-
-        List<LigneFinancementDTO> financementsNonDecaisses, 
-        List<LigneFinancementDTO> financementsDecaisses,    
-
+        List<LigneFinancementDTO> financementsNonDecaisses,
+        List<LigneFinancementDTO> financementsDecaisses,
         List<DetailContratDTO> detailContrats,
-
         List<ConsultationDTO> historiqueConsultations
 ) {}

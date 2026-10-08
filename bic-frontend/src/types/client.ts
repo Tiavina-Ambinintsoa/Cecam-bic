@@ -22,6 +22,17 @@ export interface EmploiRequest {
   devise?: string;
 }
 
+export interface AffaireRequest {
+  nomAffaire?: string;
+  adresseComplete?: string;
+  numeroRue?: string;
+  codePostal?: string;
+  ville?: string;
+  commune?: string;
+  region?: string;
+  pays?: string;
+}
+
 export interface ClientRequest {
   titre?: string;
   categorieTiersCode: string;
@@ -33,6 +44,7 @@ export interface ClientRequest {
   paysNaissance?: string;
   genre: Genre;
   nationalite: string;
+  affaireIndividuelle?: AffaireRequest;
   etatCivil?: string;
   telephone?: string;
   adresses: AdresseRequest[];

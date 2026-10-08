@@ -8,12 +8,14 @@ import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.RoleClient;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.Contrat;
-import mg.cecam.bic.contrat.ContratRepository;
 import mg.cecam.bic.contrat.Echeance;
 import mg.cecam.bic.contrat.EcheanceRepository;
 import mg.cecam.bic.referentiel.GrilleScore;
 import mg.cecam.bic.referentiel.GrilleScoreRepository;
 import org.springframework.stereotype.Service;
+
+import mg.cecam.bic.common.enums.TrancheRetard;
+import mg.cecam.bic.contrat.PortefeuilleClientService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,16 +29,18 @@ import java.util.*;
 public class ScoreService {
 
     private final GrilleScoreRepository grilleScoreRepository;
-    private final ContratRepository contratRepository;
     private final EcheanceRepository echeanceRepository;
     private final EmploiRepository emploiRepository;
     private final ScoreProperties p;
+    private final PortefeuilleClientService portefeuille;
 
     public ScoreResult calculer(Client client, Contrat contratEnCours, boolean clientTrouve) {
 
         LocalDate reference = LocalDate.now();
 
-        List<Contrat> historique = contratRepository.findByClient_Id(client.getId()).stream()
+                List<Contrat> historique = portefeuille.contrats(client).stream()
+                .filter(v -> !(v.lie() && v.role() == RoleClient.GARANT))
+                .map(PortefeuilleClientService.ContratDuClient::contrat)
                 .filter(c -> !c.getId().equals(contratEnCours.getId()))
                 .toList();
 
@@ -197,14 +201,20 @@ public class ScoreService {
         return m == null ? 1.0 : Math.max(1.0, m.doubleValue());
     }
 
-    private double qualite(Echeance e, LocalDate reference) {
+        private double qualite(Echeance e, LocalDate reference) {
         StatutEcheance statut = e.statutEffectif(reference);
         if (statut == StatutEcheance.PAYE_A_TEMPS) return p.getQualitePayeATemps();
-        if (statut == StatutEcheance.IMPAYE) return p.getQualiteImpaye();
         if (!e.estPayee()) return p.getQualiteImpaye();
-        return e.joursDeRetard(reference) <= Echeance.SEUIL_IMPAYE_JOURS
-                ? p.getQualiteRetardCourt()
-                : p.getQualiteRetardLong();
+        return qualiteSelonRetard(e.joursDeRetard(reference));
+    }
+
+    /** 1-29 j : qualiteRetardCourt ; décroît linéairement jusqu'à qualiteRetardLong à 150-179 j ; 180 j et + : moitié. */
+    private double qualiteSelonRetard(int jours) {
+        int rang = TrancheRetard.depuisJours(jours).rang();
+        if (rang <= 0) return p.getQualitePayeATemps();
+        if (rang >= 7) return p.getQualiteRetardLong() / 2.0;
+        return p.getQualiteRetardCourt()
+                + (p.getQualiteRetardLong() - p.getQualiteRetardCourt()) * (rang - 1) / 5.0;
     }
 
     private BigDecimal chargeMensuelle(List<Contrat> historique, Contrat contratEnCours) {

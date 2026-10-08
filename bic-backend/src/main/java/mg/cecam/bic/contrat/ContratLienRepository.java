@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface ContratLienRepository extends JpaRepository<ContratLien, Long> {
     List<ContratLien> findByContrat_IdIn(List<Long> contratIds);
+    List<ContratLien> findByCodeClientCb(String codeClientCb);
 }
