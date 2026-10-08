@@ -45,7 +45,6 @@ public class AlerteService {
                 .toList();
     }
 
-    /** null si le contrat n'a ni impayé ni retard : pas d'alerte à générer. */
     private AlerteDTO toAlerte(Contrat c, LocalDate reference) {
         List<Echeance> echeances = echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId());
         long impayees = 0;

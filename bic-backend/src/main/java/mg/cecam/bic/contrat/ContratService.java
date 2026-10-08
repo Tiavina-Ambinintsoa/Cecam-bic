@@ -134,7 +134,7 @@ public Contrat saisirHistorique(HistoriqueContratRequest req) {
                     .montantDu(e.montantDu())
                     .montantPaye(e.montantPaye())
                     .datePaiement(e.datePaiement())
-                    .statut(StatutEcheance.valueOf(e.statut()))
+                    .statut(e.statut())
                     .build())
             .toList();
     echeanceRepository.saveAll(echeances);
@@ -163,7 +163,7 @@ public void modifierHistorique(Long contratId, HistoriqueContratRequest req) {
             .map(e -> Echeance.builder()
                     .contrat(contrat).numeroEcheance(e.numeroEcheance()).dateEcheance(e.dateEcheance())
                     .montantDu(e.montantDu()).montantPaye(e.montantPaye()).datePaiement(e.datePaiement())
-                    .statut(StatutEcheance.valueOf(e.statut()))
+                    .statut(e.statut())
                     .build())
             .toList();
     echeanceRepository.saveAll(echeances);

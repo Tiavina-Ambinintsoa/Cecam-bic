@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Positive;
 import mg.cecam.bic.common.enums.MotifCloture;
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.RoleClient;
+import mg.cecam.bic.common.enums.StatutEcheance;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,6 +25,7 @@ public record HistoriqueContratRequest(
         LocalDate dateFinContrat,
         LocalDate datePremiereEcheance,
         @NotNull @Positive BigDecimal montantFinance,
+        BigDecimal montantTotalDu,
         BigDecimal montantEcheanceMensuelle,
         @NotNull @Positive Integer nombreTotalEcheances,
         @NotNull String devise,
@@ -40,6 +42,7 @@ public record HistoriqueContratRequest(
             @NotNull LocalDate dateEcheance,
             @NotNull BigDecimal montantDu,
             BigDecimal montantPaye,
-            LocalDate datePaiement
+            LocalDate datePaiement,
+            @NotNull StatutEcheance statut
     ) {}
 }
