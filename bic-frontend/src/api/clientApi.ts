@@ -29,4 +29,22 @@ ajouterAdresse: async (id: number, payload: import("@/types/client").AdresseRequ
       return null;
     }
   },
+  rechercherParCodeClientCb: async (codeClientCb: string): Promise<ClientResponse | null> => {
+    try {
+      const { data } = await axiosClient.get<ClientResponse>("/clients/recherche", { params: { codeClientCb } });
+      return data;
+    } catch {
+      return null;
+    }
+  },
+
+  rechercherParCodeClientEtablissement: async (codeClientEtablissement: string): Promise<ClientResponse | null> => {
+    try {
+      const { data } = await axiosClient.get<ClientResponse>("/clients/recherche", { params: { codeClientEtablissement } });
+      return data;
+    } catch {
+      return null;
+    }
+  },
+
 };

@@ -6,15 +6,14 @@ public record ScoreResult(
         String intervalle,
         String categorieRisque,
         String couleur,
-        String message,
-        ScoreDetail detail
+        String message
 ) {
     public static ScoreResult calcule(int valeur, String intervalle, String categorieRisque,
-                                      String couleur, ScoreDetail detail) {
-        return new ScoreResult(true, valeur, intervalle, categorieRisque, couleur, null, detail);
+                                      String couleur, String message) {
+        return new ScoreResult(true, valeur, intervalle, categorieRisque, couleur, message);
     }
 
     public static ScoreResult nonCalculable(String message) {
-        return new ScoreResult(false, null, null, null, null, message, null);
+        return new ScoreResult(false, null, null, null, null, message);
     }
 }

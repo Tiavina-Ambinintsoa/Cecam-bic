@@ -18,7 +18,7 @@ const taches: Tache[] = [
   },
   {
     label: "Rechercher un sociétaire",
-    description: "Retrouver un dossier par CIN, nom ou code client.",
+    description: "Retrouver un dossier par Code Client CB ou Code Client établissement.",
     to: "/recherche/individu",
     icon: Search,
   },

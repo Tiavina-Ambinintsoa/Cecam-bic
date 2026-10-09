@@ -14,6 +14,7 @@ export interface ClientInfo {
   telephone?: string;
   categorieTiersCode: string;
   dateDerniereModification: string;
+  origineDonnee: string;
 }
 
 export interface Contact {
@@ -58,24 +59,7 @@ export interface DetailDemande {
   montantFinance: number;
   montantEcheanceMensuelle?: number;
   nombreTotalEcheances: number;
-  dateDemande: string;
-}
-
-export interface ScoreDetail {
-  pointsPaiement: number;
-  pointsEndettement: number;
-  pointsExposition: number;
-  pointsAnciennete: number;
-  pointsNouveauxCredits: number;
-  pointsMixite: number;
-  malusSurendettement: number;
-  secondaireBrut: number;
-  plafondSecondaire: number;
-  secondaireRetenu: number;
-  echeancesEchues: number;
-  tauxQualitePaiement: number;
-  tauxEndettement?: number | null;
-  tauxExposition?: number | null;
+  dateDemande?: string | null;
 }
 
 export interface Score {
@@ -86,7 +70,7 @@ export interface Score {
   couleur?: string;
   couleurHex?: string;
   message?: string;
-  detail?: ScoreDetail | null;
+  avertissement?: string;
 }
 
 export interface GrilleScoreItem {
@@ -161,9 +145,12 @@ export interface EncoursCategorie {
 export interface HistoriquePaiementLigne {
   annee: number;
   mois: string;
+  nombreEcheances?: number | null;
   nombreEcheancesImpayees: number;
   joursDeRetard?: number | null;
   statut: string;
+  detailsSource?: string | null;
+  bucketRetard?: string | null;
 }
 
 export interface Garantie {
@@ -181,6 +168,7 @@ export interface DetailContrat {
   codeContratCb: string;
   codeContratEtablissement?: string;
   codeEtablissementDeclarant?: string;
+  codeEtablissementCrypte?: string;
   typeContrat: string;
   phase: string;
   role: string;
@@ -195,6 +183,7 @@ export interface DetailContrat {
   montantEcheanceMensuelle?: number | null;
   nombreTotalEcheances: number;
   periodicitePaiement?: string;
+  modeReglement?: string;
   montantProchaineEcheance?: number | null;
   dateProchaineEcheance?: string | null;
   dateDernierReglement?: string | null;
@@ -205,15 +194,36 @@ export interface DetailContrat {
   montantImpayes: number;
   maxMontantImpayes: number;
   maxNombreEcheancesImpayees: number;
+  dateMaxNombreEcheancesImpayees?: string | null;
   nombreJoursRetard: number;
   maxNombreJoursRetard: number;
   dateMaxNombreJoursRetard?: string | null;
+  dateCodeRestructuration?: string | null;
+  note?: string;
   pireStatut: string;
   datePireStatut?: string | null;
   codeRestructuration?: string;
   contratOrigine?: string;
   nouveauContrat?: string;
+  bienLeasing?: BienLeasing;
+  clientsLies?: ContratClientLie[];
   garanties: Garantie[];
+  origineDonnee: string;
+}
+
+export interface BienLeasing {
+  codeBien?: string;
+  valeurBien?: number | null;
+  etatBien?: string;
+  marqueBien?: string;
+  dateAcquisition?: string | null;
+  immatriculation?: string;
+}
+
+export interface ContratClientLie {
+  codeClientCb: string;
+  nom?: string;
+  typeRelation: string;
 }
 
 export interface LienClient {
@@ -236,6 +246,10 @@ export interface Alerte {
   echeancesEnRetard: number;
 }
 
+export interface SituationFinanciereMensuelle {
+  mois: string; categorie: string; devise: string; encours: number; impayes: number; contratsAvecEcheances: number;
+}
+
 export interface RapportSolvabilite {
   identifiantRapport: string;
   dateRequete: string;
@@ -255,6 +269,7 @@ export interface RapportSolvabilite {
   synthese: Synthese;
   syntheseParCategorie: SyntheseCategorie[];
   encoursParCategorie: EncoursCategorie[];
+  situationFinanciereMensuelle?: SituationFinanciereMensuelle[];
   calendriers: CalendrierCredit[];
   detailContrats: DetailContrat[];
 }

@@ -1,10 +1,8 @@
-// mg/cecam/bic/rapport/AlerteService.java — fichier complet, à remplacer
 package mg.cecam.bic.rapport;
 
 import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.client.Client;
 import mg.cecam.bic.common.enums.PhaseDemande;
-import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.Contrat;
 import mg.cecam.bic.contrat.ContratRepository;
 import mg.cecam.bic.contrat.Echeance;
@@ -47,18 +45,48 @@ public class AlerteService {
 
     private AlerteDTO toAlerte(Contrat c, LocalDate reference) {
         List<Echeance> echeances = echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId());
-        long impayees = 0;
-        long enRetard = 0;
+        long impayees = 0, enRetard = 0;
+        long[] buckets = new long[6];
+        int maxJoursRetard = 0;
         for (Echeance e : echeances) {
-            StatutEcheance s = e.statutEffectif(reference);
-            if (s == StatutEcheance.IMPAYE) impayees++;
-            else if (s == StatutEcheance.EN_RETARD && !e.estPayee()) enRetard++;
+            if (e.getDateEcheance() == null || e.estPayee() || e.getDateEcheance().isAfter(reference)) continue;
+            int jours = e.joursDeRetard(reference);
+            if (jours <= 0) continue;
+            maxJoursRetard = Math.max(maxJoursRetard, jours);
+            if (jours < 30) { enRetard++; continue; }
+            impayees++;
+            if (jours < 60) buckets[0]++;
+            else if (jours < 90) buckets[1]++;
+            else if (jours < 120) buckets[2]++;
+            else if (jours < 150) buckets[3]++;
+            else if (jours < 180) buckets[4]++;
+            else buckets[5]++;
+        }
+
+        // Keep source-reported overdue fields when no exact dated schedule was supplied.
+        if (echeances.isEmpty()) {
+            impayees = Math.max(impayees, c.getNombreEcheancesImpayees() == null ? 0 : c.getNombreEcheancesImpayees());
+            enRetard = Math.max(enRetard, c.getNombreJoursRetard() != null && c.getNombreJoursRetard() > 0
+                    && c.getNombreJoursRetard() < 30 ? 1 : 0);
+            maxJoursRetard = c.getNombreJoursRetard() == null ? 0 : c.getNombreJoursRetard();
+            if (impayees > 0 && maxJoursRetard >= 30) {
+                if (maxJoursRetard < 60) buckets[0] = impayees;
+                else if (maxJoursRetard < 90) buckets[1] = impayees;
+                else if (maxJoursRetard < 120) buckets[2] = impayees;
+                else if (maxJoursRetard < 150) buckets[3] = impayees;
+                else if (maxJoursRetard < 180) buckets[4] = impayees;
+                else buckets[5] = impayees;
+            }
         }
         if (impayees == 0 && enRetard == 0) return null;
 
         Client client = c.getClient();
+        String description = impayees + " échéance(s) impayée(s), " + enRetard + " en retard";
+        if (maxJoursRetard > 0) description += " — retard maximal : " + maxJoursRetard + " jours";
         return new AlerteDTO(client.getId(), client.getCodeClientCb(),
-                (client.getPrenom() + " " + client.getNom()).trim(),
-                c.getId(), c.getCodeContratCb(), impayees, enRetard);
+                (client.getPrenom() + " " + client.getNom()).trim(), c.getId(), c.getCodeContratCb(),
+                c.getTypeContrat(), reference, description, impayees > 0 ? "CRITIQUE" : "VIGILANCE",
+                client.getAgence(), c.getUtilisateurDeclarant(), impayees, enRetard,
+                buckets[0], buckets[1], buckets[2], buckets[3], buckets[4], buckets[5], maxJoursRetard);
     }
 }

@@ -14,6 +14,8 @@ import type { ModeRattachement, RoleClient } from "@/types/contrat";
 import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
 import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note";
 import { MontantInput } from "@/components/ui/montant-input";
+import { DateInput } from "@/components/ui/date-input";
+import { ORIGINE_DONNEE_LABELS, type OrigineDonnee } from "@/types/origineDonnee";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -30,6 +32,7 @@ export function ContratForm() {
       typeContrat: "Prêt personnel",
       dateDemande: today,
       devise: "Ariary malgache",
+      origineDonnee: "NON_RENSEIGNEE",
     },
   });
 
@@ -96,6 +99,20 @@ export function ContratForm() {
             </div>
 
             <div className="space-y-1.5">
+              <Label>Origine des données contrat</Label>
+              <Controller control={form.control} name="origineDonnee" render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(ORIGINE_DONNEE_LABELS) as [OrigineDonnee, string][]).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )} />
+            </div>
+
+            <div className="space-y-1.5">
               <Label>Type de relation avec l'entreprise</Label>
               <Input className="h-10" {...form.register("typeRelationEntreprise")} />
             </div>
@@ -117,7 +134,9 @@ export function ContratForm() {
 
             <div className="space-y-1.5">
               <Label>Date de la demande <span className="text-red-500">*</span></Label>
-              <Input type="date" {...form.register("dateDemande")} />
+              <Controller control={form.control} name="dateDemande" render={({ field }) => (
+                <DateInput value={field.value} onValueChange={field.onChange} />
+              )} />
             </div>
 
             <div className="space-y-1.5">

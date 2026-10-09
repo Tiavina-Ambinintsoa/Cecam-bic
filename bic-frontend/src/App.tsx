@@ -12,10 +12,12 @@ import { MiseAJourDemandePage } from "@/pages/MiseAJourDemandePage";
 import { AlertesPage } from "@/pages/AlertesPage";
 import { HistoriqueRapportsPage } from "@/pages/HistoriqueRapportsPage";
 import { AuditPage } from "@/pages/AuditPage";
+import { SaisieHistoriquePage } from "@/pages/admin/SaisieHistoriquePage";
+import { ImportPage } from "@/pages/admin/ImportPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { DemandeEnCoursProvider } from "@/context/DemandeEnCoursContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AdminRoute, ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ToastProvider } from "./components/ui/toast";
 import { useIdleLogout } from "./hooks/use-idle-logout";
 
@@ -57,6 +59,9 @@ function AppShell() {
             <Route path="/alertes" element={<AlertesPage />} />
             <Route path="/rapports" element={<HistoriqueRapportsPage />} />
             <Route path="/audit" element={<AuditPage />} />
+            <Route path="/admin/import" element={<AdminRoute><ImportPage /></AdminRoute>} />
+            <Route path="/admin" element={<AdminRoute><SaisieHistoriquePage /></AdminRoute>} />
+            <Route path="/admin/saisie-historique" element={<AdminRoute><SaisieHistoriquePage /></AdminRoute>} />
           </Routes>
         </motion.div>
       </AnimatePresence>

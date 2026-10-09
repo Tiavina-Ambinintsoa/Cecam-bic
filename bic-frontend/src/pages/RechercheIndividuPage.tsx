@@ -10,6 +10,8 @@ import type { ClientResponse } from "@/types/client";
 import type { ContratResponse } from "@/types/contrat";
 
 export function RechercheIndividuPage() {
+  const [codeCb, setCodeCb] = useState("");
+  const [codeEtablissement, setCodeEtablissement] = useState("");
   const [numero, setNumero] = useState("");
   const [client, setClient] = useState<ClientResponse | null>(null);
   const [contrats, setContrats] = useState<ContratResponse[]>([]);
@@ -19,37 +21,40 @@ export function RechercheIndividuPage() {
   async function rechercher() {
     setRecherche(true); setIntrouvable(false); setClient(null); setContrats([]);
     try {
-      const found = await clientApi.rechercherParCin(numero);
+      const found = codeCb.trim()
+        ? await clientApi.rechercherParCodeClientCb(codeCb.trim())
+        : codeEtablissement.trim()
+          ? await clientApi.rechercherParCodeClientEtablissement(codeEtablissement.trim())
+          : numero.trim() ? await clientApi.rechercherParCin(numero.trim()) : null;
       if (!found) { setIntrouvable(true); return; }
       setClient(found);
       setContrats(await contratApi.listerParClient(found.id));
     } finally { setRecherche(false); }
   }
 
+  const recherchePossible = Boolean(codeCb.trim() || codeEtablissement.trim() || numero.trim());
+
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-6">
+    <div className="mx-auto max-w-3xl space-y-6 p-6">
       <Card>
-        <CardHeader><CardTitle>Recherche par individu</CardTitle></CardHeader>
-        <CardContent className="flex items-end gap-3">
-          <div className="flex-1 space-y-1.5">
-            <Label>Numéro CIN</Label>
-            <Input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="Ex : 301021985001" />
-          </div>
-          <Button onClick={rechercher} disabled={!numero || recherche}>{recherche ? "Recherche..." : "Rechercher"}</Button>
+        <CardHeader><CardTitle>Suivi client — Recherche par identifiant</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 items-end gap-4 md:grid-cols-2">
+          <div className="space-y-1.5"><Label>Code Client CB</Label><Input value={codeCb} onChange={(e) => setCodeCb(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Code Client établissement</Label><Input value={codeEtablissement} onChange={(e) => setCodeEtablissement(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>CIN</Label><Input value={numero} onChange={(e) => setNumero(e.target.value)} /></div>
+          <Button onClick={rechercher} disabled={!recherchePossible || recherche}>{recherche ? "Recherche…" : "Rechercher"}</Button>
         </CardContent>
       </Card>
 
-      {introuvable && <p className="text-sm text-slate-500">Aucun client trouvé avec ce numéro CIN.</p>}
-
+      {introuvable && <p className="text-sm text-slate-500">Aucun client trouvé avec cet identifiant.</p>}
       {client && (
         <Card>
           <CardHeader><CardTitle>{client.prenom} {client.nom} — {client.codeClientCb}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm text-slate-500">{contrats.length} demande(s) dans son historique :</p>
+            <p className="text-sm text-slate-500">{contrats.length} contrat(s) dans son historique :</p>
             {contrats.map((c) => (
               <Link key={c.id} to={`/demande/rapport/${c.id}`} className="flex items-center justify-between rounded-md border p-3 text-sm hover:bg-slate-50">
-                <span>{c.codeContratCb} — {c.typeContrat}</span>
-                <span className="text-slate-500">{c.phaseDemande}</span>
+                <span>{c.codeContratCb} — {c.typeContrat}</span><span className="text-slate-500">{c.phaseDemande}</span>
               </Link>
             ))}
           </CardContent>

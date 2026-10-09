@@ -33,9 +33,12 @@ export const clientSchema = z.object({
   nationalite: z.string().min(1, "La nationalité est requise"),
   etatCivil: z.string().optional(),
   telephone: z.string().optional(),
+  origineDonnee: z.enum(["NON_RENSEIGNEE", "RAPPORT_CRIF", "DONNEE_FICTIVE"])
+    .default("NON_RENSEIGNEE"),
   adresses: z.array(adresseSchema).min(1),
   identifiants: z.array(z.object({ typeIdentifiant: z.string().min(1), numero: z.string().min(1, "Numéro requis") })).min(1),
   emploi: emploiSchema.optional(),
 });
 
 export type ClientFormValues = z.infer<typeof clientSchema>;
+export type ClientFormInput = z.input<typeof clientSchema>;

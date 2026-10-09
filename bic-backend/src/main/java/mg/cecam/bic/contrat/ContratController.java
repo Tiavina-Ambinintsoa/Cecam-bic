@@ -36,6 +36,14 @@ public class ContratController {
 
     public record EcheanceMensuelleRequest(BigDecimal montantEcheanceMensuelle, String devise) {}
 
+    public record CodesEtablissementRequest(String codeContratEtablissement, String codeDemandeEtablissement) {}
+
+    @PatchMapping("/{id}/codes-etablissement")
+    public ResponseEntity<Void> changerCodesEtablissement(@PathVariable Long id, @RequestBody CodesEtablissementRequest req) {
+        contratService.modifierCodesEtablissement(id, req.codeContratEtablissement(), req.codeDemandeEtablissement());
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{id}/echeance-mensuelle")
     public ResponseEntity<Void> changerEcheanceMensuelle(@PathVariable Long id, @RequestBody EcheanceMensuelleRequest req) {
         contratService.changerEcheanceMensuelle(id, req.montantEcheanceMensuelle(), req.devise());

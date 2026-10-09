@@ -44,7 +44,7 @@ public class Echeance {
 
     @Transient
     public boolean estPayee() {
-        return montantPaye != null && montantPaye.signum() > 0;
+        return montantPaye != null && montantDu != null && montantPaye.compareTo(montantDu) >= 0;
     }
 
     @Transient

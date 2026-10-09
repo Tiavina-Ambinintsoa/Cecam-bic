@@ -12,6 +12,8 @@ export const contratSchema = z.object({
   nombreTotalEcheances: z.coerce.number().int().positive(),
   devise: z.string().min(1),
   periodicitePaiement: z.string().optional(),
+  origineDonnee: z.enum(["NON_RENSEIGNEE", "RAPPORT_CRIF", "DONNEE_FICTIVE"])
+    .default("NON_RENSEIGNEE"),
 }).refine((v) => v.modeRattachement !== "DEMANDE_EXISTANTE" || !!v.codeClientCbCible, {
   message: "Le code client CB est requis pour ce mode de rattachement",
   path: ["codeClientCbCible"],

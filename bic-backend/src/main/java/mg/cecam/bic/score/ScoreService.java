@@ -4,19 +4,22 @@ import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.client.Client;
 import mg.cecam.bic.client.Emploi;
 import mg.cecam.bic.client.EmploiRepository;
+import mg.cecam.bic.common.enums.BucketRetard;
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.RoleClient;
-import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.Contrat;
 import mg.cecam.bic.contrat.ContratRepository;
 import mg.cecam.bic.contrat.Echeance;
 import mg.cecam.bic.contrat.EcheanceRepository;
+import mg.cecam.bic.contrat.HistoriquePaiementMensuel;
+import mg.cecam.bic.contrat.HistoriquePaiementMensuelRepository;
 import mg.cecam.bic.referentiel.GrilleScore;
 import mg.cecam.bic.referentiel.GrilleScoreRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
@@ -29,89 +32,147 @@ public class ScoreService {
     private final GrilleScoreRepository grilleScoreRepository;
     private final ContratRepository contratRepository;
     private final EcheanceRepository echeanceRepository;
+    private final HistoriquePaiementMensuelRepository historiquePaiementMensuelRepository;
     private final EmploiRepository emploiRepository;
     private final ScoreProperties p;
 
     public ScoreResult calculer(Client client, Contrat contratEnCours, boolean clientTrouve) {
-
         LocalDate reference = LocalDate.now();
+        Long contratEnCoursId = contratEnCours == null ? null : contratEnCours.getId();
 
         List<Contrat> historique = contratRepository.findByClient_Id(client.getId()).stream()
-                .filter(c -> !c.getId().equals(contratEnCours.getId()))
+                .filter(c -> !Objects.equals(c.getId(), contratEnCoursId))
+                .toList();
+        List<Contrat> empruntsDecaisses = historique.stream()
+                .filter(this::estEmprunteur)
+                .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF
+                        || c.getPhaseDemande() == PhaseDemande.FERME)
                 .toList();
 
-        if (historique.isEmpty()) {
-            return ScoreResult.nonCalculable(
-                    clientTrouve ? "Le sujet n'a pas de contrats à évaluer" : "Ce client a été nouvellement créé dans le système"
-            );
-        }
-
-        List<Contrat> decaisses = historique.stream()
-                .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF || c.getPhaseDemande() == PhaseDemande.FERME)
-                .toList();
-
-        if (decaisses.isEmpty()) {
-            return ScoreResult.nonCalculable("Le Client a seulement des contrats trop récents pour être évalué");
+        if (empruntsDecaisses.isEmpty()) {
+            return ScoreResult.nonCalculable(clientTrouve
+                    ? "Aucun contrat décaissé comme emprunteur ne permet d'évaluer son comportement de paiement."
+                    : "Ce client vient d'être créé et ne possède pas encore d'historique de remboursement.");
         }
 
         Map<Long, List<Echeance>> echeancesParContrat = new HashMap<>();
-        for (Contrat c : historique) {
-            echeancesParContrat.put(c.getId(), echeanceRepository.findByContrat_IdOrderByNumeroEcheance(c.getId()));
+        List<Echeance> observationsExactes = new ArrayList<>();
+        List<HistoriquePaiementMensuel> observationsMensuelles = new ArrayList<>();
+        Set<YearMonth> moisObserves = new HashSet<>();
+
+        for (Contrat contrat : empruntsDecaisses) {
+            List<Echeance> echeances = echeanceRepository
+                    .findByContrat_IdOrderByNumeroEcheance(contrat.getId());
+            echeancesParContrat.put(contrat.getId(), echeances);
+            List<Echeance> echues = echeances.stream()
+                    .filter(e -> !e.getDateEcheance().isAfter(reference))
+                    .toList();
+
+            if (!echues.isEmpty()) {
+                observationsExactes.addAll(echues);
+                echues.stream().map(e -> YearMonth.from(e.getDateEcheance())).forEach(moisObserves::add);
+                continue;
+            }
+
+            List<HistoriquePaiementMensuel> historiqueMensuel = historiquePaiementMensuelRepository
+                    .findByContrat_IdOrderByMoisDesc(contrat.getId()).stream()
+                    .filter(h -> h.getMois() != null && !h.getMois().isAfter(reference))
+                    .toList();
+            for (HistoriquePaiementMensuel observation : historiqueMensuel) {
+                if (qualite(observation) == null) {
+                    if (!statutNonObservable(observation.getStatut())) {
+                        return ScoreResult.nonCalculable(
+                                "Un statut source ne précise pas un retard exploitable. Saisissez le nombre de jours ou un bucket exact avant le calcul.");
+                    }
+                    continue;
+                }
+                observationsMensuelles.add(observation);
+                moisObserves.add(YearMonth.from(observation.getMois()));
+            }
         }
 
-        Emploi emploi = emploiRepository.findByClient_Id(client.getId()).orElse(null);
-        BigDecimal revenuAnnuel = emploi != null ? emploi.getRevenuAnnuelTotal() : null;
-
-        List<Echeance> echues = historique.stream()
-                .flatMap(c -> echeancesParContrat.getOrDefault(c.getId(), List.of()).stream())
-                .filter(e -> !e.getDateEcheance().isAfter(reference))
-                .toList();
-
-        int moisObserves = moisObserves(historique, reference);
-
-        if (echues.isEmpty() && moisObserves == 0) {
+        if (observationsExactes.isEmpty() && observationsMensuelles.isEmpty()) {
             return ScoreResult.nonCalculable(
-                    "Aucun crédit de ce client n'a encore été décaissé : son comportement "
-                  + "de paiement n'est pas observable");
+                    "Aucune échéance échue ou observation mensuelle exploitable n'est enregistrée.");
         }
 
         double poidsTotal = 0;
         double poidsPondere = 0;
-        for (Echeance e : echues) {
-            double poids = poidsAnciennete(e.getDateEcheance(), reference)
-                         * montant(e.getMontantDu());
+        for (Echeance echeance : observationsExactes) {
+            double poids = poidsAnciennete(echeance.getDateEcheance(), reference)
+                    * montant(echeance.getMontantDu());
             poidsTotal += poids;
-            poidsPondere += poids * qualite(e, reference);
+            poidsPondere += poids * qualite(echeance, reference);
         }
-        double tauxQualite = poidsTotal == 0 ? 1.0 : poidsPondere / poidsTotal;
+        for (HistoriquePaiementMensuel observation : observationsMensuelles) {
+            double poids = poidsAnciennete(observation.getMois(), reference)
+                    * nombreEcheancesObservees(observation);
+            poidsTotal += poids;
+            poidsPondere += poids * Objects.requireNonNull(qualite(observation));
+        }
+        if (poidsTotal <= 0) {
+            return ScoreResult.nonCalculable("Les observations disponibles ne permettent pas de pondérer le comportement de paiement.");
+        }
+        double tauxQualite = poidsPondere / poidsTotal;
+        int nombreMoisObserves = moisObserves.size();
 
-        double confiance = Math.min(1.0, (double) moisObserves / p.getMaturiteMois());
-        double facteurConfiance = p.getPlancherConfiance() + (1 - p.getPlancherConfiance()) * confiance;
+        double maturite = Math.max(1, p.getMaturiteMois());
+        double confiance = Math.min(1.0, nombreMoisObserves / maturite);
+        double facteurConfiance = p.getPlancherConfiance()
+                + (1 - p.getPlancherConfiance()) * confiance;
         double pointsPaiement = p.getMaxPaiement() * tauxQualite * facteurConfiance;
 
-        boolean revenuConnu = revenuAnnuel != null && revenuAnnuel.signum() > 0;
-        BigDecimal revenuMensuel = revenuConnu
-                ? revenuAnnuel.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP)
-                : null;
+        Emploi emploi = emploiRepository.findByClient_Id(client.getId()).orElse(null);
+        BigDecimal revenuAnnuel = emploi == null ? null : emploi.getRevenuAnnuelTotal();
+        if (revenuAnnuel != null && revenuAnnuel.signum() <= 0) {
+            return ScoreResult.nonCalculable("Le revenu annuel renseigné doit être supérieur à zéro pour calculer les ratios financiers.");
+        }
+        boolean revenuConnu = revenuAnnuel != null;
 
-        BigDecimal chargeMensuelle = chargeMensuelle(historique, contratEnCours);
-        BigDecimal exposition = expositionDejaPortee(historique, echeancesParContrat);
+        List<Contrat> contratsFinanciers = contratsFinanciers(historique, contratEnCours);
+        BigDecimal chargeMensuelle = BigDecimal.ZERO;
+        BigDecimal exposition = BigDecimal.ZERO;
+        List<String> avertissements = new ArrayList<>();
 
-        Double tauxEndettement = null;
-        Double tauxExposition = null;
         double pointsEndettement;
         double pointsExposition;
+        Double tauxEndettement = null;
+        Double tauxExposition = null;
         double malus = 0;
 
         if (revenuConnu) {
-            tauxEndettement = chargeMensuelle.doubleValue() / revenuMensuel.doubleValue();
-            tauxExposition = exposition.doubleValue() / revenuAnnuel.doubleValue();
+            String deviseRevenu = normaliserDevise(emploi.getDevise());
+            if (deviseRevenu == null) {
+                return ScoreResult.nonCalculable("La devise du revenu annuel est absente ; aucun taux financier ne peut être comparé.");
+            }
+            for (Contrat contrat : contratsFinanciers) {
+                String deviseContrat = normaliserDevise(contrat.getDevise());
+                if (deviseContrat == null || !deviseRevenu.equals(deviseContrat)) {
+                    return ScoreResult.nonCalculable(
+                            "Les devises du revenu et des engagements ne sont pas identiques ou ne sont pas renseignées. Aucune conversion n'est inventée.");
+                }
+                List<Echeance> echeances = echeancesParContrat.computeIfAbsent(contrat.getId(), id ->
+                        echeanceRepository.findByContrat_IdOrderByNumeroEcheance(id));
+                if (!donneesFinancieresCompletes(contrat, echeances)) {
+                    return ScoreResult.nonCalculable(
+                            "Les montants ou échéances d'un engagement actif/en cours sont incomplets ; les ratios financiers ne sont pas calculables.");
+                }
+                chargeMensuelle = chargeMensuelle.add(mensualite(contrat));
+                BigDecimal expositionContrat = exposition(contrat, echeances);
+                if (expositionContrat == null) {
+                    return ScoreResult.nonCalculable(
+                            "Le montant restant dû ou le montant d'une demande en cours est inconnu.");
+                }
+                exposition = exposition.add(expositionContrat);
+            }
 
+            tauxEndettement = chargeMensuelle.multiply(BigDecimal.valueOf(12))
+                    .divide(revenuAnnuel, 8, RoundingMode.HALF_UP).doubleValue();
+            tauxExposition = exposition.divide(revenuAnnuel, 8, RoundingMode.HALF_UP).doubleValue();
             pointsEndettement = interpoler(tauxEndettement,
                     p.getEndettementSeuilVert(), p.getEndettementSeuilRouge(), p.getMaxEndettement());
             pointsExposition = interpoler(tauxExposition,
                     p.getExpositionSeuilVert(), p.getExpositionSeuilRouge(), p.getMaxExposition());
-
             if (tauxEndettement > p.getEndettementSeuilRouge()) {
                 malus = Math.min(p.getMalusSurendettementMax(),
                         (tauxEndettement - p.getEndettementSeuilRouge()) * p.getMalusSurendettementCoef());
@@ -119,131 +180,187 @@ public class ScoreService {
         } else {
             pointsEndettement = p.getMaxEndettement() * p.getNeutreSansRevenu();
             pointsExposition = p.getMaxExposition() * p.getNeutreSansRevenu();
+            avertissements.add("Revenu annuel absent : les ratios d'endettement et d'exposition ne sont pas évalués.");
         }
 
         double pointsAnciennete = 0;
         if (client.getDateAdhesion() != null) {
             long mois = Math.max(0, ChronoUnit.MONTHS.between(client.getDateAdhesion(), reference));
             pointsAnciennete = p.getMaxAnciennete()
-                    * Math.min(1.0, (double) mois / p.getAncienneteMoisPlein());
+                    * Math.min(1.0, (double) mois / Math.max(1, p.getAncienneteMoisPlein()));
         }
 
-        long recents = historique.stream()
+        long creditsRecents = empruntsDecaisses.stream()
+                .filter(c -> c.getDateDemande() != null)
                 .filter(c -> {
-                    long m = ChronoUnit.MONTHS.between(c.getDateDemande(), reference);
-                    return m >= 0 && m <= p.getFenetreContratRecentMois();
+                    long mois = ChronoUnit.MONTHS.between(c.getDateDemande(), reference);
+                    return mois >= 0 && mois <= p.getFenetreContratRecentMois();
                 })
                 .count();
         long demandesDormantes = historique.stream()
+                .filter(this::estEmprunteur)
                 .filter(c -> c.getPhaseDemande() == PhaseDemande.DEMANDE_EN_COURS)
-                .filter(c -> ChronoUnit.DAYS.between(c.getDateDemande(), reference) > p.getSeuilDemandeEnAttenteJours())
+                .filter(c -> c.getDateDemande() != null)
+                .filter(c -> ChronoUnit.DAYS.between(c.getDateDemande(), reference)
+                        > p.getSeuilDemandeEnAttenteJours())
                 .count();
         double pointsNouveaux = Math.max(0, p.getMaxNouveaux()
-                - recents * p.getMalusParContratRecent()
+                - creditsRecents * p.getMalusParContratRecent()
                 - demandesDormantes * p.getMalusParDemandeEnAttente());
 
-        long types = historique.stream().map(Contrat::getTypeContrat).distinct().count();
+        long types = empruntsDecaisses.stream()
+                .map(Contrat::getTypeContrat)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
         double pointsMixite = p.getMaxMixite() * (types >= 3 ? 1.0
                 : types == 2 ? p.getMixiteRatioDeuxTypes()
-                : p.getMixiteRatioUnType());
+                : types == 1 ? p.getMixiteRatioUnType() : 0);
 
         double secondaireBrut = pointsEndettement + pointsExposition + pointsAnciennete
-                              + pointsNouveaux + pointsMixite;
+                + pointsNouveaux + pointsMixite;
         double plafond = p.maxSecondaire()
                 * (p.getPlafondSecondaireBase()
-                 + p.getPlafondSecondairePart() * (pointsPaiement / p.getMaxPaiement()));
+                + p.getPlafondSecondairePart() * (pointsPaiement / p.getMaxPaiement()));
         double secondaireRetenu = Math.min(secondaireBrut, plafond);
-
         double brut = p.getScoreBase() + pointsPaiement + secondaireRetenu - malus;
         int score = Math.max(p.getScoreBase(), Math.min(p.getScoreMax(), (int) Math.round(brut)));
 
-        ScoreDetail detail = new ScoreDetail(
-                arrondi(pointsPaiement), arrondi(pointsEndettement), arrondi(pointsExposition),
-                arrondi(pointsAnciennete), arrondi(pointsNouveaux), arrondi(pointsMixite),
-                arrondi(malus), arrondi(secondaireBrut), arrondi(plafond), arrondi(secondaireRetenu),
-                echues.size(), moisObserves, arrondi(tauxQualite * 100) / 100.0,
-                tauxEndettement == null ? null : arrondi(tauxEndettement * 100) / 100.0,
-                tauxExposition == null ? null : arrondi(tauxExposition * 100) / 100.0);
-
         GrilleScore grille = grilleScorePour(score);
+        String message = avertissements.isEmpty() ? null : String.join(" ", avertissements);
         return ScoreResult.calcule(score, grille.getIntervalle(), grille.getCategorieRisque(),
-                grille.getCouleur(), detail);
+                grille.getCouleur(), message);
     }
 
-    private int moisObserves(List<Contrat> historique, LocalDate reference) {
-        Set<YearMonth> mois = new HashSet<>();
-        for (Contrat c : historique) {
-            if (c.getDateDebutContrat() == null) continue;
-            LocalDate fin = c.getDateFinContrat() != null && c.getDateFinContrat().isBefore(reference)
-                    ? c.getDateFinContrat() : reference;
-            YearMonth courant = YearMonth.from(c.getDateDebutContrat());
-            YearMonth borne = YearMonth.from(fin);
-            while (!courant.isAfter(borne)) {
-                mois.add(courant);
-                courant = courant.plusMonths(1);
-            }
+    private boolean estEmprunteur(Contrat contrat) {
+        return contrat.getRoleClient() != RoleClient.GARANT;
+    }
+
+    private List<Contrat> contratsFinanciers(List<Contrat> historique, Contrat contratEnCours) {
+        List<Contrat> contrats = new ArrayList<>(historique.stream()
+                .filter(this::estEmprunteur)
+                .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF
+                        || c.getPhaseDemande() == PhaseDemande.DEMANDE_EN_COURS)
+                .toList());
+        if (contratEnCours != null && estEmprunteur(contratEnCours)
+                && (contratEnCours.getPhaseDemande() == PhaseDemande.ACTIF
+                || contratEnCours.getPhaseDemande() == PhaseDemande.DEMANDE_EN_COURS)) {
+            ajouterSiAbsent(contrats, contratEnCours);
         }
-        return mois.size();
+        return contrats;
     }
 
-    private double poidsAnciennete(LocalDate dateEcheance, LocalDate reference) {
-        long mois = ChronoUnit.MONTHS.between(dateEcheance, reference);
+    private void ajouterSiAbsent(List<Contrat> contrats, Contrat candidat) {
+        if (contrats.stream().noneMatch(c -> Objects.equals(c.getId(), candidat.getId()))) {
+            contrats.add(candidat);
+        }
+    }
+
+    private boolean donneesFinancieresCompletes(Contrat contrat, List<Echeance> echeances) {
+        if (mensualite(contrat).signum() <= 0) return false;
+        if (contrat.getPhaseDemande() == PhaseDemande.ACTIF) {
+            return contrat.getMontantRestantDu() != null || !echeances.isEmpty();
+        }
+        return (contrat.getMontantTotalDu() != null && contrat.getMontantTotalDu().signum() > 0)
+                || (contrat.getMontantFinance() != null && contrat.getMontantFinance().signum() > 0);
+    }
+
+    private BigDecimal exposition(Contrat contrat, List<Echeance> echeances) {
+        if (contrat.getPhaseDemande() == PhaseDemande.DEMANDE_EN_COURS) {
+            if (contrat.getMontantTotalDu() != null && contrat.getMontantTotalDu().signum() > 0) {
+                return contrat.getMontantTotalDu();
+            }
+            return contrat.getMontantFinance();
+        }
+        if (contrat.getMontantRestantDu() != null) return contrat.getMontantRestantDu();
+        if (echeances.isEmpty()) return null;
+        return echeances.stream()
+                .map(e -> resteEcheance(e.getMontantDu(), e.getMontantPaye()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal mensualite(Contrat contrat) {
+        if (contrat.getMontantEcheanceMensuelle() != null
+                && contrat.getMontantEcheanceMensuelle().signum() > 0) {
+            return contrat.getMontantEcheanceMensuelle();
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private BigDecimal resteEcheance(BigDecimal montantDu, BigDecimal montantPaye) {
+        BigDecimal reste = montantDu.subtract(montantPaye == null ? BigDecimal.ZERO : montantPaye);
+        return reste.signum() > 0 ? reste : BigDecimal.ZERO;
+    }
+
+    private Double qualite(HistoriquePaiementMensuel observation) {
+        if (observation.getJoursDeRetard() != null) {
+            if (observation.getJoursDeRetard() < 0) return null;
+            return qualiteRetardJours(observation.getJoursDeRetard());
+        }
+        BucketRetard bucket = BucketRetard.depuisStatut(observation.getStatut());
+        return bucket == null ? null : qualite(bucket);
+    }
+
+    private boolean statutNonObservable(String statut) {
+        if (statut == null || statut.isBlank()) return true;
+        String normalise = Normalizer.normalize(statut, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "");
+        return normalise.isBlank() || Set.of("TROPRECENT", "NONDISPONIBLE", "ND", "NA", "NC").contains(normalise);
+    }
+
+    private double qualite(BucketRetard bucket) {
+        return switch (bucket) {
+            case A_JOUR -> p.getQualitePayeATemps();
+            case JOURS_1_29 -> p.getQualiteRetardCourt();
+            case JOURS_30_59 -> qualiteRetardJours(30);
+            case JOURS_60_89 -> qualiteRetardJours(60);
+            case JOURS_90_119 -> qualiteRetardJours(90);
+            case JOURS_120_149 -> qualiteRetardJours(120);
+            case JOURS_150_179 -> qualiteRetardJours(150);
+            case JOURS_180_PLUS -> p.getQualiteImpaye();
+        };
+    }
+
+    private int nombreEcheancesObservees(HistoriquePaiementMensuel observation) {
+        return observation.getNombreEcheances() == null
+                ? 1 : Math.max(1, observation.getNombreEcheances());
+    }
+
+    private double montant(BigDecimal montant) {
+        return montant == null ? 1.0 : Math.max(1.0, montant.doubleValue());
+    }
+
+    private double qualite(Echeance echeance, LocalDate reference) {
+        int jours = echeance.joursDeRetard(reference);
+        if (jours <= 0) return p.getQualitePayeATemps();
+        return qualiteRetardJours(jours);
+    }
+
+    private double qualiteRetardJours(int jours) {
+        if (jours < 30) return p.getQualiteRetardCourt();
+        if (jours >= 180) return p.getQualiteImpaye();
+        double progression = (jours - 30) / 150.0;
+        return p.getQualiteRetardLong()
+                + (p.getQualiteImpaye() - p.getQualiteRetardLong()) * progression;
+    }
+
+    private double poidsAnciennete(LocalDate dateObservation, LocalDate reference) {
+        long mois = ChronoUnit.MONTHS.between(dateObservation, reference);
         if (mois <= 12) return p.getPoidsRecent();
         if (mois <= 36) return p.getPoidsMoyen();
         return p.getPoidsAncien();
     }
 
-    private double montant(BigDecimal m) {
-        return m == null ? 1.0 : Math.max(1.0, m.doubleValue());
-    }
-
-    private double qualite(Echeance e, LocalDate reference) {
-        StatutEcheance statut = e.statutEffectif(reference);
-        if (statut == StatutEcheance.PAYE_A_TEMPS) return p.getQualitePayeATemps();
-        if (statut == StatutEcheance.IMPAYE) return p.getQualiteImpaye();
-        if (!e.estPayee()) return p.getQualiteImpaye();
-        return e.joursDeRetard(reference) <= Echeance.SEUIL_IMPAYE_JOURS
-                ? p.getQualiteRetardCourt()
-                : p.getQualiteRetardLong();
-    }
-
-    private BigDecimal chargeMensuelle(List<Contrat> historique, Contrat contratEnCours) {
-        BigDecimal total = historique.stream()
-                .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF)
-                .filter(c -> c.getRoleClient() != RoleClient.GARANT)
-                .map(this::mensualite)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (contratEnCours != null) {
-            total = total.add(mensualite(contratEnCours));
-        }
-        return total;
-    }
-
-    private BigDecimal mensualite(Contrat c) {
-        if (c.getMontantEcheanceMensuelle() != null && c.getMontantEcheanceMensuelle().signum() > 0) {
-            return c.getMontantEcheanceMensuelle()
-                    .divide(BigDecimal.valueOf(Math.max(1, c.pasEnMois())), 2, RoundingMode.HALF_UP);
-        }
-        int nb = c.getNombreTotalEcheances() == null ? 1 : Math.max(1, c.getNombreTotalEcheances());
-        int dureeMois = Math.max(1, nb * c.pasEnMois());
-        return c.totalDu().divide(BigDecimal.valueOf(dureeMois), 2, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal expositionDejaPortee(List<Contrat> historique,
-                                            Map<Long, List<Echeance>> echeances) {
-        BigDecimal total = BigDecimal.ZERO;
-        for (Contrat c : historique) {
-            if (c.getRoleClient() == RoleClient.GARANT) continue;
-            if (c.getPhaseDemande() == PhaseDemande.ACTIF) {
-                total = total.add(echeances.getOrDefault(c.getId(), List.of()).stream()
-                        .filter(e -> !e.estPayee())
-                        .map(Echeance::getMontantDu)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add));
-            } else if (c.getPhaseDemande() == PhaseDemande.DEMANDE_EN_COURS) {
-                total = total.add(c.totalDu());
-            }
-        }
-        return total;
+    private String normaliserDevise(String devise) {
+        if (devise == null || devise.isBlank()) return null;
+        String normalise = Normalizer.normalize(devise, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "");
+        if (normalise.isBlank()) return null;
+        return normalise.equals("MGA") || normalise.contains("ARIARY") ? "MGA" : normalise;
     }
 
     private double interpoler(double taux, double seuilVert, double seuilRouge, double maximum) {
@@ -259,9 +376,5 @@ public class ScoreService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "La grille de score ne couvre pas la valeur " + score));
-    }
-
-    private double arrondi(double v) {
-        return Math.round(v * 100.0) / 100.0;
     }
 }

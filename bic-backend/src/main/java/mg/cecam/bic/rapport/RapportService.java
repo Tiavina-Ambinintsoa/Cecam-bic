@@ -7,6 +7,8 @@ import mg.cecam.bic.client.Client;
 import mg.cecam.bic.client.Emploi;
 import mg.cecam.bic.client.EmploiRepository;
 import mg.cecam.bic.common.enums.NatureGarantie;
+import mg.cecam.bic.common.enums.BucketRetard;
+import mg.cecam.bic.common.enums.OrigineDonnee;
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.RoleClient;
 import mg.cecam.bic.common.enums.StatutEcheance;
@@ -49,6 +51,7 @@ public class RapportService {
 
     private final ContratRepository contratRepository;
     private final EcheanceRepository echeanceRepository;
+    private final HistoriquePaiementMensuelRepository historiquePaiementMensuelRepository;
     private final EmploiRepository emploiRepository;
     private final GarantieRepository garantieRepository;
     private final BienLeasingRepository bienLeasingRepository;
@@ -59,6 +62,7 @@ public class RapportService {
     private final GrilleScoreRepository grilleScoreRepository;
     private final AuditService auditService;
     private final JournalAuditRepository journalAuditRepository;
+    private final SituationFinanciereMensuelleService situationFinanciereMensuelleService;
 
     @Transactional(readOnly = true)
     public RapportSolvabiliteResponse construire(Long contratId) {
@@ -73,7 +77,8 @@ public class RapportService {
         List<Contrat> tous = contratRepository.findByClient_Id(client.getId());
         List<Contrat> historique = tous.stream()
                 .filter(c -> !c.getId().equals(contratId))
-                .sorted(Comparator.comparing(Contrat::getDateDemande).reversed())
+                .sorted(Comparator.comparing(Contrat::getDateDemande,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
         List<Long> ids = tous.stream().map(Contrat::getId).toList();
@@ -133,6 +138,7 @@ public class RapportService {
                 synthese(historique, echeances, garanties, reference),
                 syntheseParCategorie(historique, echeances, reference),
                 encoursParCategorie(historique, echeances, reference),
+                situationFinanciereMensuelleService.calculer(tous, echeances, reference),
                 financements(historique, echeances, liensParContrat, NON_DECAISSEES, false, reference),
                 financements(historique, echeances, liensParContrat, DECAISSEES, true, reference),
                 detailContrats(historique, echeances, garanties, leasings, liensParContrat, reference),
@@ -283,7 +289,8 @@ public class RapportService {
         List<Contrat> retenus = historique.stream()
                 .filter(c -> phases.contains(c.getPhaseDemande()))
                 .filter(c -> CAT_AVEC_ECHEANCIER.equals(categorieDe(c)))
-                .sorted(Comparator.comparing(Contrat::getDateDemande).reversed())
+                .sorted(Comparator.comparing(Contrat::getDateDemande,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
 
         List<LigneFinancementDTO> lignes = new ArrayList<>();
@@ -337,14 +344,14 @@ public class RapportService {
         List<Echeance> enSouffrance = echeances.stream()
                 .filter(e -> e.estEnSouffrance(reference)).toList();
 
-        BigDecimal restantDu = somme(aEchoir);
-        BigDecimal montantImpayes = somme(enSouffrance);
+        BigDecimal restantDu = c.getMontantRestantDu() != null ? c.getMontantRestantDu() : somme(aEchoir);
+        BigDecimal montantImpayes = c.getMontantImpayes() != null ? c.getMontantImpayes() : somme(enSouffrance);
 
         Echeance prochaine = echeances.stream()
                 .filter(e -> !e.estPayee())
                 .min(Comparator.comparing(Echeance::getDateEcheance)).orElse(null);
 
-        LocalDate dernierReglement = echeances.stream().filter(Echeance::estPayee)
+        LocalDate dernierReglementCalcule = echeances.stream().filter(Echeance::estPayee)
                 .map(Echeance::getDatePaiement).filter(Objects::nonNull)
                 .max(Comparator.naturalOrder()).orElse(null);
 
@@ -360,7 +367,10 @@ public class RapportService {
         Optional<Echeance> pire = echeances.stream()
                 .filter(e -> !e.getDateEcheance().isAfter(reference))
                 .max(Comparator.comparingInt(e -> rangStatut(e.statutEffectif(reference))));
-        if (pire.isEmpty()) {
+        if (c.getPireStatut() != null && !c.getPireStatut().isBlank()) {
+            pireStatut = c.getPireStatut();
+            datePireStatut = c.getDatePireStatut();
+        } else if (pire.isEmpty()) {
             pireStatut = "No info";
         } else {
             StatutEcheance s = pire.get().statutEffectif(reference);
@@ -374,30 +384,55 @@ public class RapportService {
 
         return new DetailContratDTO(
                 c.getCodeContratCb(), tiret(c.getCodeContratEtablissement()), c.getCodeEtablissementDeclarant(),
+                tiret(c.getCodeEtablissementCrypte() != null ? c.getCodeEtablissementCrypte() : c.getCodeEtablissementDeclarant()),
                 c.getTypeContrat(), LabelMapper.phase(c.getPhaseDemande(), c.getMotifCloture()),
                 LabelMapper.role(c.getRoleClient()), c.getDevise(),
                 c.getDateDemande(), c.getDateDebutContrat(), c.getDateFinContrat(),
-                c.getDatePremiereEcheance(), c.getDateDerniereModification(),
+                c.getDatePremiereEcheance(), c.getDateDerniereModificationSource() != null
+                        ? c.getDateDerniereModificationSource().atStartOfDay() : c.getDateDerniereModification(),
                 c.getMontantFinance(), c.totalDu(), c.getMontantEcheanceMensuelle(),
-                c.getNombreTotalEcheances(), tiret(c.getPeriodicitePaiement()), "-",
-                prochaine == null ? BigDecimal.ZERO : prochaine.getMontantDu(),
-                prochaine == null ? null : prochaine.getDateEcheance(),
-                dernierReglement,
+                c.getNombreTotalEcheances(), tiret(c.getPeriodicitePaiement()), tiret(c.getModeReglement()),
+                c.getMontantProchaineEcheance() != null ? c.getMontantProchaineEcheance()
+                        : prochaine == null ? BigDecimal.ZERO : prochaine.getMontantDu(),
+                c.getDateProchaineEcheance() != null ? c.getDateProchaineEcheance()
+                        : prochaine == null ? null : prochaine.getDateEcheance(),
+                c.getDateDernierReglement() != null ? c.getDateDernierReglement() : dernierReglementCalcule,
                 historiquePaiement,
-                aEchoir.size(), restantDu, enSouffrance.size(), montantImpayes,
-                montantImpayes, enSouffrance.size(),
-                enSouffrance.isEmpty() ? null : enSouffrance.get(0).getDateEcheance(),
-                joursCourants, maxJours, dateMaxJours,
+                c.getNombreEcheancesRestantes() != null ? c.getNombreEcheancesRestantes() : aEchoir.size(),
+                restantDu,
+                c.getNombreEcheancesImpayees() != null ? c.getNombreEcheancesImpayees() : enSouffrance.size(),
+                montantImpayes,
+                c.getMaxMontantImpayes() != null ? c.getMaxMontantImpayes() : montantImpayes,
+                c.getMaxNombreEcheancesImpayees() != null ? c.getMaxNombreEcheancesImpayees() : enSouffrance.size(),
+                c.getDateMaxNombreEcheancesImpayees() != null ? c.getDateMaxNombreEcheancesImpayees()
+                        : enSouffrance.isEmpty() ? null : enSouffrance.get(0).getDateEcheance(),
+                c.getNombreJoursRetard() != null ? c.getNombreJoursRetard() : joursCourants,
+                c.getMaxNombreJoursRetard() != null ? c.getMaxNombreJoursRetard() : maxJours,
+                c.getDateMaxNombreJoursRetard() != null ? c.getDateMaxNombreJoursRetard() : dateMaxJours,
                 pireStatut, datePireStatut,
                 tiret(c.getCodeRestructuration()), c.getDateCodeRestructuration(),
                 tiret(c.getContratOrigine()), tiret(c.getNouveauContrat()), tiret(c.getNote()),
                 toLeasingDto(leasing),
                 liensDe(liens),
-                garanties.stream().map(this::toGarantieDto).toList());
+                garanties.stream().map(this::toGarantieDto).toList(),
+                libelleOrigineDonnee(c.getOrigineDonnee()));
     }
 
     private List<HistoriquePaiementLigneDTO> historiquePaiement(Contrat c, List<Echeance> echeances,
                                                                 LocalDate reference) {
+        List<HistoriquePaiementMensuel> source = historiquePaiementMensuelRepository
+                .findByContrat_IdOrderByMoisDesc(c.getId());
+        if (!source.isEmpty()) {
+            return source.stream().map(h -> {
+                BucketRetard bucket = BucketRetard.depuisJours(h.getJoursDeRetard());
+                if (bucket == null) bucket = BucketRetard.depuisStatut(h.getStatut());
+                return new HistoriquePaiementLigneDTO(
+                        h.getMois().getYear(), MOIS_LONG[h.getMois().getMonthValue() - 1],
+                        h.getNombreEcheances(), h.getNombreEcheancesImpayees(), h.getJoursDeRetard(),
+                        h.getStatut(), bucket == null ? null : bucket.libelle(), h.getDetailsSource());
+            }).toList();
+        }
+
         var debut = calendrierService.moisDebutDeclaration(c);
         var fin = calendrierService.moisFinDeclaration(c, reference);
         if (debut == null || fin == null || debut.isAfter(fin)) return List.of();
@@ -422,7 +457,8 @@ public class RapportService {
 
             lignes.add(new HistoriquePaiementLigneDTO(
                     courant.getYear(), MOIS_LONG[courant.getMonthValue() - 1],
-                    impayees, jours, LabelMapper.statutEcheance(pire)));
+                    null, impayees, jours, LabelMapper.statutEcheance(pire),
+                    Optional.ofNullable(BucketRetard.depuisJours(jours)).map(BucketRetard::libelle).orElse(null), null));
             courant = courant.minusMonths(1);
         }
         return lignes;
@@ -528,7 +564,17 @@ public class RapportService {
                 c.getDateNaissance(), tiret(c.getVilleNaissance()), tiret(c.getPaysNaissance()),
                 c.getGenre() == null ? "-" : c.getGenre().name(), c.getNationalite(),
                 tiret(c.getEtatCivil()), tiret(c.getTelephone()),
-                c.getCategorieTiersCode(), c.getDateDerniereModification());
+                c.getCategorieTiersCode(), c.getDateDerniereModification(),
+                libelleOrigineDonnee(c.getOrigineDonnee()));
+    }
+
+    private String libelleOrigineDonnee(OrigineDonnee origine) {
+        if (origine == null) return "Origine non renseignée";
+        return switch (origine) {
+            case NON_RENSEIGNEE -> "Origine non renseignée";
+            case RAPPORT_CRIF -> "Rapport CRIF";
+            case DONNEE_FICTIVE -> "Donnée fictive de démonstration";
+        };
     }
 
     private List<ContactDTO> contacts(Client c) {
@@ -559,11 +605,13 @@ public class RapportService {
     }
 
     private ScoreDTO toScoreDto(ScoreResult r) {
+        String avertissement = "Score expérimental, non calibré sur des historiques de remboursement CECAM réels. "
+                + "Indicateur d'analyse interne uniquement : il ne constitue pas une décision de crédit.";
         if (!r.calculable()) {
-            return new ScoreDTO(false, null, null, null, null, null, r.message(), null);
+            return new ScoreDTO(false, null, null, null, null, null, r.message(), avertissement);
         }
         return new ScoreDTO(true, r.valeur(), r.intervalle(), r.categorieRisque(),
-                r.couleur(), ScoreColorMapper.toHex(r.couleur()), null, r.detail());
+                r.couleur(), ScoreColorMapper.toHex(r.couleur()), r.message(), avertissement);
     }
 
     private List<GrilleScoreDTO> grille() {

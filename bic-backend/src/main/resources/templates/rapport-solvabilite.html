@@ -105,7 +105,8 @@
   <tr>
     <td><div class="lib">Nationalité</div><div class="val" th:text="${r.client.nationalite}">-</div></td>
     <td><div class="lib">Etat civil</div><div class="val" th:text="${r.client.etatCivil}">-</div></td>
-    <td colspan="2"></td>
+    <td><div class="lib">Origine des données client</div><div class="val" th:text="${r.client.origineDonnee}">Origine non renseignée</div></td>
+    <td></td>
   </tr>
 </table>
 
@@ -193,6 +194,9 @@
     <td><div class="lib">Phase de la Demande</div><div class="val" th:text="${r.detailDemande.phaseDemande}">-</div></td>
     <td><div class="lib">Devise</div><div class="val" th:text="${r.detailDemande.devise}">-</div></td>
     <td><div class="lib">Périodicité de paiement</div><div class="val" th:text="${r.detailDemande.periodicitePaiement}">-</div></td>
+    <td><div class="lib">Origine des données contrat</div><div class="val" th:text="${r.detailDemande.origineDonnee}">Origine non renseignée</div></td>
+  </tr>
+  <tr>
     <td><div class="lib">Montant Financé</div>
         <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantFinance)}">-</div></td>
   </tr>
@@ -207,8 +211,14 @@
 </table>
 
 <div class="section">SCORE CB</div>
+<div class="encadre">
+  <div class="val" th:text="${r.score.avertissement}">Score expérimental réservé à l'analyse interne.</div>
+</div>
 <div th:unless="${r.score.calculable}" class="encadre">
   <div class="bloc-titre">Le score n'est pas calculé :</div>
+  <div class="val" th:text="${r.score.message}">-</div>
+</div>
+<div th:if="${r.score.calculable and r.score.message != null}" class="encadre">
   <div class="val" th:text="${r.score.message}">-</div>
 </div>
 <table th:if="${r.score.calculable}" class="eviter-coupure">
@@ -236,38 +246,6 @@
     </td>
   </tr>
 </table>
-
-<div th:if="${r.score.calculable and r.score.detail != null}" class="eviter-coupure">
-  <div class="sous-section">Décomposition du score</div>
-  <table class="liste">
-    <tr><th>Axe</th><th style="text-align:right">Points</th><th>Base de calcul</th></tr>
-    <tr><td>Comportement de paiement</td><td class="num" th:text="${r.score.detail.pointsPaiement}">0</td>
-        <td th:text="${r.score.detail.moisObserves} + ' mois de relation observés, '
-                   + ${r.score.detail.echeancesEchues} + ' échéance(s) échue(s), qualité '
-                   + ${#numbers.formatPercent(r.score.detail.tauxQualitePaiement, 1, 0)}">-</td></tr>
-    <tr><td>Taux d'endettement</td><td class="num" th:text="${r.score.detail.pointsEndettement}">0</td>
-        <td th:text="${r.score.detail.tauxEndettement != null}
-                   ? 'charge mensuelle / revenu mensuel = ' + ${r.score.detail.tauxEndettement}
-                   : 'revenu non déclaré — axe neutralisé'">-</td></tr>
-    <tr><td>Exposition déjà portée</td><td class="num" th:text="${r.score.detail.pointsExposition}">0</td>
-        <td th:text="${r.score.detail.tauxExposition != null}
-                   ? 'engagements en cours / revenu annuel = ' + ${r.score.detail.tauxExposition}
-                   : 'revenu non déclaré — axe neutralisé'">-</td></tr>
-    <tr><td>Ancienneté de la relation</td><td class="num" th:text="${r.score.detail.pointsAnciennete}">0</td><td></td></tr>
-    <tr><td>Nouveaux crédits</td><td class="num" th:text="${r.score.detail.pointsNouveauxCredits}">0</td><td></td></tr>
-    <tr><td>Mixité des produits</td><td class="num" th:text="${r.score.detail.pointsMixite}">0</td><td></td></tr>
-    <tr th:if="${r.score.detail.plafondApplique()}">
-      <td>Plafonnement des axes secondaires</td>
-      <td class="num" th:text="'-' + ${#numbers.formatDecimal(r.score.detail.secondaireBrut - r.score.detail.secondaireRetenu,1,2)}">0</td>
-      <td th:text="'brut ' + ${r.score.detail.secondaireBrut} + ' plafonné à ' + ${r.score.detail.plafondSecondaire}">-</td></tr>
-    <tr th:if="${r.score.detail.malusSurendettement > 0}">
-      <td><strong>Malus de surendettement</strong></td>
-      <td class="num" style="color:#b4532a" th:text="'-' + ${r.score.detail.malusSurendettement}">0</td>
-      <td>charge mensuelle au-delà du seuil d'alerte</td></tr>
-    <tr><td><strong>Total</strong></td><td class="num"><strong th:text="${r.score.valeur}">-</strong></td>
-        <td>base 300 + points retenus</td></tr>
-  </table>
-</div>
 
 <div class="section">SYNTHÈSE RAPPORT DE SOLVABILITÉ</div>
 <div class="sous-section">Chiffres Clés</div>
@@ -300,6 +278,19 @@
     <td th:text="${l.abandonne}">0</td><td th:text="${l.actif}">0</td><td th:text="${l.ferme}">0</td>
   </tr>
 </table>
+
+<div class="sous-section">Situation financière par catégorie — encours et impayés mensuels</div>
+<p class="lib">Agrégation des contrats avec échéancier daté disponible, séparée par devise. Les déclarations mensuelles source sans montant ni date exacte ne sont pas transformées en encours.</p>
+<table class="liste" th:if="${!r.situationFinanciereMensuelle.isEmpty()}">
+  <tr><th>Mois</th><th>Catégorie</th><th>Devise</th><th style="text-align:right">Encours</th><th style="text-align:right">Impayés</th><th>Contrats</th></tr>
+  <tr th:each="sf : ${r.situationFinanciereMensuelle}">
+    <td th:text="${sf.mois}">-</td><td th:text="${sf.categorie}">-</td><td th:text="${sf.devise}">-</td>
+    <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sf.encours)}">-</td>
+    <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sf.impayes)}">-</td>
+    <td th:text="${sf.contratsAvecEcheances}">0</td>
+  </tr>
+</table>
+<div class="lib" th:if="${r.situationFinanciereMensuelle.isEmpty()}">Aucun échéancier daté permettant de calculer l'historique mensuel en montant.</div>
 
 <th:block th:if="${r.score.calculable}">
 <div class="sous-section">Synthèse Contrats par Catégorie</div>
@@ -442,20 +433,23 @@
     </tr>
     <tr>
       <td><div class="lib">Devise d'origine</div><div class="val" th:text="${d.devise}">-</div></td>
-      <td><div class="lib">Code Etablissement Crypté</div><div class="val" th:text="${d.codeEtablissementDeclarant}">-</div></td>
+      <td><div class="lib">Code Etablissement Crypté</div><div class="val" th:text="${d.codeEtablissementCrypte}">-</div></td>
       <td><div class="lib">Note</div><div class="val" th:text="${d.note}">-</div></td>
-      <td></td>
+      <td><div class="lib">Origine des données contrat</div><div class="val" th:text="${d.origineDonnee}">Origine non renseignée</div></td>
     </tr>
   </table>
 
   <div class="bloc-titre">Historique de paiement</div>
   <table class="liste" th:if="${!d.historiquePaiement.isEmpty()}">
-    <tr><th>Année</th><th>Mois</th><th>Nombre Échéances Impayées</th><th>Nombre Jours de retard</th><th>Statut</th></tr>
+    <tr><th>Année</th><th>Mois</th><th>Nombre Échéances</th><th>Nombre Échéances Impayées</th><th>Nombre Jours de retard</th><th>Bucket de retard</th><th>Statut</th><th>Détails source</th></tr>
     <tr th:each="h : ${d.historiquePaiement}">
       <td th:text="${h.annee}">-</td><td th:text="${h.mois}">-</td>
-      <td th:text="${h.nombreEcheancesImpayees}">0</td>
+      <td th:text="${h.nombreEcheances != null ? h.nombreEcheances : '-'}">-</td>
+      <td th:text="${h.nombreEcheancesImpayees != null ? h.nombreEcheancesImpayees : '-'}">-</td>
       <td th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatJoursRetard(h.joursDeRetard)}">-</td>
+      <td th:text="${h.bucketRetard != null ? h.bucketRetard : '-'}">-</td>
       <td th:text="${h.statut}">-</td>
+      <td th:text="${h.detailsSource != null ? h.detailsSource : '-'}">-</td>
     </tr>
   </table>
   <div th:if="${d.historiquePaiement.isEmpty()}" class="lib">Aucune déclaration mensuelle sur ce contrat.</div>

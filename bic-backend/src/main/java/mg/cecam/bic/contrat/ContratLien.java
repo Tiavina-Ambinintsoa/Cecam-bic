@@ -3,6 +3,7 @@ package mg.cecam.bic.contrat;
 import jakarta.persistence.*;
 import lombok.*;
 import mg.cecam.bic.common.enums.RoleClient;
+import mg.cecam.bic.client.Client;
 
 @Entity
 @Table(name = "contrat_lien")
@@ -19,6 +20,10 @@ public class ContratLien {
 
     @Column(name = "code_client_cb", nullable = false, length = 20)
     private String codeClientCb;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "client_lie_id")
+    private Client clientLie;
 
     @Column(name = "nom_client")
     private String nomClient;

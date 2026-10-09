@@ -50,8 +50,8 @@ export function RapportPage() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-4 flex justify-end gap-3">
-        <Button onClick={() => rapportApi.ouvrirPdfNouvelOnglet(Number(contratId))}>
-          Visualiser PDF
+        <Button onClick={() => rapportApi.telechargerEtVisualiserPdf(Number(contratId))}>
+          Télécharger et visualiser le PDF
         </Button>
       </div>
 

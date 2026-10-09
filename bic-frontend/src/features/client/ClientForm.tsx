@@ -5,14 +5,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { clientSchema, type ClientFormValues } from "./clientSchema";
+import { clientSchema, type ClientFormInput, type ClientFormValues } from "./clientSchema";
 import { clientApi } from "@/api/clientApi";
 import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
 import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note";
 import { DateInput } from "@/components/ui/date-input";
 import { MontantInput } from "@/components/ui/montant-input";
+import { ORIGINE_DONNEE_LABELS, type OrigineDonnee } from "@/types/origineDonnee";
 
 const FIELD_H = "min-h-10 h-auto py-2";
 
@@ -24,12 +25,13 @@ export function ClientForm() {
   const [genreLabel, setGenreLabel] = useState<string>();
   const [titreLabel, setTitreLabel] = useState<string>();
 
-  const form = useForm<ClientFormValues>({
+  const form = useForm<ClientFormInput, unknown, ClientFormValues>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
       titre: "M.",
       nationalite: "Malgache",
       categorieTiersCode: "0215",
+      origineDonnee: "NON_RENSEIGNEE",
       adresses: [{ typeAdresse: "Individu - Adresse principale", adresseComplete: "" }],
       identifiants: [{ typeIdentifiant: "CIN", numero: "" }],
     },
@@ -157,6 +159,19 @@ export function ClientForm() {
 
           <div className="space-y-1.5"><Label className="font-semibold">Nationalité <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("nationalite")} /></div>
           <div className="space-y-1.5"><Label>État civil</Label><Input className={FIELD_H} {...form.register("etatCivil")} /></div>
+          <div className="space-y-1.5">
+            <Label>Origine des données client</Label>
+            <Controller control={form.control} name="origineDonnee" render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger className={FIELD_H}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(ORIGINE_DONNEE_LABELS) as [OrigineDonnee, string][]).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )} />
+          </div>
           {/* Téléphone retiré : c'est une information de la fiche client, pas de la demande */}
         </CardContent>
       </Card>
@@ -202,6 +217,7 @@ export function ClientForm() {
                     <SelectContent>
                       <SelectItem value="Individu - Adresse principale">Individu - Adresse principale</SelectItem>
                       <SelectItem value="Individu - Adresse secondaire">Individu - Adresse secondaire</SelectItem>
+                      <SelectItem value="Individu - Adresse entreprise">Affaire individuelle — adresse entreprise</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

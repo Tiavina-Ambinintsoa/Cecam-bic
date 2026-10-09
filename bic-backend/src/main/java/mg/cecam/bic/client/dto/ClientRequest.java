@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import mg.cecam.bic.common.enums.Genre;
+import mg.cecam.bic.common.enums.OrigineDonnee;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,7 +27,8 @@ public record ClientRequest(
         String telephone,
         @Valid @NotNull List<AdresseRequest> adresses,
         @Valid @NotNull List<IdentifiantRequest> identifiants,
-        EmploiRequest emploi
+        EmploiRequest emploi,
+        OrigineDonnee origineDonnee
 ) {
     public record AdresseRequest(
             @NotBlank String typeAdresse, @NotBlank String adresseComplete,

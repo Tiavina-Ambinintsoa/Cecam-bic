@@ -9,6 +9,7 @@ public record DetailContratDTO(
         String codeContratCb,
         String codeContratEtablissement,
         String codeEtablissementDeclarant,
+        String codeEtablissementCrypte,
         String typeContrat,
         String phase,
         String role,
@@ -23,7 +24,7 @@ public record DetailContratDTO(
         BigDecimal montantFinance,
         BigDecimal montantTotalDu,
         BigDecimal montantEcheanceMensuelle,
-        int nombreTotalEcheances,
+        Integer nombreTotalEcheances,
         String periodicitePaiement,
         String modeReglement,
 
@@ -55,5 +56,6 @@ public record DetailContratDTO(
 
         BienLeasingDTO bienLeasing,       
         List<LienClientDTO> clientsLies,   
-        List<GarantieDTO> garanties
+        List<GarantieDTO> garanties,
+        String origineDonnee
 ) {}

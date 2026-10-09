@@ -10,9 +10,23 @@ export const contratApi = {
   const { data } = await axiosClient.get<import("@/types/contrat").ContratResponse[]>("/contrats", { params: { clientId } });
   return data;
 },
-changerPhase: async (contratId: number, phase: string) => {
-  const { data } = await axiosClient.patch(`/contrats/${contratId}/phase`, { phase });
+rechercherParCodeEtablissement: async (code: string): Promise<ContratResponse | null> => {
+  try {
+    const { data } = await axiosClient.get<ContratResponse>("/contrats/recherche", { params: { codeContratEtablissement: code } });
+    return data;
+  } catch {
+    return null;
+  }
+},
+changerPhase: async (contratId: number, phase: string, motif?: string) => {
+  const { data } = await axiosClient.patch(`/contrats/${contratId}/phase`, { phase, motif: motif || null });
   return data;
+},
+changerEcheanceMensuelle: async (contratId: number, montantEcheanceMensuelle: number | null, devise: string) => {
+  await axiosClient.patch(`/contrats/${contratId}/echeance-mensuelle`, { montantEcheanceMensuelle, devise });
+},
+changerCodesEtablissement: async (contratId: number, codeContratEtablissement: string, codeDemandeEtablissement: string) => {
+  await axiosClient.patch(`/contrats/${contratId}/codes-etablissement`, { codeContratEtablissement, codeDemandeEtablissement });
 },
 };
 

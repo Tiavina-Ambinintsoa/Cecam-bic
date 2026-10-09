@@ -8,6 +8,7 @@ import lombok.*;
 import mg.cecam.bic.client.Client;
 import mg.cecam.bic.common.enums.ModeRattachement;
 import mg.cecam.bic.common.enums.MotifCloture;
+import mg.cecam.bic.common.enums.OrigineDonnee;
 import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.RoleClient;
 
@@ -40,6 +41,9 @@ private String codeDemandeEtablissement;
     @Column(name = "code_etablissement_declarant", length = 10)
     private String codeEtablissementDeclarant = "001";
 
+    @Column(name = "utilisateur_declarant", length = 100)
+    private String utilisateurDeclarant;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
@@ -58,8 +62,7 @@ private String codeDemandeEtablissement;
     @Column(name = "role_client", nullable = false, length = 20)
     private RoleClient roleClient;
 
-    @NotNull
-    @Column(name = "date_demande", nullable = false)
+    @Column(name = "date_demande")
     private LocalDate dateDemande;
 
     @Column(name = "date_debut_contrat")
@@ -71,8 +74,14 @@ private String codeDemandeEtablissement;
     @Column(name = "date_premiere_echeance")
     private LocalDate datePremiereEcheance;
 
-    @NotNull @Positive
-    @Column(name = "montant_finance", nullable = false)
+    @Column(name = "date_derniere_modification_source")
+    private LocalDate dateDerniereModificationSource;
+
+    @Column(name = "code_etablissement_crypte", length = 40)
+    private String codeEtablissementCrypte;
+
+    @Positive
+    @Column(name = "montant_finance")
     private BigDecimal montantFinance;
 
     @Column(name = "montant_total_du")
@@ -84,16 +93,70 @@ private String codeDemandeEtablissement;
     @Column(name = "type_relation_entreprise")
     private String typeRelationEntreprise;
 
-    @NotNull @Positive
-    @Column(name = "nombre_total_echeances", nullable = false)
+    @Positive
+    @Column(name = "nombre_total_echeances")
     private Integer nombreTotalEcheances;
 
     @NotBlank
     @Builder.Default
     private String devise = "Ariary malgache";
 
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "origine_donnee", nullable = false, length = 30)
+    private OrigineDonnee origineDonnee = OrigineDonnee.NON_RENSEIGNEE;
+
     @Column(name = "periodicite_paiement")
     private String periodicitePaiement;
+
+    @Column(name = "mode_reglement")
+    private String modeReglement;
+
+    @Column(name = "montant_prochaine_echeance")
+    private BigDecimal montantProchaineEcheance;
+
+    @Column(name = "date_prochaine_echeance")
+    private LocalDate dateProchaineEcheance;
+
+    @Column(name = "date_dernier_reglement")
+    private LocalDate dateDernierReglement;
+
+    @Column(name = "nombre_echeances_restantes")
+    private Integer nombreEcheancesRestantes;
+
+    @Column(name = "montant_restant_du")
+    private BigDecimal montantRestantDu;
+
+    @Column(name = "nombre_echeances_impayees")
+    private Integer nombreEcheancesImpayees;
+
+    @Column(name = "montant_impayes")
+    private BigDecimal montantImpayes;
+
+    @Column(name = "max_montant_impayes")
+    private BigDecimal maxMontantImpayes;
+
+    @Column(name = "max_nombre_echeances_impayees")
+    private Integer maxNombreEcheancesImpayees;
+
+    @Column(name = "date_max_nombre_echeances_impayees")
+    private LocalDate dateMaxNombreEcheancesImpayees;
+
+    @Column(name = "nombre_jours_retard")
+    private Integer nombreJoursRetard;
+
+    @Column(name = "max_nombre_jours_retard")
+    private Integer maxNombreJoursRetard;
+
+    @Column(name = "date_max_nombre_jours_retard")
+    private LocalDate dateMaxNombreJoursRetard;
+
+    @Column(name = "pire_statut")
+    private String pireStatut;
+
+    @Column(name = "date_pire_statut")
+    private LocalDate datePireStatut;
 
     @NotNull
     @Enumerated(EnumType.STRING)
@@ -127,14 +190,11 @@ private String codeDemandeEtablissement;
     @PreUpdate
     void onSave() {
         this.dateDerniereModification = LocalDateTime.now();
-        if (this.montantTotalDu == null) {
-            this.montantTotalDu = this.montantFinance;
-        }
     }
 
     @Transient
     public BigDecimal totalDu() {
-        return montantTotalDu != null ? montantTotalDu : montantFinance;
+        return montantTotalDu;
     }
 
     @Transient

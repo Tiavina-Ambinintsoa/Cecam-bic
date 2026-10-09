@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.audit.AuditService;
 import mg.cecam.bic.client.dto.ClientEnregistrementResponse;
 import mg.cecam.bic.client.dto.ClientRequest;
+import mg.cecam.bic.common.enums.OrigineDonnee;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,13 +33,13 @@ public class ClientService {
             List<Client> existants = clientRepository.findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(cin, "CIN");
             if (!existants.isEmpty()) {
                 Client existant = existants.get(0);
-                auditService.enregistrer("CLIENT", existant.getId(), "CONSULTATION", "Nouvelle demande sur client existant, CIN " + cin);
+                auditService.enregistrer("CLIENT", existant.getId(), "CONSULTATION", "Nouvelle demande sur client existant");
                 return new ClientEnregistrementResponse(existant, true);
             }
         }
 
         Client nouveau = creerClient(request);
-        auditService.enregistrer("CLIENT", nouveau.getId(), "CREATION", "Code CB " + nouveau.getCodeClientCb());
+        auditService.enregistrer("CLIENT", nouveau.getId(), "CREATION", "Client créé depuis le formulaire");
         return new ClientEnregistrementResponse(nouveau, false);
     }
 
@@ -54,6 +55,7 @@ public class ClientService {
                 .villeNaissance(request.villeNaissance())
                 .paysNaissance(request.paysNaissance())
                 .genre(request.genre())
+                .origineDonnee(request.origineDonnee() != null ? request.origineDonnee() : OrigineDonnee.NON_RENSEIGNEE)
                 .nationalite(request.nationalite())
                 .etatCivil(request.etatCivil())
                 .telephone(request.telephone())
@@ -114,6 +116,7 @@ public class ClientService {
         client.setVilleNaissance(request.villeNaissance());
         client.setPaysNaissance(request.paysNaissance());
         client.setGenre(request.genre());
+        if (request.origineDonnee() != null) client.setOrigineDonnee(request.origineDonnee());
         client.setNationalite(request.nationalite());
         client.setEtatCivil(request.etatCivil());
         client.setTelephone(request.telephone());
@@ -143,7 +146,7 @@ public class ClientService {
         client.getAdresses().add(adresse);
         clientRepository.save(client);
         auditService.enregistrer("CLIENT", clientId, "AJOUT_ADRESSE",
-                adresse.getTypeAdresse() + " : " + adresse.getAdresseComplete());
+                "Adresse " + adresse.getTypeAdresse() + " ajoutée");
         return adresse;
     }
 

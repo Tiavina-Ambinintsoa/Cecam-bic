@@ -14,11 +14,13 @@ axiosClient.interceptors.request.use((config) => {
 axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url = String(error.config?.url ?? "");
+    if (error.response?.status === 401 && !url.includes("/auth/login")) {
       localStorage.removeItem("bic_token");
       localStorage.removeItem("bic_user");
       localStorage.removeItem("bic_role");
-      window.location.href = "/login";
+      localStorage.removeItem("bic_last_activity");
+      window.location.replace("/login");
     }
     return Promise.reject(error);
   }

@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect, type ChangeEvent } from "react";
+import { forwardRef, useState, useEffect, useRef, type ChangeEvent } from "react";
 import { Input } from "@/components/ui/input";
 
 interface DateInputProps {
@@ -18,14 +18,25 @@ function isoVersAffichage(iso?: string): string {
 function affichageVersIso(affichage: string): string {
   const [j, m, a] = affichage.split("/");
   if (!j || !m || !a || a.length !== 4) return "";
+  const jour = Number(j), mois = Number(m), annee = Number(a);
+  const date = new Date(Date.UTC(annee, mois - 1, jour));
+  if (date.getUTCFullYear() !== annee || date.getUTCMonth() !== mois - 1 || date.getUTCDate() !== jour) return "";
   return `${a}-${m.padStart(2, "0")}-${j.padStart(2, "0")}`;
 }
 
 export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
   ({ value, onValueChange, className, id }, ref) => {
     const [texte, setTexte] = useState(isoVersAffichage(value));
+    const valeurEmiseRef = useRef<string | null>(null);
 
-    useEffect(() => setTexte(isoVersAffichage(value)), [value]);
+    useEffect(() => {
+      if (valeurEmiseRef.current === (value ?? "")) {
+        valeurEmiseRef.current = null;
+        return;
+      }
+      setTexte(isoVersAffichage(value));
+      valeurEmiseRef.current = null;
+    }, [value]);
 
     function onChange(e: ChangeEvent<HTMLInputElement>) {
       const chiffres = e.target.value.replace(/\D/g, "").slice(0, 8);
@@ -34,7 +45,8 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(
       if (chiffres.length > 4) formate = formate.slice(0, 5) + "/" + chiffres.slice(4, 8);
       setTexte(formate);
       const iso = affichageVersIso(formate);
-      if (iso) onValueChange(iso);
+      valeurEmiseRef.current = iso;
+      onValueChange(iso);
     }
 
     return (

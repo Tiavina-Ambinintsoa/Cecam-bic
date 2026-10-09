@@ -1,3 +1,5 @@
+import type { OrigineDonnee } from "./origineDonnee";
+
 export type Genre = "FEMME" | "HOMME";
 
 export interface AdresseRequest {
@@ -35,6 +37,7 @@ export interface ClientRequest {
   nationalite: string;
   etatCivil?: string;
   telephone?: string;
+  origineDonnee?: OrigineDonnee;
   adresses: AdresseRequest[];
   identifiants: IdentifiantRequest[];
   emploi?: EmploiRequest;

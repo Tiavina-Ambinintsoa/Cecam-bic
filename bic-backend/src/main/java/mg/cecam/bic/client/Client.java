@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import mg.cecam.bic.common.enums.Genre;
+import mg.cecam.bic.common.enums.OrigineDonnee;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -52,6 +53,12 @@ public class Client {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private Genre genre;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "origine_donnee", nullable = false, length = 30)
+    private OrigineDonnee origineDonnee = OrigineDonnee.NON_RENSEIGNEE;
 
     @NotBlank
     @Builder.Default

@@ -3,6 +3,7 @@ package mg.cecam.bic.contrat.dto;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import mg.cecam.bic.common.enums.ModeRattachement;
+import mg.cecam.bic.common.enums.OrigineDonnee;
 import mg.cecam.bic.common.enums.RoleClient;
 
 import java.math.BigDecimal;
@@ -21,5 +22,6 @@ public record ContratRequest(
         BigDecimal montantEcheanceMensuelle,
         @NotNull @Positive Integer nombreTotalEcheances,
         @NotNull String devise,
-        String periodicitePaiement
+        String periodicitePaiement,
+        OrigineDonnee origineDonnee
 ) {}

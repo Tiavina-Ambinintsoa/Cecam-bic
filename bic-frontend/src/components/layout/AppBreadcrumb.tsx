@@ -13,7 +13,8 @@ function segmentsForPath(pathname: string): string[] {
   if (pathname.startsWith("/alertes")) return ["Sommaire des alertes", "Sommaire des alertes"];
   if (pathname.startsWith("/rapports")) return ["Historique des rapports"];
   if (pathname.startsWith("/audit")) return ["Journal d'audit"];
-  if (pathname.startsWith("/admin/saisie-historique")) return ["Saisie d'historique"];
+  if (pathname.startsWith("/admin/import")) return ["Importation de clients"];
+  if (pathname === "/admin" || pathname.startsWith("/admin/saisie-historique")) return ["Saisie d'historique"];
   return [];
 }
 
@@ -48,6 +49,7 @@ export function AppBreadcrumb() {
           <DropdownMenuItem onClick={() => navigate("/rapports")}>Historique des rapports</DropdownMenuItem>
           {role === "ADMIN" && (
             <>
+              <DropdownMenuItem onClick={() => navigate("/admin/import")}>Importation de clients (Admin)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/admin/saisie-historique")}>Saisie d'historique (Admin)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/audit")}>Journal d'audit (Admin)</DropdownMenuItem>
             </>
