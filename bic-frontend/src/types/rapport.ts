@@ -14,7 +14,6 @@ export interface ClientInfo {
   telephone?: string;
   categorieTiersCode: string;
   dateDerniereModification: string;
-  origineDonnee: string;
 }
 
 export interface Contact {
@@ -56,6 +55,7 @@ export interface DetailDemande {
   phaseDemande: string;
   devise: string;
   periodicitePaiement?: string;
+  origineDonnee: string;
   montantFinance: number;
   montantEcheanceMensuelle?: number;
   nombreTotalEcheances: number;

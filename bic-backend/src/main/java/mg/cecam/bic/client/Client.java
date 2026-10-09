@@ -1,5 +1,6 @@
 package mg.cecam.bic.client;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -58,6 +59,7 @@ public class Client {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     @Column(name = "origine_donnee", nullable = false, length = 30)
+    @JsonIgnore
     private OrigineDonnee origineDonnee = OrigineDonnee.NON_RENSEIGNEE;
 
     @NotBlank

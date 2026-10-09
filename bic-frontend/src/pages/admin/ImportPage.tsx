@@ -3,9 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { clientApi } from "@/api/clientApi";
 import type { ClientRequest } from "@/types/client";
-import { ORIGINE_DONNEE_LABELS, type OrigineDonnee } from "@/types/origineDonnee";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
 const ENTETES = ["prenom", "nom", "dateNaissance", "genre", "numeroIdentifiant", "adresseComplete", "ville", "commune", "region", "telephone"];
@@ -57,7 +54,7 @@ function dateIso(raw: string): string {
   return iso;
 }
 
-function clientDepuisCsv(row: CsvRow, origineDonnee: OrigineDonnee): ClientRequest {
+function clientDepuisCsv(row: CsvRow): ClientRequest {
   const prenom = row.prenom?.trim(), nom = row.nom?.trim(), cin = row.numeroIdentifiant?.trim();
   const genre = row.genre?.trim().toUpperCase();
   if (!prenom || !nom || !cin || !row.adresseComplete?.trim()) throw new Error("Une ligne ne contient pas le prénom, le nom, le CIN ou l'adresse complète requis.");
@@ -66,7 +63,6 @@ function clientDepuisCsv(row: CsvRow, origineDonnee: OrigineDonnee): ClientReque
     categorieTiersCode: row.categorieTiersCode?.trim() || "0004",
     prenom, nom, dateNaissance: dateIso(row.dateNaissance ?? ""), genre,
     nationalite: row.nationalite?.trim() || "Malgache",
-    origineDonnee,
     telephone: row.telephone?.trim() || undefined,
     identifiants: [{ typeIdentifiant: "CIN", numero: cin }],
     adresses: [{ typeAdresse: row.typeAdresse?.trim() || "Individu - Adresse principale",
@@ -81,7 +77,6 @@ export function ImportPage() {
   const [nomFichier, setNomFichier] = useState("");
   const [chargement, setChargement] = useState(false);
   const [resultat, setResultat] = useState<{ crees: number; existants: number } | null>(null);
-  const [origineDonnee, setOrigineDonnee] = useState<OrigineDonnee>("NON_RENSEIGNEE");
 
   async function chargerFichier(file?: File) {
     setRows([]); setResultat(null); setNomFichier(file?.name ?? "");
@@ -95,7 +90,7 @@ export function ImportPage() {
     let crees = 0, existants = 0;
     try {
       for (const row of rows) {
-        const response = await clientApi.creer(clientDepuisCsv(row, origineDonnee));
+        const response = await clientApi.creer(clientDepuisCsv(row));
         if (response.clientTrouve) existants++; else crees++;
       }
       setResultat({ crees, existants });
@@ -117,17 +112,6 @@ export function ImportPage() {
       <CardContent className="space-y-4 text-sm">
         <p>Import réservé à l’administrateur. Le fichier reste dans le navigateur ; les clients existants identifiés par CIN ne sont pas recréés.</p>
         <p>Colonnes obligatoires : {ENTETES_REQUISES.join(" ; ")}. Téléphone facultatif. Séparateur accepté : point-virgule ou virgule. Aucun fichier contenant des mots de passe ou jetons n’est accepté.</p>
-        <div className="max-w-md space-y-1.5">
-          <Label>Origine des données du fichier</Label>
-          <Select value={origineDonnee} onValueChange={(value) => setOrigineDonnee(value as OrigineDonnee)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {(Object.entries(ORIGINE_DONNEE_LABELS) as [OrigineDonnee, string][]).map(([value, label]) => (
-                <SelectItem key={value} value={value}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
         <div className="flex flex-wrap gap-3"><Button type="button" variant="outline" onClick={telechargerModele}>Télécharger le modèle CSV</Button>
           <input type="file" accept=".csv,text/csv" onChange={(e) => void chargerFichier(e.target.files?.[0])} /></div>
         {nomFichier && <p>{nomFichier} — {rows.length} ligne(s) prête(s) à importer.</p>}

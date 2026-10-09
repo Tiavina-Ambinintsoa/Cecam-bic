@@ -5,7 +5,7 @@ import java.time.LocalDate;
 
 public record DetailDemandeDTO(
         String codeContratCb, String role, String typeRelationEntreprise, String typeContrat,
-        String phaseDemande, String devise, String periodicitePaiement,
+        String phaseDemande, String devise, String periodicitePaiement, String origineDonnee,
         BigDecimal montantFinance, BigDecimal montantEcheanceMensuelle,
         int nombreTotalEcheances, LocalDate dateDemande
 ) {}

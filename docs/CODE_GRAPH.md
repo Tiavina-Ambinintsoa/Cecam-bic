@@ -89,7 +89,9 @@ Les échéances datées (`Echeance`) restent distinctes des observations mensuel
 
 Sur une base existante, appliquer une fois les migrations manuelles dans `bic-backend/src/main/resources/db/manual/` : `20261008_allow_partial_historical_contracts.sql`, `20261008_link_contract_clients.sql`, `20261008_add_contract_declaring_user.sql` et `20261009_add_data_provenance.sql`. Certains rapports ne donnent ni date de demande, ni montant financé, ni nombre d'échéances pour chaque contrat ancien. Les demandes actuelles gardent ces champs obligatoires dans leur DTO.
 
-`OrigineDonnee` décrit la provenance des fiches client et contrat (`RAPPORT_CRIF`, `DONNEE_FICTIVE` ou `NON_RENSEIGNEE`). Les formulaires client, demande, import CSV et historique transmettent cette valeur dans leurs DTO ; `ClientService` et `ContratService` la persistent. `RapportService` la traduit en libellé pour le rapport. La migration `20261009_add_data_provenance.sql` conserve toutes les lignes existantes en `NON_RENSEIGNEE` au lieu de déduire leur source.
+`OrigineDonnee` reste disponible pour la provenance des contrats saisis et historiques, affichée dans le détail de la demande et les contrats historiques du rapport. Le formulaire client, l'import CSV et le rapport ne demandent ni n'affichent plus une origine client. La colonne héritée `client.origine_donnee` est conservée pour compatibilité avec la base existante ; elle n'est plus alimentée par le DTO de création/modification client. La migration `20261009_add_data_provenance.sql` conserve les lignes existantes en `NON_RENSEIGNEE` au lieu de déduire leur source.
+
+`RapportService.construire` enregistre aussi la consultation dans le journal d'audit : sa transaction doit donc rester inscriptible même si la lecture des données du rapport est majoritaire. La page de rapport distingue maintenant un contrat absent d'une erreur serveur au lieu d'afficher le même message pour toute erreur.
 
 ## Repères pour une question ciblée
 

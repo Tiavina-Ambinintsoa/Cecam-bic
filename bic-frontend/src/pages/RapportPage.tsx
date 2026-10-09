@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { isAxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { rapportApi } from "@/api/rapportApi";
 import type { RapportSolvabilite } from "@/types/rapport";
@@ -27,9 +28,11 @@ export function RapportPage() {
         blobUrl = url;
         setPreviewUrl(url);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
-          setErreur("Aucune demande trouvée pour cet identifiant. Vérifiez que c'est bien un ID de contrat (pas un ID client).");
+          setErreur(isAxiosError(error) && error.response?.status === 404
+            ? "Aucun contrat trouvé pour cet identifiant."
+            : "Impossible de charger le rapport pour le moment. Vérifiez que le serveur fonctionne, puis réessayez.");
         }
       });
 

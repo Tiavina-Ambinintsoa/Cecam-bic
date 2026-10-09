@@ -64,7 +64,7 @@ public class RapportService {
     private final JournalAuditRepository journalAuditRepository;
     private final SituationFinanciereMensuelleService situationFinanciereMensuelleService;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public RapportSolvabiliteResponse construire(Long contratId) {
         Contrat contrat = contratRepository.findById(contratId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -564,8 +564,7 @@ public class RapportService {
                 c.getDateNaissance(), tiret(c.getVilleNaissance()), tiret(c.getPaysNaissance()),
                 c.getGenre() == null ? "-" : c.getGenre().name(), c.getNationalite(),
                 tiret(c.getEtatCivil()), tiret(c.getTelephone()),
-                c.getCategorieTiersCode(), c.getDateDerniereModification(),
-                libelleOrigineDonnee(c.getOrigineDonnee()));
+                c.getCategorieTiersCode(), c.getDateDerniereModification());
     }
 
     private String libelleOrigineDonnee(OrigineDonnee origine) {
@@ -600,7 +599,8 @@ public class RapportService {
                 c.getCodeContratCb(), LabelMapper.role(c.getRoleClient()),
                 tiret(c.getTypeRelationEntreprise()), c.getTypeContrat(),
                 LabelMapper.phase(c.getPhaseDemande(), c.getMotifCloture()), c.getDevise(),
-                tiret(c.getPeriodicitePaiement()), c.getMontantFinance(),
+                tiret(c.getPeriodicitePaiement()), libelleOrigineDonnee(c.getOrigineDonnee()),
+                c.getMontantFinance(),
                 c.getMontantEcheanceMensuelle(), c.getNombreTotalEcheances(), c.getDateDemande());
     }
 
