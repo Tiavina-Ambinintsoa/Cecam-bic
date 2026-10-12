@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.audit.AuditService;
 import mg.cecam.bic.audit.JournalAuditRepository;
 import mg.cecam.bic.client.Client;
+import mg.cecam.bic.client.AffaireIndividuelle;
 import mg.cecam.bic.client.Emploi;
 import mg.cecam.bic.client.EmploiRepository;
 import mg.cecam.bic.common.enums.NatureGarantie;
@@ -96,6 +97,7 @@ public class RapportService {
                 .collect(Collectors.groupingBy(l -> l.getContrat().getId()));
 
         Emploi emploi = emploiRepository.findByClient_Id(client.getId()).orElse(null);
+        if (emploi != null && !emploi.estRenseigne()) emploi = null;
 
         // [CORRIGÉ] "clientTrouve" n'existait nulle part : c'est le même booléen que celui déjà
         // utilisé par statutClient(...) plus bas, je l'ai factorisé dans clientPreexistant(...)
@@ -124,6 +126,7 @@ public class RapportService {
                 contacts(client),
                 adresses(client, true),
                 adresses(client, false),
+                toAffaireIndividuelleDTO(client.getAffaireIndividuelle()),
                 client.getIdentifiants().stream()
                         .map(i -> new IdentifiantDTO(i.getTypeIdentifiant(), i.getNumero())).toList(),
                 toDetailDemande(contrat),
@@ -581,6 +584,18 @@ public class RapportService {
                 c.getGenre() == null ? "-" : c.getGenre().name(), c.getNationalite(),
                 tiret(c.getEtatCivil()), tiret(c.getTelephone()),
                 c.getCategorieTiersCode(), c.getDateDerniereModification());
+    }
+
+    private AffaireIndividuelleDTO toAffaireIndividuelleDTO(AffaireIndividuelle affaire) {
+        if (affaire == null) return null;
+        List<AdresseDTO> adresses = affaire.getAdresses().stream()
+                .filter(a -> Boolean.TRUE.equals(a.getActuelle()))
+                .map(a -> new AdresseDTO(a.getTypeAdresse(), a.getAdresseComplete(),
+                        tiret(a.getNumeroRue()), tiret(a.getCodePostal()), tiret(a.getVille()),
+                        tiret(a.getCommune()), tiret(a.getRegion()), tiret(a.getPays()),
+                        a.getDateDerniereModification()))
+                .toList();
+        return new AffaireIndividuelleDTO(affaire.getNom(), affaire.getDateDerniereModification(), adresses);
     }
 
     private String libelleOrigineDonnee(OrigineDonnee origine) {

@@ -92,6 +92,9 @@ public class Client {
     @Builder.Default
     private List<Identifiant> identifiants = new ArrayList<>();
 
+    @OneToOne(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private AffaireIndividuelle affaireIndividuelle;
+
     @PrePersist
     void onCreate() {
         this.dateAdhesion = LocalDate.now();

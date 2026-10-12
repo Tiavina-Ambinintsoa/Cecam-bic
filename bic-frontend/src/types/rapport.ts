@@ -47,6 +47,12 @@ export interface Emploi {
   devise?: string;
 }
 
+export interface AffaireIndividuelle {
+  nom: string;
+  dateDerniereModification: string;
+  adresses: Adresse[];
+}
+
 export interface DetailDemande {
   codeContratCb: string;
   role: string;
@@ -259,6 +265,7 @@ export interface RapportSolvabilite {
   contacts: Contact[];
   adressesActuelles: Adresse[];
   adressesHistoriques: Adresse[];
+  affaireIndividuelle: AffaireIndividuelle | null;
   identifiants: Identifiant[];
   detailDemande: DetailDemande;
   emploi: Emploi | null;

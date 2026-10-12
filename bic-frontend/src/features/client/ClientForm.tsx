@@ -13,6 +13,7 @@ import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
 import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note";
 import { DateInput } from "@/components/ui/date-input";
 import { MontantInput } from "@/components/ui/montant-input";
+import type { ClientRequest } from "@/types/client";
 
 const FIELD_H = "min-h-10 h-auto py-2";
 
@@ -31,6 +32,7 @@ export function ClientForm() {
       categorieTiersCode: "0004",
       adresses: [{ typeAdresse: "Individu - Adresse principale", adresseComplete: "" }],
       identifiants: [{ typeIdentifiant: "CIN", numero: "" }],
+      affaireIndividuelle: { nom: "", adresse: { adresseComplete: "" } },
     },
   });
 
@@ -40,7 +42,24 @@ export function ClientForm() {
   async function onSubmit(values: ClientFormValues) {
     setSubmitting(true);
     try {
-      const { client } = await clientApi.creer(values);
+      const nomAffaire = values.affaireIndividuelle?.nom?.trim();
+      const adresseAffaire = values.affaireIndividuelle?.adresse;
+      const payload: ClientRequest = {
+        ...values,
+        affaireIndividuelle: nomAffaire ? {
+          nom: nomAffaire,
+          adresses: adresseAffaire?.adresseComplete?.trim() ? [{
+            adresseComplete: adresseAffaire.adresseComplete.trim(),
+            numeroRue: adresseAffaire.numeroRue,
+            codePostal: adresseAffaire.codePostal,
+            ville: adresseAffaire.ville,
+            commune: adresseAffaire.commune,
+            region: adresseAffaire.region,
+            pays: adresseAffaire.pays,
+          }] : [],
+        } : undefined,
+      };
+      const { client } = await clientApi.creer(payload);
       setClientId(client.id);
       navigate(`/demande/nouvelle/contrat/${client.id}`);
     } finally {
@@ -135,6 +154,34 @@ export function ClientForm() {
       </Card>
 
       <Card>
+        <CardHeader>
+          <CardTitle>Affaire individuelle <span className="font-normal text-slate-500">(facultatif)</span></CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Nom de l'affaire individuelle</Label>
+            <Input className={FIELD_H} {...form.register("affaireIndividuelle.nom")} />
+            {form.formState.errors.affaireIndividuelle?.nom && (
+              <p className="text-sm text-red-500">{form.formState.errors.affaireIndividuelle.nom.message}</p>
+            )}
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Adresse complète — Entreprise</Label>
+            <Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.adresseComplete")} />
+            {form.formState.errors.affaireIndividuelle?.adresse?.adresseComplete && (
+              <p className="text-sm text-red-500">{form.formState.errors.affaireIndividuelle.adresse.adresseComplete.message}</p>
+            )}
+          </div>
+          <div className="space-y-1.5"><Label>N° et nom de la rue</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.numeroRue")} /></div>
+          <div className="space-y-1.5"><Label>Code postal</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.codePostal")} /></div>
+          <div className="space-y-1.5"><Label>Ville</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.ville")} /></div>
+          <div className="space-y-1.5"><Label>Commune</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.commune")} /></div>
+          <div className="space-y-1.5"><Label>Région</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.region")} /></div>
+          <div className="space-y-1.5"><Label>Pays</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.pays")} /></div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader><CardTitle>Adresses</CardTitle></CardHeader>
         <CardContent className="space-y-6">
           {adressesArray.fields.map((field, index) => (
@@ -147,7 +194,6 @@ export function ClientForm() {
                     <SelectContent>
                       <SelectItem value="Individu - Adresse principale">Individu - Adresse principale</SelectItem>
                       <SelectItem value="Individu - Adresse secondaire">Individu - Adresse secondaire</SelectItem>
-                      <SelectItem value="Individu - Adresse entreprise">Affaire individuelle — adresse entreprise</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

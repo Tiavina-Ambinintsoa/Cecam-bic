@@ -12,6 +12,7 @@ public record RapportSolvabiliteResponse(
         List<ContactDTO> contacts,
         List<AdresseDTO> adressesActuelles,
         List<AdresseDTO> adressesHistoriques,
+        AffaireIndividuelleDTO affaireIndividuelle,
         List<IdentifiantDTO> identifiants,
         DetailDemandeDTO detailDemande,
         EmploiDTO emploi,

@@ -32,6 +32,12 @@ public class ClientService {
             List<Client> existants = clientRepository.findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(cin, "CIN");
             if (!existants.isEmpty()) {
                 Client existant = existants.get(0);
+                if (request.affaireIndividuelle() != null) {
+                    appliquerAffaireIndividuelle(existant, request.affaireIndividuelle());
+                    clientRepository.save(existant);
+                    auditService.enregistrer("CLIENT", existant.getId(), "MODIFICATION_AFFAIRE_INDIVIDUELLE",
+                            "Affaire individuelle mise à jour depuis une nouvelle demande");
+                }
                 auditService.enregistrer("CLIENT", existant.getId(), "CONSULTATION", "Nouvelle demande sur client existant");
                 return new ClientEnregistrementResponse(existant, true);
             }
@@ -76,7 +82,7 @@ public class ClientService {
 
         Client sauvegarde = clientRepository.save(client);
 
-        if (request.emploi() != null) {
+        if (request.emploi() != null && emploiRenseigne(request.emploi())) {
             Emploi emploi = Emploi.builder()
                     .client(sauvegarde)
                     .statutEmploi(request.emploi().statutEmploi())
@@ -88,6 +94,8 @@ public class ClientService {
                     .build();
             emploiRepository.save(emploi);
         }
+
+        appliquerAffaireIndividuelle(sauvegarde, request.affaireIndividuelle());
 
         return sauvegarde;
     }
@@ -119,6 +127,7 @@ public class ClientService {
         client.setEtatCivil(request.etatCivil());
         client.setCodeClientEtablissement(request.codeClientEtablissement());
         client.setTelephone(request.telephone());
+        appliquerAffaireIndividuelle(client, request.affaireIndividuelle());
         Client sauvegarde = clientRepository.save(client);
         auditService.enregistrer("CLIENT", id, "MODIFICATION", "Informations personnelles modifiées");
         return sauvegarde;
@@ -151,5 +160,42 @@ public class ClientService {
 
     private String genererCodeClientCb() {
         return "L" + String.format("%08d", clientRepository.prochainCodeClientCb());
+    }
+
+    private void appliquerAffaireIndividuelle(Client client, ClientRequest.AffaireIndividuelleRequest request) {
+        if (request == null || request.nom() == null || request.nom().isBlank()) return;
+
+        AffaireIndividuelle existante = client.getAffaireIndividuelle();
+        AffaireIndividuelle affaire = existante == null
+                ? AffaireIndividuelle.builder().client(client).build()
+                : existante;
+        if (existante == null) client.setAffaireIndividuelle(affaire);
+        affaire.setNom(request.nom().trim());
+        affaire.setDateDerniereModification(java.time.LocalDateTime.now());
+
+        if (request.adresses() == null || request.adresses().isEmpty()) return;
+        List<AdresseAffaireIndividuelle> adresses = request.adresses().stream()
+                .filter(a -> a != null && a.adresseComplete() != null && !a.adresseComplete().isBlank())
+                .map(a -> AdresseAffaireIndividuelle.builder()
+                        .affaireIndividuelle(affaire)
+                        .adresseComplete(a.adresseComplete().trim())
+                        .numeroRue(a.numeroRue()).codePostal(a.codePostal()).ville(a.ville())
+                        .commune(a.commune()).region(a.region()).pays(a.pays())
+                        .build())
+                .toList();
+        affaire.getAdresses().clear();
+        affaire.getAdresses().addAll(adresses);
+    }
+
+    private boolean emploiRenseigne(ClientRequest.EmploiRequest emploi) {
+        Emploi valeur = Emploi.builder()
+                .statutEmploi(emploi.statutEmploi())
+                .nomEmployeur(emploi.nomEmployeur())
+                .profession(emploi.profession())
+                .dateEmbauche(emploi.dateEmbauche())
+                .revenuAnnuelTotal(emploi.revenuAnnuelTotal())
+                .devise(emploi.devise())
+                .build();
+        return valeur.estRenseigne();
     }
 }

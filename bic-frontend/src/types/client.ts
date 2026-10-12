@@ -22,6 +22,21 @@ export interface EmploiRequest {
   devise?: string;
 }
 
+export interface AffaireIndividuelleAdresseRequest {
+  adresseComplete: string;
+  numeroRue?: string;
+  codePostal?: string;
+  ville?: string;
+  commune?: string;
+  region?: string;
+  pays?: string;
+}
+
+export interface AffaireIndividuelleRequest {
+  nom: string;
+  adresses?: AffaireIndividuelleAdresseRequest[];
+}
+
 export interface ClientRequest {
   titre?: string;
   categorieTiersCode: string;
@@ -39,6 +54,7 @@ export interface ClientRequest {
   adresses: AdresseRequest[];
   identifiants: IdentifiantRequest[];
   emploi?: EmploiRequest;
+  affaireIndividuelle?: AffaireIndividuelleRequest;
 }
 
 export interface ClientResponse extends ClientRequest {

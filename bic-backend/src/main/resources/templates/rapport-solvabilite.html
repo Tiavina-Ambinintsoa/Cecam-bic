@@ -17,14 +17,15 @@
     td, th { vertical-align: top; }
 
     .bandeau-etab { border: 1px solid #e3e1da; background: #fbfaf8; padding: 6px 8px; font-size: 7pt; }
-    .titre-rapport { text-align: center; font-size: 15pt; color: #14453d; margin: 14px 0 2px; }
-    .nom-client { text-align: center; font-size: 13pt; color: #14453d; margin-bottom: 14px; }
-    .marque { font-size: 17pt; font-weight: bold; color: #14453d; }
+    .titre-rapport { text-align: center; font-size: 15pt; color: #174a7e; margin: 14px 0 2px; }
+    .nom-client { text-align: center; font-size: 13pt; color: #174a7e; margin-bottom: 14px; }
+    .marque { font-size: 17pt; font-weight: bold; color: #174a7e; }
     .marque span { color: #6b6a65; font-weight: normal; font-size: 12pt; }
 
-    .section { background: #f1f0ec; padding: 6px 10px; margin: 16px 0 8px;
-               font-size: 12pt; color: #14453d; text-align: center; page-break-after: avoid; }
-    .sous-section { color: #14453d; font-size: 10pt; border-bottom: 1px solid #d5d3cb;
+    .section { background: #f4f4f4; border-radius: 18px; padding: 6px 10px; margin: 16px 0 8px;
+               font-family: Georgia, "DejaVu Serif", serif; font-size: 12pt; color: #174a7e;
+               text-align: center; page-break-after: avoid; }
+    .sous-section { color: #174a7e; font-size: 10pt; border-bottom: 1px solid #174a7e;
                     padding-bottom: 2px; margin: 12px 0 6px; page-break-after: avoid; }
     .bloc-titre { font-weight: bold; font-size: 9pt; margin: 8px 0 4px; }
 
@@ -37,8 +38,8 @@
     .liste td { border-bottom: 1px solid #f1f0ec; padding: 4px 5px; }
     .liste td.num { text-align: right; }
 
-    .badge { padding: 2px 8px; border-radius: 3px; font-size: 7.5pt; color: #fff; }
     .encadre { border: 1px solid #e3e1da; padding: 6px 8px; margin-bottom: 8px; }
+    .score-note { color: #64748b; font-size: 7.5pt; margin: 2px 0 8px; }
     .eviter-coupure { page-break-inside: avoid; }
 
     .calendrier th, .calendrier td { border: 1px solid #e3e1da; text-align: center;
@@ -48,7 +49,7 @@
 </head>
 <body>
 
-<div id="entete" th:text="'RAPPORT DE SOLVABILITÉ DU ' + ${#temporals.format(r.dateRequete, 'dd/MM/yyyy')}"></div>
+<div id="entete" th:text="'RAPPORT DE SOLVABILITÉ DE ' + ${#temporals.format(r.dateRequete, 'dd/MM/yyyy')}"></div>
 
 <table>
   <tr>
@@ -65,19 +66,6 @@
 
 <div class="titre-rapport">RAPPORT DE SOLVABILITÉ</div>
 <div class="nom-client" th:text="${#strings.toUpperCase(r.client.nomComplet)}">-</div>
-
-<table class="grille" style="border-top:1px solid #14453d; border-bottom:1px solid #14453d;">
-  <tr>
-    <td style="width:33%"><span class="lib">Date de la requête : </span>
-      <strong th:text="${#temporals.format(r.dateRequete, 'dd/MM/yyyy HH:mm')}">-</strong></td>
-    <td style="width:33%; text-align:center">
-      <span class="badge"
-            th:style="'background-color:' + (${#strings.startsWith(r.statutClient, 'Client Trouvé')} ? '#2e7d32' : '#b4532a')"
-            th:text="${r.statutClient}">-</span></td>
-    <td style="width:34%; text-align:right"><span class="lib">Identifiant du rapport : </span>
-      <span th:text="${r.identifiantRapport}">-</span></td>
-  </tr>
-</table>
 
 <div class="section">CLIENT</div>
 <div class="sous-section">Client</div>
@@ -163,8 +151,9 @@
   </tr>
 </table>
 
+<th:block th:if="${r.emploi != null}">
 <div class="sous-section">Emploi</div>
-<table class="grille" th:if="${r.emploi != null}">
+<table class="grille">
   <tr>
     <td><div class="lib">Statut Emploi</div><div class="val" th:text="${r.emploi.statutEmploi} ?: '-'">-</div></td>
     <td><div class="lib">Nom de l'Employeur</div><div class="val" th:text="${r.emploi.nomEmployeur} ?: '-'">-</div></td>
@@ -179,7 +168,43 @@
     <td colspan="2"></td>
   </tr>
 </table>
-<div th:unless="${r.emploi != null}" class="lib">Aucune information d'emploi déclarée.</div>
+</th:block>
+
+<th:block th:if="${r.affaireIndividuelle != null}">
+  <div class="section">AFFAIRE INDIVIDUELLE</div>
+  <div class="sous-section" th:text="${r.affaireIndividuelle.nom}">Affaire individuelle</div>
+  <table class="grille">
+    <tr>
+      <td style="width:33%">
+        <div class="lib">Nom de l'Affaire Individuelle</div>
+        <div class="val" th:text="${r.affaireIndividuelle.nom}">-</div>
+      </td>
+      <td style="width:33%">
+        <div class="lib">Date Dernière Modification</div>
+        <div class="val" th:text="${r.affaireIndividuelle.dateDerniereModification != null ? #temporals.format(r.affaireIndividuelle.dateDerniereModification,'dd/MM/yyyy') : '-'}">-</div>
+      </td>
+      <td style="width:34%"></td>
+    </tr>
+  </table>
+  <div class="sous-section" th:if="${!r.affaireIndividuelle.adresses.isEmpty()}">Adresses</div>
+  <div th:each="a : ${r.affaireIndividuelle.adresses}" class="eviter-coupure">
+    <div class="bloc-titre" th:text="'Actuelle - ' + ${a.typeAdresse}">Entreprise - Adresse Principale</div>
+    <table class="grille">
+      <tr>
+        <td><div class="lib">Adresse Complète</div><div class="val" th:text="${a.adresseComplete}">-</div></td>
+        <td><div class="lib">N° et Nom de la Rue</div><div class="val" th:text="${a.numeroRue}">-</div></td>
+        <td><div class="lib">Code Postal</div><div class="val" th:text="${a.codePostal}">-</div></td>
+        <td><div class="lib">Ville</div><div class="val" th:text="${a.ville}">-</div></td>
+      </tr>
+      <tr>
+        <td><div class="lib">Commune</div><div class="val" th:text="${a.commune}">-</div></td>
+        <td><div class="lib">Région</div><div class="val" th:text="${a.region}">-</div></td>
+        <td><div class="lib">Pays</div><div class="val" th:text="${a.pays}">-</div></td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+</th:block>
 
 <div class="section">DÉTAILS DE LA DEMANDE SAISIE</div>
 <table class="grille">
@@ -194,7 +219,7 @@
     <td><div class="lib">Phase de la Demande</div><div class="val" th:text="${r.detailDemande.phaseDemande}">-</div></td>
     <td><div class="lib">Devise</div><div class="val" th:text="${r.detailDemande.devise}">-</div></td>
     <td><div class="lib">Périodicité de paiement</div><div class="val" th:text="${r.detailDemande.periodicitePaiement}">-</div></td>
-    <td><div class="lib">Origine des données contrat</div><div class="val" th:text="${r.detailDemande.origineDonnee}">Origine non renseignée</div></td>
+    <td th:if="${r.detailDemande.origineDonnee != 'Origine non renseignée'}"><div class="lib">Origine des données contrat</div><div class="val" th:text="${r.detailDemande.origineDonnee}">-</div></td>
   </tr>
   <tr>
     <td><div class="lib">Montant Financé</div>
@@ -211,9 +236,7 @@
 </table>
 
 <div class="section">SCORE CB</div>
-<div class="encadre">
-  <div class="val" th:text="${r.score.avertissement}">Score expérimental réservé à l'analyse interne.</div>
-</div>
+<div class="score-note" th:text="${r.score.avertissement}">Score expérimental réservé à l'analyse interne.</div>
 <div th:unless="${r.score.calculable}" class="encadre">
   <div class="bloc-titre">Le score n'est pas calculé :</div>
   <div class="val" th:text="${r.score.message}">-</div>
@@ -238,9 +261,7 @@
                        + ';width:'  + (${g.intervalle == r.score.intervalle} ? '34px' : '24px')
                        + ';height:' + (${g.intervalle == r.score.intervalle} ? '34px' : '24px')
                        + ';border-radius:4px'
-                       + (${g.intervalle == r.score.intervalle} ? ';border:2px solid #14453d' : '')"></div>
-          <div th:text="${g.intervalle}"
-               th:style="${g.intervalle == r.score.intervalle} ? 'font-weight:bold;font-size:8pt' : 'font-size:7pt;color:#9a998f'"></div>
+                        + (${g.intervalle == r.score.intervalle} ? ';border:2px solid #174a7e' : '')"></div>
         </td>
       </tr></table>
     </td>
@@ -435,7 +456,7 @@
       <td><div class="lib">Devise d'origine</div><div class="val" th:text="${d.devise}">-</div></td>
       <td><div class="lib">Code Etablissement Crypté</div><div class="val" th:text="${d.codeEtablissementCrypte}">-</div></td>
       <td><div class="lib">Note</div><div class="val" th:text="${d.note}">-</div></td>
-      <td><div class="lib">Origine des données contrat</div><div class="val" th:text="${d.origineDonnee}">Origine non renseignée</div></td>
+      <td th:if="${d.origineDonnee != 'Origine non renseignée'}"><div class="lib">Origine des données contrat</div><div class="val" th:text="${d.origineDonnee}">-</div></td>
     </tr>
   </table>
 

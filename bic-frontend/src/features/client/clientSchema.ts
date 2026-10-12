@@ -20,6 +20,28 @@ const emploiSchema = z.object({
   devise: z.string().optional(),
 });
 
+const affaireIndividuelleSchema = z.object({
+  nom: z.string().optional(),
+  adresse: z.object({
+    adresseComplete: z.string().optional(),
+    numeroRue: z.string().optional(),
+    codePostal: z.string().optional(),
+    ville: z.string().optional(),
+    commune: z.string().optional(),
+    region: z.string().optional(),
+    pays: z.string().optional(),
+  }).optional(),
+}).superRefine((affaire, context) => {
+  const adresse = affaire.adresse;
+  const informationsSaisies = Boolean(affaire.nom?.trim()) || Boolean(adresse && Object.values(adresse).some((value) => value?.trim()));
+  if (informationsSaisies && !affaire.nom?.trim()) {
+    context.addIssue({ code: "custom", path: ["nom"], message: "Le nom de l'affaire individuelle est requis." });
+  }
+  if (affaire.nom?.trim() && adresse && Object.values(adresse).some((value) => value?.trim()) && !adresse.adresseComplete?.trim()) {
+    context.addIssue({ code: "custom", path: ["adresse", "adresseComplete"], message: "L'adresse complète est requise." });
+  }
+});
+
 export const clientSchema = z.object({
   titre: z.string().optional(),
   categorieTiersCode: z.string().min(1, "La catégorie tiers est requise"),
@@ -37,6 +59,7 @@ export const clientSchema = z.object({
   adresses: z.array(adresseSchema).min(1),
   identifiants: z.array(z.object({ typeIdentifiant: z.string().min(1), numero: z.string().min(1, "Numéro requis") })).min(1),
   emploi: emploiSchema.optional(),
+  affaireIndividuelle: affaireIndividuelleSchema.optional(),
 });
 
 export type ClientFormValues = z.infer<typeof clientSchema>;
