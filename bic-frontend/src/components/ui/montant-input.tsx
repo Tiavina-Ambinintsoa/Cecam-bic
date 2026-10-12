@@ -7,13 +7,14 @@ function formatAffichage(valeur: string): string {
 }
 
 interface MontantInputProps {
+  id?: string;
   value?: string;
   onValueChange: (valeurBrute: string) => void;
   className?: string;
 }
 
 export const MontantInput = forwardRef<HTMLInputElement, MontantInputProps>(
-  ({ value, onValueChange, className }, ref) => {
+  ({ id, value, onValueChange, className }, ref) => {
     const inputRef = useRef<HTMLInputElement>(null);
     useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
 
@@ -35,7 +36,7 @@ export const MontantInput = forwardRef<HTMLInputElement, MontantInputProps>(
       });
     }
 
-    return <Input ref={inputRef} inputMode="numeric" className={className}
+    return <Input id={id} ref={inputRef} inputMode="numeric" className={className}
       value={formatAffichage(value ?? "")} onChange={onChange} />;
   },
 );

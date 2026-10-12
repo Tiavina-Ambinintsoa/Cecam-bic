@@ -10,7 +10,7 @@ export function TopBar() {
 
   return (
     <header className="border-b border-border bg-card">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-6">
         <Link to="/" className="font-heading text-base font-semibold text-primary">
           BIC <span className="font-normal text-muted-foreground">CECAM</span>
         </Link>
@@ -21,7 +21,7 @@ export function TopBar() {
             onClick={() => setType("individuel")}
             aria-pressed={type === "individuel"}
             className={cn(
-              "rounded-md px-3 py-1.5 text-sm transition-colors",
+              "rounded-md px-3 py-2 text-base transition-colors",
               type === "individuel"
                 ? "bg-secondary font-medium text-secondary-foreground"
                 : "text-muted-foreground hover:text-foreground",
@@ -33,7 +33,7 @@ export function TopBar() {
             type="button"
             disabled
             title="Le module entreprise n'est pas encore ouvert"
-            className="cursor-not-allowed rounded-md px-3 py-1.5 text-sm text-muted-foreground/50"
+            className="cursor-not-allowed rounded-md px-3 py-2 text-base text-muted-foreground/50"
           >
             Entreprise
           </button>
@@ -41,15 +41,15 @@ export function TopBar() {
 
         <div className="ml-auto flex items-center gap-4">
           <div className="hidden text-right leading-tight sm:block">
-            <div className="text-sm text-foreground">{nomUtilisateur}</div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-base text-foreground">{nomUtilisateur}</div>
+            <div className="text-sm text-muted-foreground">
               {role === "ADMIN" ? "Administrateur" : "Agent de crédit"}
             </div>
           </div>
           <button
             type="button"
             onClick={() => { logout(); navigate("/login"); }}
-            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            className="text-base text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             Déconnexion
           </button>

@@ -34,6 +34,7 @@ export interface ClientRequest {
   genre: Genre;
   nationalite: string;
   etatCivil?: string;
+  codeClientEtablissement?: string;
   telephone?: string;
   adresses: AdresseRequest[];
   identifiants: IdentifiantRequest[];

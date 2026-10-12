@@ -32,6 +32,7 @@ export const clientSchema = z.object({
   genre: z.enum(["FEMME", "HOMME"], { message: "Le genre est requis" }),
   nationalite: z.string().min(1, "La nationalité est requise"),
   etatCivil: z.string().optional(),
+  codeClientEtablissement: z.string().optional(),
   telephone: z.string().optional(),
   adresses: z.array(adresseSchema).min(1),
   identifiants: z.array(z.object({ typeIdentifiant: z.string().min(1), numero: z.string().min(1, "Numéro requis") })).min(1),

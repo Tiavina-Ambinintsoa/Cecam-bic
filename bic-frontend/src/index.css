@@ -130,6 +130,7 @@
 }
 
 @layer base {
+  html { font-size: 17px; }
   button, input, select { @apply text-base; }
   h1, h2, h3 { @apply tracking-tight; }
 }

@@ -292,15 +292,8 @@ LEGEND.forEach(c => {
 });
 </script>
 <script>
-// Render hyperedges as shaded regions
-const hyperedges = [];
-// afterDrawing passes ctx already transformed to network coordinate space.
-// Draw node positions raw — no manual pan/zoom/DPR math needed.
 
-// Andrew's monotone chain. Returns the hull in counter-clockwise order, which
-// is what the perimeter must be traced in. Collinear and duplicate points
-// collapse to the extremes, so degenerate member sets render as a segment
-// rather than a zero-area crossed path.
+const hyperedges = [];
 function convexHull(pts) {
     const p = pts.slice().sort((a, b) => (a.x - b.x) || (a.y - b.y));
     if (p.length < 3) return p;

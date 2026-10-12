@@ -68,27 +68,37 @@ public class ScoreService {
                     .filter(e -> !e.getDateEcheance().isAfter(reference))
                     .toList();
 
-            if (!echues.isEmpty()) {
-                observationsExactes.addAll(echues);
-                echues.stream().map(e -> YearMonth.from(e.getDateEcheance())).forEach(moisObserves::add);
-                continue;
-            }
-
             List<HistoriquePaiementMensuel> historiqueMensuel = historiquePaiementMensuelRepository
                     .findByContrat_IdOrderByMoisDesc(contrat.getId()).stream()
                     .filter(h -> h.getMois() != null && !h.getMois().isAfter(reference))
                     .toList();
-            for (HistoriquePaiementMensuel observation : historiqueMensuel) {
-                if (qualite(observation) == null) {
-                    if (!statutNonObservable(observation.getStatut())) {
-                        return ScoreResult.nonCalculable(
-                                "Un statut source ne précise pas un retard exploitable. Saisissez le nombre de jours ou un bucket exact avant le calcul.");
+
+            // Le rapport affiche les observations mensuelles source lorsqu'elles sont
+            // exploitables. Appliquer la même priorité ici évite de compter deux fois une
+            // période couverte à la fois par ces observations et par les échéances datées.
+            if (!historiqueMensuel.isEmpty()) {
+                boolean observationMensuelleExploitable = false;
+                for (HistoriquePaiementMensuel observation : historiqueMensuel) {
+                    if (qualite(observation) == null) {
+                        if (!statutNonObservable(observation.getStatut())) {
+                            return ScoreResult.nonCalculable(
+                                    "Un statut source ne précise pas un retard exploitable. Saisissez le nombre de jours ou un bucket exact avant le calcul.");
+                        }
+                        continue;
                     }
+                    observationsMensuelles.add(observation);
+                    moisObserves.add(YearMonth.from(observation.getMois()));
+                    observationMensuelleExploitable = true;
+                }
+                if (observationMensuelleExploitable) {
                     continue;
                 }
-                observationsMensuelles.add(observation);
-                moisObserves.add(YearMonth.from(observation.getMois()));
             }
+
+            // Un historique mensuel entièrement non observable ne doit pas masquer des
+            // échéances datées et évaluables pour le même contrat.
+            observationsExactes.addAll(echues);
+            echues.stream().map(e -> YearMonth.from(e.getDateEcheance())).forEach(moisObserves::add);
         }
 
         if (observationsExactes.isEmpty() && observationsMensuelles.isEmpty()) {
@@ -114,12 +124,16 @@ public class ScoreService {
             return ScoreResult.nonCalculable("Les observations disponibles ne permettent pas de pondérer le comportement de paiement.");
         }
         double tauxQualite = poidsPondere / poidsTotal;
-        int nombreMoisObserves = moisObserves.size();
-
-        double maturite = Math.max(1, p.getMaturiteMois());
-        double confiance = Math.min(1.0, nombreMoisObserves / maturite);
+        int maturite = Math.max(1, p.getMaturiteMois());
+        YearMonth debutFenetreMaturite = YearMonth.from(reference).minusMonths(maturite - 1L);
+        long nombreMoisObserves = moisObserves.stream()
+                .filter(mois -> !mois.isBefore(debutFenetreMaturite)
+                        && !mois.isAfter(YearMonth.from(reference)))
+                .count();
+        double confiance = Math.min(1.0, (double) nombreMoisObserves / maturite);
         double facteurConfiance = p.getPlancherConfiance()
                 + (1 - p.getPlancherConfiance()) * confiance;
+        boolean historiqueIncomplet = confiance < 1.0;
         double pointsPaiement = p.getMaxPaiement() * tauxQualite * facteurConfiance;
 
         Emploi emploi = emploiRepository.findByClient_Id(client.getId()).orElse(null);
@@ -133,6 +147,9 @@ public class ScoreService {
         BigDecimal chargeMensuelle = BigDecimal.ZERO;
         BigDecimal exposition = BigDecimal.ZERO;
         List<String> avertissements = new ArrayList<>();
+        if (historiqueIncomplet) {
+            avertissements.add("Historique de remboursement incomplet par rapport à la fenêtre de maturité du modèle ; score à interpréter avec prudence.");
+        }
 
         double pointsEndettement;
         double pointsExposition;

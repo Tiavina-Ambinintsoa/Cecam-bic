@@ -22,7 +22,7 @@ export function NouvelleDemandeTabs() {
         const content = (
           <span
             className={cn(
-              "inline-block border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              "inline-block border-b-2 px-4 py-3 text-base font-medium transition-colors",
               isActive ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400",
               !tab.enabled && !isActive && "cursor-not-allowed opacity-50"
             )}

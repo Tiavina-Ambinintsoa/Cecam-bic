@@ -55,6 +55,7 @@ public class ClientService {
                 .paysNaissance(request.paysNaissance())
                 .genre(request.genre())
                 .nationalite(request.nationalite())
+                .codeClientEtablissement(request.codeClientEtablissement())
                 .etatCivil(request.etatCivil())
                 .telephone(request.telephone())
                 .build();
@@ -116,6 +117,7 @@ public class ClientService {
         client.setGenre(request.genre());
         client.setNationalite(request.nationalite());
         client.setEtatCivil(request.etatCivil());
+        client.setCodeClientEtablissement(request.codeClientEtablissement());
         client.setTelephone(request.telephone());
         Client sauvegarde = clientRepository.save(client);
         auditService.enregistrer("CLIENT", id, "MODIFICATION", "Informations personnelles modifiées");

@@ -28,8 +28,8 @@ public class ContratController {
     }
 
     @GetMapping("/recherche")
-    public ResponseEntity<Contrat> rechercher(@RequestParam(required = false) String codeContratEtablissement) {
-        return contratRepository.findByCodeContratEtablissement(codeContratEtablissement)
+    public ResponseEntity<Contrat> rechercher(@RequestParam(required = false) String identifiantContrat) {
+        return contratRepository.findByIdentifiantContrat(identifiantContrat)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -39,12 +39,14 @@ public class ContratController {
     public record CodesEtablissementRequest(String codeContratEtablissement, String codeDemandeEtablissement) {}
 
     @PatchMapping("/{id}/codes-etablissement")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> changerCodesEtablissement(@PathVariable Long id, @RequestBody CodesEtablissementRequest req) {
         contratService.modifierCodesEtablissement(id, req.codeContratEtablissement(), req.codeDemandeEtablissement());
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/echeance-mensuelle")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> changerEcheanceMensuelle(@PathVariable Long id, @RequestBody EcheanceMensuelleRequest req) {
         contratService.changerEcheanceMensuelle(id, req.montantEcheanceMensuelle(), req.devise());
         return ResponseEntity.noContent().build();
@@ -74,6 +76,7 @@ public class ContratController {
     public record PhaseRequest(PhaseDemande phase, MotifCloture motif) {}
 
     @PatchMapping("/{id}/phase")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Contrat> changerPhase(@PathVariable Long id, @RequestBody PhaseRequest req) {
         return ResponseEntity.ok(contratService.changerPhase(id, req.phase(), req.motif()));
     }

@@ -4,3 +4,12 @@ graphify-out/*
 !graphify-out/graph.json
 !graphify-out/graph.html
 !graphify-out/manifest.json
+
+# Local secrets and generated app artefacts
+.env
+.env.*
+!.env.example
+.docker-buildx/
+**/target/
+**/node_modules/
+**/dist/

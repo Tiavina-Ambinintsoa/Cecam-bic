@@ -317,7 +317,7 @@
     <div class="bloc-titre" th:text="${enc.categorie}">-</div>
     <div class="lib">Montant Encours</div>
     <table class="calendrier">
-      <tr><th th:text="${enc.codeEtablissement} ?: '001'">001</th>
+      <tr><th th:text="${enc.codeEtablissement} ?: 'Non renseigné'">Non renseigné</th>
           <th>JAN</th><th>FÉV</th><th>MARS</th><th>AVR</th><th>MAI</th><th>JUIN</th>
           <th>JUILL</th><th>AOÛT</th><th>SEP</th><th>OCT</th><th>NOV</th><th>DÉC</th></tr>
       <tr th:each="ligne : ${enc.lignes}">

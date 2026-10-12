@@ -20,14 +20,14 @@ export function HistoriqueRapportsPage() {
     axiosClient.get<ContratListItem[]>("/contrats").then((res) => setContrats(res.data)).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="mx-auto max-w-3xl p-6 text-slate-500">Chargement...</div>;
+  if (loading) return <div className="mx-auto max-w-5xl p-6 text-slate-500">Chargement...</div>;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
-      <h2 className="text-lg font-semibold text-slate-900">Historique des rapports</h2>
+    <div className="mx-auto max-w-5xl space-y-4 p-6">
+      <h2 className="text-2xl font-semibold text-slate-900">Historique des rapports</h2>
       <div className="overflow-hidden rounded-lg border bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+        <table className="w-full text-base">
+          <thead className="bg-slate-50 text-left text-sm text-slate-600">
             <tr>
               <th className="p-3">Client</th><th>Code Client CB</th><th>Contrat</th><th>Date demande</th><th>Phase</th>
             </tr>
@@ -37,7 +37,7 @@ export function HistoriqueRapportsPage() {
               <tr key={c.id} className="border-t hover:bg-slate-50">
                 <td className="p-3">
                   <Link to={`/demande/rapport/${c.id}`} className="font-medium text-slate-800 hover:underline">
-                    {c.client.prenom} {c.client.nom}
+                    {[c.client.prenom, c.client.nom].filter(Boolean).join(" ")}
                   </Link>
                 </td>
                 <td>{c.client.codeClientCb}</td>

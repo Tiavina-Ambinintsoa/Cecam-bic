@@ -16,7 +16,7 @@ export function PageShell({ titre, description, actions, children }: PageShellPr
         <div className="max-w-xl">
           <h1 className="font-heading text-2xl text-foreground">{titre}</h1>
           {description && (
-            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{description}</p>
+            <p className="mt-2 text-base leading-relaxed text-muted-foreground">{description}</p>
           )}
         </div>
         {actions && <div className="flex shrink-0 gap-2">{actions}</div>}

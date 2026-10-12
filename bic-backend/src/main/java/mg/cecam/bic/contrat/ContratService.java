@@ -52,8 +52,10 @@ public class ContratService {
                 genererEcheances(c);
             }
         }
-        if (nouvellePhase == PhaseDemande.FERME) {
-            c.setMotifCloture(motif != null ? motif : MotifCloture.FIN_A_TERME);
+        if (nouvellePhase == PhaseDemande.FERME || nouvellePhase == PhaseDemande.ABANDONNE) {
+            if (motif != null || ancienne != nouvellePhase) {
+                c.setMotifCloture(motif != null ? motif : MotifCloture.FIN_A_TERME);
+            }
             if (c.getDateFinContrat() == null) c.setDateFinContrat(LocalDate.now());
         }
 
@@ -96,10 +98,10 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
         Contrat contrat = Contrat.builder()
                 .codeContratCb(genererCodeContratCb())
                 .codeContratEtablissement(request.codeContratEtablissement())
+                .codeClientCbCible(request.codeClientCbCible())
                 .client(client)
                 .modeRattachement(request.modeRattachement())
                 .typeContrat(request.typeContrat())
-                .typeRelationEntreprise(request.typeRelationEntreprise())
                 .roleClient(request.roleClient())
                 .dateDemande(request.dateDemande())
                 .montantFinance(request.montantFinance())
@@ -107,7 +109,7 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                 .montantEcheanceMensuelle(request.montantEcheanceMensuelle())
                 .nombreTotalEcheances(request.nombreTotalEcheances())
                 .devise(request.devise())
-                .origineDonnee(request.origineDonnee() != null ? request.origineDonnee() : OrigineDonnee.NON_RENSEIGNEE)
+                .origineDonnee(OrigineDonnee.NON_RENSEIGNEE)
                 .periodicitePaiement(request.periodicitePaiement())
                 .phaseDemande(PhaseDemande.DEMANDE_EN_COURS)
                 .utilisateurDeclarant(utilisateurConnecte())

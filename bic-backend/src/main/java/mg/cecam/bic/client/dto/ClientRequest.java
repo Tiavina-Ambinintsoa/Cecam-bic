@@ -3,6 +3,7 @@ package mg.cecam.bic.client.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import mg.cecam.bic.common.enums.Genre;
 
 import java.math.BigDecimal;
@@ -21,7 +22,7 @@ public record ClientRequest(
         @NotNull Genre genre,
         @NotBlank String nationalite,
         String etatCivil,
-        String codeClientEtablissement,
+        @Size(max = 40) String codeClientEtablissement,
         String agence,
         String telephone,
         @Valid @NotNull List<AdresseRequest> adresses,

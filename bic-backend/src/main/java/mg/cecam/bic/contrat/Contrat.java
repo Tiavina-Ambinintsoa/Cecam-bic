@@ -37,9 +37,8 @@ public class Contrat {
 @Column(name = "code_demande_etablissement")
 private String codeDemandeEtablissement;
 
-    @Builder.Default
     @Column(name = "code_etablissement_declarant", length = 10)
-    private String codeEtablissementDeclarant = "001";
+    private String codeEtablissementDeclarant;
 
     @Column(name = "utilisateur_declarant", length = 100)
     private String utilisateurDeclarant;

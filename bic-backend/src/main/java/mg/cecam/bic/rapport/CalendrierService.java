@@ -100,8 +100,15 @@ public class CalendrierService {
                     if (courant.isBefore(d) || courant.isAfter(f)) continue;
                     declare = true;
                     for (Echeance e : echeancesParContrat.getOrDefault(c.getId(), List.of())) {
-                        if (estSolde(e, finDeMois)) continue;
-                        encours = encours.add(e.getMontantDu());
+                        BigDecimal paye = BigDecimal.ZERO;
+                        if (e.getDatePaiement() != null && !e.getDatePaiement().isAfter(finDeMois)) {
+                            paye = e.getMontantPaye() == null ? e.getMontantDu() : e.getMontantPaye();
+                        } else if (e.getDatePaiement() == null
+                                && courant.equals(YearMonth.from(reference)) && e.estPayee()) {
+                            paye = e.getMontantPaye() == null ? e.getMontantDu() : e.getMontantPaye();
+                        }
+                        BigDecimal restant = e.getMontantDu().subtract(paye).max(BigDecimal.ZERO);
+                        encours = encours.add(restant);
                     }
                 }
 
@@ -137,10 +144,6 @@ public class CalendrierService {
         }
         if (borne.isBefore(c.getDateDebutContrat())) borne = c.getDateDebutContrat();
         return YearMonth.from(borne);
-    }
-
-    private boolean estSolde(Echeance e, LocalDate date) {
-        return e.estPayee() && e.getDatePaiement() != null && !e.getDatePaiement().isAfter(date);
     }
 
     private static int rang(StatutEcheance s) {

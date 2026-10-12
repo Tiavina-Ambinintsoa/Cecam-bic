@@ -10,9 +10,9 @@ export const contratApi = {
   const { data } = await axiosClient.get<import("@/types/contrat").ContratResponse[]>("/contrats", { params: { clientId } });
   return data;
 },
-rechercherParCodeEtablissement: async (code: string): Promise<ContratResponse | null> => {
+rechercherParIdentifiant: async (code: string): Promise<ContratResponse | null> => {
   try {
-    const { data } = await axiosClient.get<ContratResponse>("/contrats/recherche", { params: { codeContratEtablissement: code } });
+    const { data } = await axiosClient.get<ContratResponse>("/contrats/recherche", { params: { identifiantContrat: code } });
     return data;
   } catch {
     return null;

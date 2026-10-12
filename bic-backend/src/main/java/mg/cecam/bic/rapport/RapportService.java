@@ -269,15 +269,31 @@ public class RapportService {
                                                           LocalDate reference) {
         List<Contrat> avecEcheancier = historique.stream()
                 .filter(c -> DECAISSEES.contains(c.getPhaseDemande()))
-                .filter(c -> CAT_AVEC_ECHEANCIER.equals(categorieDe(c)))
+                .filter(c -> !echeances.getOrDefault(c.getId(), List.of()).isEmpty())
                 .toList();
         if (avecEcheancier.isEmpty()) return List.of();
 
-        EncoursCategorieDTO dto = calendrierService.encours(
-                "Financements avec échéanciers",
-                avecEcheancier.get(0).getCodeEtablissementDeclarant(),
-                avecEcheancier, echeances, reference);
-        return dto.lignes().isEmpty() ? List.of() : List.of(dto);
+        List<EncoursCategorieDTO> resultats = new ArrayList<>();
+        for (String categorie : List.of(CAT_AVEC_ECHEANCIER, CAT_SANS_ECHEANCIER, CAT_CARTES, CAT_SERVICES)) {
+            List<Contrat> contratsCategorie = avecEcheancier.stream()
+                    .filter(c -> categorie.equals(categorieDe(c)))
+                    .toList();
+            List<String> etablissements = contratsCategorie.stream()
+                    .map(Contrat::getCodeEtablissementDeclarant)
+                    .distinct()
+                    .sorted(Comparator.nullsLast(Comparator.naturalOrder()))
+                    .toList();
+
+            for (String etablissement : etablissements) {
+                List<Contrat> contratsGroupe = contratsCategorie.stream()
+                        .filter(c -> Objects.equals(c.getCodeEtablissementDeclarant(), etablissement))
+                        .toList();
+                EncoursCategorieDTO dto = calendrierService.encours(
+                        categorie, etablissement, contratsGroupe, echeances, reference);
+                if (!dto.lignes().isEmpty()) resultats.add(dto);
+            }
+        }
+        return List.copyOf(resultats);
     }
 
     private List<LigneFinancementDTO> financements(List<Contrat> historique,

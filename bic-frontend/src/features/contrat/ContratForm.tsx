@@ -15,7 +15,6 @@ import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
 import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note";
 import { MontantInput } from "@/components/ui/montant-input";
 import { DateInput } from "@/components/ui/date-input";
-import { ORIGINE_DONNEE_LABELS, type OrigineDonnee } from "@/types/origineDonnee";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -32,7 +31,6 @@ export function ContratForm() {
       typeContrat: "Prêt personnel",
       dateDemande: today,
       devise: "Ariary malgache",
-      origineDonnee: "NON_RENSEIGNEE",
     },
   });
 
@@ -51,7 +49,7 @@ export function ContratForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-3xl space-y-6 p-6">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-5xl space-y-6 p-6">
       <ChampsObligatoiresNote />
 
       <Card>
@@ -71,10 +69,6 @@ export function ContratForm() {
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="DEMANDE_EXISTANTE" id="mode-existante" />
                 <Label htmlFor="mode-existante" className="font-normal">Rattacher client à une demande existante</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="ENTREPRISE" id="mode-entreprise" />
-                <Label htmlFor="mode-entreprise" className="font-normal">Rattacher client à une entreprise</Label>
               </div>
             </RadioGroup>
           </div>
@@ -96,25 +90,6 @@ export function ContratForm() {
                   <SelectItem value="Prêt personnel">Prêt personnel</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Origine des données contrat</Label>
-              <Controller control={form.control} name="origineDonnee" render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.entries(ORIGINE_DONNEE_LABELS) as [OrigineDonnee, string][]).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Type de relation avec l'entreprise</Label>
-              <Input className="h-10" {...form.register("typeRelationEntreprise")} />
             </div>
 
             <div className="space-y-1.5">

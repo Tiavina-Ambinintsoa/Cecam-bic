@@ -53,7 +53,7 @@ interface FormValues {
 }
 
 const defaults: FormValues = {
-  codeContratCb: "", codeContratEtablissement: "", codeEtablissementDeclarant: "001",
+  codeContratCb: "", codeContratEtablissement: "", codeEtablissementDeclarant: "",
   codeEtablissementCrypte: "", typeContrat: "", typeRelationEntreprise: "", roleClient: "TITULAIRE",
   phaseDemande: "ACTIF", motifCloture: "", dateDemande: "", dateDebutContrat: "", dateFinContrat: "",
   datePremiereEcheance: "", dateDerniereModificationSource: "", montantFinance: "", montantTotalDu: "",
