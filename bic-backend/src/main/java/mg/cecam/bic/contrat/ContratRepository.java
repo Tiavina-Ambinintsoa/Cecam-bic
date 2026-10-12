@@ -11,6 +11,16 @@ public interface ContratRepository extends JpaRepository<Contrat, Long> {
 
     List<Contrat> findByClient_Id(Long clientId);
 
+    @Query("""
+            select distinct c from Contrat c
+            where c.client.id = :clientId
+               or exists (
+                    select l.id from ContratLien l
+                    where l.contrat = c and l.clientLie.id = :clientId
+               )
+            """)
+    List<Contrat> findPourClient(@Param("clientId") Long clientId);
+
     List<Contrat> findAllByOrderByDateDemandeDesc();
 
     Optional<Contrat> findByCodeContratEtablissement(String codeContratEtablissement);

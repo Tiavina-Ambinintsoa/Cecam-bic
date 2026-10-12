@@ -23,6 +23,7 @@ public record RapportSolvabiliteResponse(
         SyntheseDTO synthese,
         List<SyntheseCategorieDTO> syntheseParCategorie,
         List<EncoursCategorieDTO> encoursParCategorie,
+        List<EncoursCategorieDTO> impayesParCategorie,
         List<SituationFinanciereMensuelleDTO> situationFinanciereMensuelle,
 
         List<LigneFinancementDTO> financementsNonDecaisses, 

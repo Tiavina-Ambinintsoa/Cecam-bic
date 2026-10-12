@@ -40,7 +40,7 @@ public class ScoreService {
         LocalDate reference = LocalDate.now();
         Long contratEnCoursId = contratEnCours == null ? null : contratEnCours.getId();
 
-        List<Contrat> historique = contratRepository.findByClient_Id(client.getId()).stream()
+        List<Contrat> historique = contratRepository.findPourClient(client.getId()).stream()
                 .filter(c -> !Objects.equals(c.getId(), contratEnCoursId))
                 .toList();
         List<Contrat> empruntsDecaisses = historique.stream()
@@ -324,7 +324,7 @@ public class ScoreService {
                 .replaceAll("\\p{M}+", "")
                 .toUpperCase(Locale.ROOT)
                 .replaceAll("[^A-Z0-9]+", "");
-        return normalise.isBlank() || Set.of("TROPRECENT", "NONDISPONIBLE", "ND", "NA", "NC").contains(normalise);
+        return normalise.isBlank() || Set.of("TROPRECENT", "NONDISPONIBLE", "ND", "NA", "NC", "NOUV", "NDIS").contains(normalise);
     }
 
     private double qualite(BucketRetard bucket) {

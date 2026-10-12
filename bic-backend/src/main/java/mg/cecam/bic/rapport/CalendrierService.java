@@ -6,6 +6,7 @@ import mg.cecam.bic.common.util.LabelMapper;
 import mg.cecam.bic.common.util.MontantFormatUtil;
 import mg.cecam.bic.contrat.Contrat;
 import mg.cecam.bic.contrat.Echeance;
+import mg.cecam.bic.contrat.HistoriquePaiementMensuel;
 import mg.cecam.bic.rapport.dto.CelluleMoisDTO;
 import mg.cecam.bic.rapport.dto.EncoursCategorieDTO;
 import mg.cecam.bic.rapport.dto.LigneAnneeDTO;
@@ -15,8 +16,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,9 +36,17 @@ public class CalendrierService {
     private static final String GRIS   = "#E8E8E4";   
 
     public List<LigneAnneeDTO> grilleStatut(Contrat contrat, List<Echeance> echeances, LocalDate reference) {
-        YearMonth debut = moisDebutDeclaration(contrat);
-        YearMonth fin = moisFinDeclaration(contrat, reference);
+        return grilleStatut(contrat, echeances, List.of(), reference);
+    }
+
+    public List<LigneAnneeDTO> grilleStatut(Contrat contrat, List<Echeance> echeances,
+                                            List<HistoriquePaiementMensuel> historiques, LocalDate reference) {
+        YearMonth debut = moisDebutDeclaration(contrat, historiques);
+        YearMonth fin = moisFinDeclaration(contrat, historiques, reference);
         if (debut == null || fin == null || debut.isAfter(fin)) return List.of();
+
+        Map<YearMonth, HistoriquePaiementMensuel> mapHisto = (historiques == null) ? Map.of() :
+                historiques.stream().collect(Collectors.toMap(h -> YearMonth.from(h.getMois()), Function.identity(), (a, b) -> a));
 
         List<LigneAnneeDTO> lignes = new ArrayList<>();
         for (int annee = debut.getYear(); annee <= fin.getYear(); annee++) {
@@ -44,29 +57,81 @@ public class CalendrierService {
                     cellules.add(CelluleMoisDTO.vide(MOIS[m - 1]));
                     continue;
                 }
-                StatutEcheance statut = statutAuMois(echeances, courant, reference);
-                cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, null, statut.name(),
-                        LabelMapper.codeGrille(statut), couleur(statut)));
+
+                if (!mapHisto.isEmpty() && mapHisto.containsKey(courant)) {
+                    HistoriquePaiementMensuel h = mapHisto.get(courant);
+                    String code = LabelMapper.codeGrilleCrif(h.getStatut(), h.getJoursDeRetard());
+                    String color = LabelMapper.couleurCodeCrif(code);
+                    cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, null, code, code, color));
+                } else {
+                    boolean echeanceObservee = aEcheanceEchue(echeances, courant, reference);
+                    Integer maxJours = maxRetardAuMois(echeances, courant, reference);
+                    StatutEcheance statut = statutAuMois(echeances, courant, reference);
+                    String code = !echeanceObservee ? "NOUV"
+                            : statut == null ? "NDIS"
+                            : statut == StatutEcheance.PAYE_A_TEMPS ? "OK"
+                            : maxJours != null && maxJours > 0 ? LabelMapper.codeGrilleCrif(null, maxJours) : "NDIS";
+                    String color = LabelMapper.couleurCodeCrif(code);
+                    cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, null,
+                            !echeanceObservee ? "NOUV" : statut == null ? "NDIS" : statut.name(), code, color));
+                }
             }
             lignes.add(new LigneAnneeDTO(annee, cellules));
         }
         return lignes;
     }
 
+    private Integer maxRetardAuMois(List<Echeance> echeances, YearMonth mois, LocalDate reference) {
+        LocalDate dateObservation = dateObservation(mois, reference);
+        List<Echeance> dues = echeances.stream()
+                .filter(e -> e != null && e.getDateEcheance() != null)
+                .filter(e -> !e.getDateEcheance().isAfter(dateObservation))
+                .toList();
+        if (dues.isEmpty()) return 0;
+        List<Integer> retards = dues.stream().map(e -> joursDeRetardObserve(e, dateObservation)).toList();
+        if (retards.stream().anyMatch(Objects::isNull)) return null;
+        return retards.stream().mapToInt(Integer::intValue).max().orElse(0);
+    }
+
     private StatutEcheance statutAuMois(List<Echeance> echeances, YearMonth mois, LocalDate reference) {
-        LocalDate finDeMois = mois.atEndOfMonth();
-        StatutEcheance pire = StatutEcheance.PAYE_A_TEMPS;
+        LocalDate dateObservation = dateObservation(mois, reference);
+        StatutEcheance pire = null;
         for (Echeance e : echeances) {
-            if (e.getDateEcheance().isAfter(finDeMois)) continue;
-            LocalDate dateObservation = finDeMois.isAfter(reference) ? reference : finDeMois;
-            StatutEcheance s = e.statutEffectif(dateObservation);
-            if (s == StatutEcheance.A_VENIR) continue;
-            if (rang(s) > rang(pire)) pire = s;
+            if (e == null || e.getDateEcheance() == null) continue;
+            if (e.getDateEcheance().isAfter(dateObservation)) continue;
+            Integer jours = joursDeRetardObserve(e, dateObservation);
+            if (jours == null) return null;
+            StatutEcheance s;
+            if (e.estPayee() && e.getDatePaiement() != null && !e.getDatePaiement().isAfter(dateObservation)) {
+                s = jours > 0 ? StatutEcheance.EN_RETARD : StatutEcheance.PAYE_A_TEMPS;
+            } else {
+                s = jours > Echeance.SEUIL_IMPAYE_JOURS ? StatutEcheance.IMPAYE : StatutEcheance.EN_RETARD;
+            }
+            if (pire == null || rang(s) > rang(pire)) pire = s;
         }
         return pire;
     }
 
-    public EncoursCategorieDTO encours(String categorie, String codeEtablissement,
+    private boolean aEcheanceEchue(List<Echeance> echeances, YearMonth mois, LocalDate reference) {
+        LocalDate observation = dateObservation(mois, reference);
+        return echeances.stream().anyMatch(e -> e != null && e.getDateEcheance() != null
+                && !e.getDateEcheance().isAfter(observation));
+    }
+
+    private LocalDate dateObservation(YearMonth mois, LocalDate reference) {
+        LocalDate finDeMois = mois.atEndOfMonth();
+        return finDeMois.isAfter(reference) ? reference : finDeMois;
+    }
+
+    private Integer joursDeRetardObserve(Echeance echeance, LocalDate observation) {
+        if (echeance.estPayee() && echeance.getDatePaiement() == null) return null;
+        LocalDate fin = echeance.estPayee() && !echeance.getDatePaiement().isAfter(observation)
+                ? echeance.getDatePaiement() : observation;
+        if (!fin.isAfter(echeance.getDateEcheance())) return 0;
+        return (int) java.time.temporal.ChronoUnit.DAYS.between(echeance.getDateEcheance(), fin);
+    }
+
+    public EncoursCategorieDTO encours(String categorie, String codeEtablissement, String devise,
                                        List<Contrat> contrats,
                                        Map<Long, List<Echeance>> echeancesParContrat,
                                        LocalDate reference) {
@@ -80,7 +145,7 @@ public class CalendrierService {
             if (fin == null || f.isAfter(fin)) fin = f;
         }
         if (debut == null || fin == null) {
-            return new EncoursCategorieDTO(categorie, codeEtablissement, List.of());
+            return new EncoursCategorieDTO(categorie, codeEtablissement, devise, List.of());
         }
 
         List<LigneAnneeDTO> lignes = new ArrayList<>();
@@ -100,6 +165,7 @@ public class CalendrierService {
                     if (courant.isBefore(d) || courant.isAfter(f)) continue;
                     declare = true;
                     for (Echeance e : echeancesParContrat.getOrDefault(c.getId(), List.of())) {
+                        if (e == null || e.getDateEcheance() == null || e.getMontantDu() == null) continue;
                         BigDecimal paye = BigDecimal.ZERO;
                         if (e.getDatePaiement() != null && !e.getDatePaiement().isAfter(finDeMois)) {
                             paye = e.getMontantPaye() == null ? e.getMontantDu() : e.getMontantPaye();
@@ -123,16 +189,94 @@ public class CalendrierService {
             }
             lignes.add(new LigneAnneeDTO(annee, cellules));
         }
-        return new EncoursCategorieDTO(categorie, codeEtablissement, lignes);
+        return new EncoursCategorieDTO(categorie, codeEtablissement, devise, lignes);
+    }
+
+    public EncoursCategorieDTO impayes(String categorie, String codeEtablissement, String devise,
+                                       List<Contrat> contrats,
+                                       Map<Long, List<Echeance>> echeancesParContrat,
+                                       LocalDate reference) {
+        YearMonth debut = null;
+        YearMonth fin = null;
+        for (Contrat c : contrats) {
+            YearMonth d = moisDebutDeclaration(c);
+            YearMonth f = moisFinDeclaration(c, reference);
+            if (d == null || f == null) continue;
+            if (debut == null || d.isBefore(debut)) debut = d;
+            if (fin == null || f.isAfter(fin)) fin = f;
+        }
+        if (debut == null || fin == null) {
+            return new EncoursCategorieDTO(categorie, codeEtablissement, devise, List.of());
+        }
+
+        List<LigneAnneeDTO> lignes = new ArrayList<>();
+        for (int annee = debut.getYear(); annee <= fin.getYear(); annee++) {
+            List<CelluleMoisDTO> cellules = new ArrayList<>(12);
+            for (int m = 1; m <= 12; m++) {
+                YearMonth courant = YearMonth.of(annee, m);
+                LocalDate finDeMois = courant.atEndOfMonth();
+
+                boolean declare = false;
+                BigDecimal montantImpayes = BigDecimal.ZERO;
+
+                for (Contrat c : contrats) {
+                    YearMonth d = moisDebutDeclaration(c);
+                    YearMonth f = moisFinDeclaration(c, reference);
+                    if (d == null || f == null) continue;
+                    if (courant.isBefore(d) || courant.isAfter(f)) continue;
+                    declare = true;
+                    for (Echeance e : echeancesParContrat.getOrDefault(c.getId(), List.of())) {
+                        if (e == null || e.getDateEcheance() == null || e.getMontantDu() == null) continue;
+                        if (e.getDateEcheance().isAfter(finDeMois)) continue;
+                        BigDecimal paye = BigDecimal.ZERO;
+                        if (e.getDatePaiement() != null && !e.getDatePaiement().isAfter(finDeMois)) {
+                            paye = e.getMontantPaye() == null ? e.getMontantDu() : e.getMontantPaye();
+                        } else if (e.getDatePaiement() == null
+                                && courant.equals(YearMonth.from(reference)) && e.estPayee()) {
+                            paye = e.getMontantPaye() == null ? e.getMontantDu() : e.getMontantPaye();
+                        }
+                        BigDecimal restant = e.getMontantDu().subtract(paye).max(BigDecimal.ZERO);
+                        montantImpayes = montantImpayes.add(restant);
+                    }
+                }
+
+                if (!declare) {
+                    cellules.add(CelluleMoisDTO.vide(MOIS[m - 1]));
+                } else if (montantImpayes.signum() == 0) {
+                    cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, BigDecimal.ZERO, null, "", GRIS));
+                } else {
+                    cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, montantImpayes, null,
+                            MontantFormatUtil.formatMontant(montantImpayes), GRIS));
+                }
+            }
+            lignes.add(new LigneAnneeDTO(annee, cellules));
+        }
+        return new EncoursCategorieDTO(categorie, codeEtablissement, devise, lignes);
     }
 
     public YearMonth moisDebutDeclaration(Contrat c) {
+        return moisDebutDeclaration(c, List.of());
+    }
+
+    public YearMonth moisDebutDeclaration(Contrat c, List<HistoriquePaiementMensuel> historiques) {
+        YearMonth minHisto = (historiques == null || historiques.isEmpty()) ? null :
+                historiques.stream().map(h -> YearMonth.from(h.getMois())).min(Comparator.naturalOrder()).orElse(null);
         LocalDate debut = c.getDateDebutContrat();
-        if (debut == null) return null;         
-        return YearMonth.from(debut);
+        if (debut == null) debut = c.getDateDemande();
+        if (debut == null) return minHisto;
+        YearMonth ym = YearMonth.from(debut);
+        if (minHisto != null && minHisto.isBefore(ym)) return minHisto;
+        return ym;
     }
 
     public YearMonth moisFinDeclaration(Contrat c, LocalDate reference) {
+        return moisFinDeclaration(c, List.of(), reference);
+    }
+
+    public YearMonth moisFinDeclaration(Contrat c, List<HistoriquePaiementMensuel> historiques, LocalDate reference) {
+        YearMonth maxHisto = (historiques == null || historiques.isEmpty()) ? null :
+                historiques.stream().map(h -> YearMonth.from(h.getMois())).max(Comparator.naturalOrder()).orElse(null);
+        if (c.getDateDebutContrat() == null && maxHisto != null) return maxHisto;
         if (c.getDateDebutContrat() == null) return null;
         LocalDate borne = reference;
         if (c.getDateDerniereModification() != null) {
@@ -143,7 +287,9 @@ public class CalendrierService {
             borne = c.getDateFinContrat();
         }
         if (borne.isBefore(c.getDateDebutContrat())) borne = c.getDateDebutContrat();
-        return YearMonth.from(borne);
+        YearMonth ym = YearMonth.from(borne);
+        if (maxHisto != null && maxHisto.isAfter(ym)) return maxHisto;
+        return ym;
     }
 
     private static int rang(StatutEcheance s) {

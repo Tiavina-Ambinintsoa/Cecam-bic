@@ -34,12 +34,12 @@ public enum BucketRetard {
         String s = Normalizer.normalize(statut, Normalizer.Form.NFD).replaceAll("\\p{M}+", "")
                 .toUpperCase(Locale.ROOT).replace('–', '-').replace('—', '-').replace(" ", "");
         if (s.contains("180+") || s.contains("180JOUR") || s.contains("180PLUS")) return JOURS_180_PLUS;
-        if (s.contains("150-179")) return JOURS_150_179;
-        if (s.contains("120-149")) return JOURS_120_149;
-        if (s.contains("90-119")) return JOURS_90_119;
-        if (s.contains("60-89")) return JOURS_60_89;
+        if (s.contains("150-179") || s.contains("150+")) return JOURS_150_179;
+        if (s.contains("120-149") || s.contains("120+")) return JOURS_120_149;
+        if (s.contains("90-119") || s.contains("90+")) return JOURS_90_119;
+        if (s.contains("60-89") || s.contains("60+")) return JOURS_60_89;
         // A generic "impayé" source does not reveal the actual number of overdue days.
-        if (s.contains("30-59")) return JOURS_30_59;
+        if (s.contains("30-59") || s.contains("30+")) return JOURS_30_59;
         if (s.contains("1-29") || s.contains("1A29") || s.contains("RETARDCOURT")) return JOURS_1_29;
         if (s.equals("OK") || s.contains("PAYEATEMPS") || s.contains("AJOUR")) return A_JOUR;
         return null;

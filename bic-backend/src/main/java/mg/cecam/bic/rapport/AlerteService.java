@@ -36,7 +36,7 @@ public class AlerteService {
     /** Alertes d'un seul client — affichées dans son rapport de solvabilité. */
     @Transactional(readOnly = true)
     public List<AlerteDTO> listerParClient(Long clientId, LocalDate reference) {
-        return contratRepository.findByClient_Id(clientId).stream()
+        return contratRepository.findPourClient(clientId).stream()
                 .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF)
                 .map(c -> toAlerte(c, reference))
                 .filter(Objects::nonNull)

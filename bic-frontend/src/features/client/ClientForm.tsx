@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { clientSchema, type ClientFormInput, type ClientFormValues } from "./clientSchema";
 import { clientApi } from "@/api/clientApi";
@@ -13,9 +13,78 @@ import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
 import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note";
 import { DateInput } from "@/components/ui/date-input";
 import { MontantInput } from "@/components/ui/montant-input";
-import type { ClientRequest } from "@/types/client";
 
 const FIELD_H = "min-h-10 h-auto py-2";
+
+const categoriesGroupes = [
+  {
+    label: "Ménages / IMF",
+    options: [
+      { code: "0004", libelle: "0004 - Ménages" },
+      { code: "0215", libelle: "0215 - I M F" },
+    ],
+  },
+  {
+    label: "Administrations publiques",
+    options: [
+      { code: "0001", libelle: "0001 - Administration publique" },
+      { code: "0011", libelle: "0011 - Administration centrale" },
+      { code: "0019", libelle: "0019 - NCA" },
+    ],
+  },
+  {
+    label: "Institutions financières",
+    options: [
+      { code: "0002", libelle: "0002 - Institution financière" },
+      { code: "0211", libelle: "0211 - Banque Centrale" },
+      { code: "0212", libelle: "0212 - Banques" },
+      { code: "0213", libelle: "0213 - Établissements financiers" },
+      { code: "0214", libelle: "0214 - Institutions financières spécialisées" },
+      { code: "0022", libelle: "0022 - Bureau de change" },
+      { code: "0231", libelle: "0231 - Assurances" },
+      { code: "0023", libelle: "0023 - Sociétés financières non établissement de crédit" },
+      { code: "0232", libelle: "0232 - Autres sociétés financières" },
+      { code: "0029", libelle: "0029 - Autres institutions financières" },
+    ],
+  },
+  {
+    label: "Sociétés non financières",
+    options: [
+      { code: "0003", libelle: "0003 - Sociétés non financières" },
+      { code: "0321", libelle: "0321 - Sociétés non financières privées franches" },
+      { code: "0322", libelle: "0322 - Sociétés non financières privées non franches" },
+      { code: "3221", libelle: "3221 - Grandes entreprises" },
+      { code: "3222", libelle: "3222 - PME" },
+      { code: "3223", libelle: "3223 - TPE" },
+      { code: "0329", libelle: "0329 - NCA" },
+    ],
+  },
+];
+
+const categoriesLibelles: Record<string, string> = {
+  "0004": "0004 - Ménages",
+  "0215": "0215 - I M F",
+  "0001": "0001 - Administration publique",
+  "0011": "0011 - Administration centrale",
+  "0019": "0019 - NCA",
+  "0002": "0002 - Institution financière",
+  "0211": "0211 - Banque Centrale",
+  "0212": "0212 - Banques",
+  "0213": "0213 - Établissements financiers",
+  "0214": "0214 - Institutions financières spécialisées",
+  "0022": "0022 - Bureau de change",
+  "0231": "0231 - Assurances",
+  "0023": "0023 - Sociétés financières non établissement de crédit",
+  "0232": "0232 - Autres sociétés financières",
+  "0029": "0029 - Autres institutions financières",
+  "0003": "0003 - Sociétés non financières",
+  "0321": "0321 - Sociétés non financières privées franches",
+  "0322": "0322 - Sociétés non financières privées non franches",
+  "3221": "3221 - Grandes entreprises",
+  "3222": "3222 - PME",
+  "3223": "3223 - TPE",
+  "0329": "0329 - NCA",
+};
 
 export function ClientForm() {
   const navigate = useNavigate();
@@ -23,16 +92,16 @@ export function ClientForm() {
   const [submitting, setSubmitting] = useState(false);
   const [genreLabel, setGenreLabel] = useState<string>();
   const [titreLabel, setTitreLabel] = useState<string>();
+  const [categorieLabel, setCategorieLabel] = useState<string>("0215 - I M F");
 
   const form = useForm<ClientFormInput, unknown, ClientFormValues>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
       titre: "M.",
       nationalite: "Malgache",
-      categorieTiersCode: "0004",
+      categorieTiersCode: "0215",
       adresses: [{ typeAdresse: "Individu - Adresse principale", adresseComplete: "" }],
       identifiants: [{ typeIdentifiant: "CIN", numero: "" }],
-      affaireIndividuelle: { nom: "", adresse: { adresseComplete: "" } },
     },
   });
 
@@ -42,24 +111,8 @@ export function ClientForm() {
   async function onSubmit(values: ClientFormValues) {
     setSubmitting(true);
     try {
-      const nomAffaire = values.affaireIndividuelle?.nom?.trim();
-      const adresseAffaire = values.affaireIndividuelle?.adresse;
-      const payload: ClientRequest = {
-        ...values,
-        affaireIndividuelle: nomAffaire ? {
-          nom: nomAffaire,
-          adresses: adresseAffaire?.adresseComplete?.trim() ? [{
-            adresseComplete: adresseAffaire.adresseComplete.trim(),
-            numeroRue: adresseAffaire.numeroRue,
-            codePostal: adresseAffaire.codePostal,
-            ville: adresseAffaire.ville,
-            commune: adresseAffaire.commune,
-            region: adresseAffaire.region,
-            pays: adresseAffaire.pays,
-          }] : [],
-        } : undefined,
-      };
-      const { client } = await clientApi.creer(payload);
+      const { affaireIndividuelle: _affaire, ...clientPayload } = values;
+      const { client } = await clientApi.creer(clientPayload);
       setClientId(client.id);
       navigate(`/demande/nouvelle/contrat/${client.id}`);
     } finally {
@@ -71,9 +124,11 @@ export function ClientForm() {
     <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-4xl space-y-6 p-6">
       <ChampsObligatoiresNote />
 
+      {/* CARTE 1 : Détails client */}
       <Card>
         <CardHeader><CardTitle>Détails client</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* 1. Titre */}
           <div className="space-y-1.5">
             <Label>Titre</Label>
             <Select onValueChange={(v) => { form.setValue("titre", v as string); setTitreLabel(v as string); }}>
@@ -86,101 +141,164 @@ export function ClientForm() {
             </Select>
           </div>
 
-          <input type="hidden" {...form.register("categorieTiersCode")} />
-          <div className="space-y-1.5 rounded-lg border bg-slate-50 p-3">
-            <span className="block text-base font-semibold">Catégorie du dossier</span>
-            <p className="text-base text-slate-600">Individu — Ménage (0004), définie automatiquement pour le périmètre CECAM Individuel.</p>
+          {/* 2. Catégorie Tiers * */}
+          <div className="space-y-1.5">
+            <Label className="font-semibold">Catégorie Tiers <span className="text-red-500">*</span></Label>
+            <Select
+              defaultValue="0215"
+              onValueChange={(v) => {
+                form.setValue("categorieTiersCode", v as string, { shouldValidate: true });
+                setCategorieLabel(categoriesLibelles[v as string] ?? (v as string));
+              }}
+            >
+              <SelectTrigger className={FIELD_H}><span>{categorieLabel}</span></SelectTrigger>
+              <SelectContent>
+                {categoriesGroupes.map((groupe) => (
+                  <SelectGroup key={groupe.label}>
+                    <SelectLabel>{groupe.label}</SelectLabel>
+                    {groupe.options.map((option) => (
+                      <SelectItem key={option.code} value={option.code}>
+                        {option.libelle}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.categorieTiersCode && (
+              <p className="text-sm text-red-500">{form.formState.errors.categorieTiersCode.message}</p>
+            )}
           </div>
 
-          <div className="space-y-1.5"><Label className="font-semibold">Prénom <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("prenom")} /></div>
-          <div className="space-y-1.5"><Label>Deuxième Prénom</Label><Input className={FIELD_H} {...form.register("deuxiemePrenom")} /></div>
-          <div className="space-y-1.5"><Label className="font-semibold">Nom <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("nom")} /></div>
+          {/* 3. Prénom * */}
+          <div className="space-y-1.5">
+            <Label className="font-semibold">Prénom <span className="text-red-500">*</span></Label>
+            <Input className={FIELD_H} {...form.register("prenom")} />
+          </div>
 
+          {/* 4. Deuxième Prénom */}
+          <div className="space-y-1.5">
+            <Label>Deuxième Prénom</Label>
+            <Input className={FIELD_H} {...form.register("deuxiemePrenom")} />
+          </div>
+
+          {/* 5. Nom * */}
+          <div className="space-y-1.5">
+            <Label className="font-semibold">Nom <span className="text-red-500">*</span></Label>
+            <Input className={FIELD_H} {...form.register("nom")} />
+          </div>
+
+          {/* 6. Date de naissance * */}
           <div className="space-y-1.5">
             <Label className="font-semibold">Date de naissance <span className="text-red-500">*</span></Label>
-            <Controller control={form.control} name="dateNaissance" render={({ field }) => (
-              <DateInput className={FIELD_H} value={field.value} onValueChange={field.onChange} />
-            )} />
+            <Controller
+              control={form.control}
+              name="dateNaissance"
+              render={({ field }) => (
+                <DateInput className={FIELD_H} value={field.value} onValueChange={field.onChange} />
+              )}
+            />
           </div>
 
-          <div className="space-y-1.5"><Label>Ville de naissance</Label><Input className={FIELD_H} {...form.register("villeNaissance")} /></div>
-          <div className="space-y-1.5"><Label>Pays de naissance</Label><Input className={FIELD_H} {...form.register("paysNaissance")} /></div>
+          {/* 7. Ville de naissance */}
+          <div className="space-y-1.5">
+            <Label>Ville de naissance</Label>
+            <Input className={FIELD_H} {...form.register("villeNaissance")} />
+          </div>
 
+          {/* 8. Pays de naissance */}
+          <div className="space-y-1.5">
+            <Label>Pays de naissance</Label>
+            <Input className={FIELD_H} {...form.register("paysNaissance")} />
+          </div>
+
+          {/* 9. Genre * */}
           <div className="space-y-1.5">
             <Label htmlFor="genre" className="font-semibold">Genre <span className="text-red-500">*</span></Label>
-            <Select onValueChange={(v) => { form.setValue("genre", v as "FEMME" | "HOMME", { shouldValidate: true }); setGenreLabel(v === "FEMME" ? "Femme" : "Homme"); }}>
+            <Select
+              onValueChange={(v) => {
+                form.setValue("genre", v as "FEMME" | "HOMME", { shouldValidate: true });
+                setGenreLabel(v === "FEMME" ? "Femme" : "Homme");
+              }}
+            >
               <SelectTrigger id="genre" className={FIELD_H}><span>{genreLabel ?? "Sélectionner"}</span></SelectTrigger>
               <SelectContent>
                 <SelectItem value="FEMME">Femme</SelectItem>
                 <SelectItem value="HOMME">Homme</SelectItem>
               </SelectContent>
             </Select>
-            {form.formState.errors.genre && <p className="text-sm text-red-500">{form.formState.errors.genre.message}</p>}
+            {form.formState.errors.genre && (
+              <p className="text-sm text-red-500">{form.formState.errors.genre.message}</p>
+            )}
           </div>
 
-          <div className="space-y-1.5"><Label className="font-semibold">Nationalité <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register("nationalite")} /></div>
-          <div className="space-y-1.5"><Label>État civil</Label><Input className={FIELD_H} {...form.register("etatCivil")} /></div>
-          <div className="space-y-1.5"><Label>Code Client CECAM</Label><Input className={FIELD_H} {...form.register("codeClientEtablissement")} /></div>
-          {/* Téléphone retiré : c'est une information de la fiche client, pas de la demande */}
+          {/* 10. Nationalité * */}
+          <div className="space-y-1.5">
+            <Label className="font-semibold">Nationalité <span className="text-red-500">*</span></Label>
+            <Input className={FIELD_H} {...form.register("nationalite")} />
+          </div>
+
+          {/* 11. État civil */}
+          <div className="space-y-1.5">
+            <Label>État civil</Label>
+            <Input className={FIELD_H} {...form.register("etatCivil")} />
+          </div>
         </CardContent>
       </Card>
 
+      {/* CARTE 2 : Emploi */}
       <Card>
         <CardHeader><CardTitle>Emploi</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-1.5"><Label>Statut Emploi</Label><Input className={FIELD_H} {...form.register("emploi.statutEmploi")} /></div>
-          <div className="space-y-1.5"><Label>Nom de l'Employeur</Label><Input className={FIELD_H} {...form.register("emploi.nomEmployeur")} /></div>
-          <div className="space-y-1.5"><Label>Profession</Label><Input className={FIELD_H} {...form.register("emploi.profession")} /></div>
+          <div className="space-y-1.5">
+            <Label>Statut Emploi</Label>
+            <Input className={FIELD_H} {...form.register("emploi.statutEmploi")} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Nom de l'Employeur</Label>
+            <Input className={FIELD_H} {...form.register("emploi.nomEmployeur")} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Profession</Label>
+            <Input className={FIELD_H} {...form.register("emploi.profession")} />
+          </div>
           <div className="space-y-1.5">
             <Label>Date d'embauche</Label>
-            <Controller control={form.control} name="emploi.dateEmbauche" render={({ field }) => (
-              <DateInput className={FIELD_H} value={field.value} onValueChange={field.onChange} />
-            )} />
+            <Controller
+              control={form.control}
+              name="emploi.dateEmbauche"
+              render={({ field }) => (
+                <DateInput className={FIELD_H} value={field.value} onValueChange={field.onChange} />
+              )}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Total Revenu Annuel</Label>
-            <Controller control={form.control} name="emploi.revenuAnnuelTotal" render={({ field }) => (
-              <MontantInput className={FIELD_H} value={String(field.value ?? "")} onValueChange={(v) => field.onChange(v ? Number(v) : undefined)} />
-            )} />
+            <Controller
+              control={form.control}
+              name="emploi.revenuAnnuelTotal"
+              render={({ field }) => (
+                <MontantInput
+                  className={FIELD_H}
+                  value={String(field.value ?? "")}
+                  onValueChange={(v) => field.onChange(v ? Number(v) : undefined)}
+                />
+              )}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Devise</Label>
             <Select defaultValue="Ariary malgache" onValueChange={(v) => form.setValue("emploi.devise", v as string)}>
               <SelectTrigger className={FIELD_H}><span>Ariary malgache</span></SelectTrigger>
-              <SelectContent><SelectItem value="Ariary malgache">Ariary malgache</SelectItem></SelectContent>
+              <SelectContent>
+                <SelectItem value="Ariary malgache">Ariary malgache</SelectItem>
+              </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Affaire individuelle <span className="font-normal text-slate-500">(facultatif)</span></CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>Nom de l'affaire individuelle</Label>
-            <Input className={FIELD_H} {...form.register("affaireIndividuelle.nom")} />
-            {form.formState.errors.affaireIndividuelle?.nom && (
-              <p className="text-sm text-red-500">{form.formState.errors.affaireIndividuelle.nom.message}</p>
-            )}
-          </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <Label>Adresse complète — Entreprise</Label>
-            <Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.adresseComplete")} />
-            {form.formState.errors.affaireIndividuelle?.adresse?.adresseComplete && (
-              <p className="text-sm text-red-500">{form.formState.errors.affaireIndividuelle.adresse.adresseComplete.message}</p>
-            )}
-          </div>
-          <div className="space-y-1.5"><Label>N° et nom de la rue</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.numeroRue")} /></div>
-          <div className="space-y-1.5"><Label>Code postal</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.codePostal")} /></div>
-          <div className="space-y-1.5"><Label>Ville</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.ville")} /></div>
-          <div className="space-y-1.5"><Label>Commune</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.commune")} /></div>
-          <div className="space-y-1.5"><Label>Région</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.region")} /></div>
-          <div className="space-y-1.5"><Label>Pays</Label><Input className={FIELD_H} {...form.register("affaireIndividuelle.adresse.pays")} /></div>
-        </CardContent>
-      </Card>
-
+      {/* CARTE 3 : Adresses */}
       <Card>
         <CardHeader><CardTitle>Adresses</CardTitle></CardHeader>
         <CardContent className="space-y-6">
@@ -189,7 +307,10 @@ export function ClientForm() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label className="font-semibold">Type d'adresse <span className="text-red-500">*</span></Label>
-                  <Select defaultValue={field.typeAdresse} onValueChange={(v) => form.setValue(`adresses.${index}.typeAdresse`, v as string)}>
+                  <Select
+                    defaultValue={field.typeAdresse}
+                    onValueChange={(v) => form.setValue(`adresses.${index}.typeAdresse`, v as string)}
+                  >
                     <SelectTrigger className={FIELD_H}><span>{field.typeAdresse}</span></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Individu - Adresse principale">Individu - Adresse principale</SelectItem>
@@ -197,35 +318,65 @@ export function ClientForm() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5"><Label className="font-semibold">Adresse complète <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register(`adresses.${index}.adresseComplete` as const)} /></div>
+                <div className="space-y-1.5">
+                  <Label className="font-semibold">Adresse complète <span className="text-red-500">*</span></Label>
+                  <Input className={FIELD_H} {...form.register(`adresses.${index}.adresseComplete` as const)} />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                <div className="space-y-1.5"><Label>N° et nom de la rue</Label><Input className={FIELD_H} {...form.register(`adresses.${index}.numeroRue` as const)} /></div>
-                <div className="space-y-1.5"><Label>Code postal</Label><Input className={FIELD_H} {...form.register(`adresses.${index}.codePostal` as const)} /></div>
-                <div className="space-y-1.5"><Label>Ville</Label><Input className={FIELD_H} {...form.register(`adresses.${index}.ville` as const)} /></div>
-                <div className="space-y-1.5"><Label>Commune</Label><Input className={FIELD_H} {...form.register(`adresses.${index}.commune` as const)} /></div>
-                <div className="space-y-1.5"><Label>Région</Label><Input className={FIELD_H} {...form.register(`adresses.${index}.region` as const)} /></div>
-                <div className="space-y-1.5"><Label>Pays</Label><Input className={FIELD_H} {...form.register(`adresses.${index}.pays` as const)} /></div>
+                <div className="space-y-1.5">
+                  <Label>N° et nom de la rue</Label>
+                  <Input className={FIELD_H} {...form.register(`adresses.${index}.numeroRue` as const)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Code postal</Label>
+                  <Input className={FIELD_H} {...form.register(`adresses.${index}.codePostal` as const)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Ville</Label>
+                  <Input className={FIELD_H} {...form.register(`adresses.${index}.ville` as const)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Commune</Label>
+                  <Input className={FIELD_H} {...form.register(`adresses.${index}.commune` as const)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Région</Label>
+                  <Input className={FIELD_H} {...form.register(`adresses.${index}.region` as const)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Pays</Label>
+                  <Input className={FIELD_H} {...form.register(`adresses.${index}.pays` as const)} />
+                </div>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
 
+      {/* CARTE 4 : Identifiants */}
       <Card>
         <CardHeader><CardTitle>Identifiants</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           {identifiantsArray.fields.map((field, index) => (
             <div key={field.id} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-1.5"><Label className="font-semibold">Type identifiant <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register(`identifiants.${index}.typeIdentifiant` as const)} /></div>
-              <div className="space-y-1.5"><Label className="font-semibold">Numéro <span className="text-red-500">*</span></Label><Input className={FIELD_H} {...form.register(`identifiants.${index}.numero` as const)} /></div>
+              <div className="space-y-1.5">
+                <Label className="font-semibold">Type identifiant <span className="text-red-500">*</span></Label>
+                <Input className={FIELD_H} {...form.register(`identifiants.${index}.typeIdentifiant` as const)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-semibold">Numéro <span className="text-red-500">*</span></Label>
+                <Input className={FIELD_H} {...form.register(`identifiants.${index}.numero` as const)} />
+              </div>
             </div>
           ))}
         </CardContent>
       </Card>
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={submitting}>{submitting ? "Enregistrement..." : "Continuer vers la demande"}</Button>
+        <Button type="submit" disabled={submitting}>
+          {submitting ? "Enregistrement..." : "Continuer vers la demande"}
+        </Button>
       </div>
     </form>
   );

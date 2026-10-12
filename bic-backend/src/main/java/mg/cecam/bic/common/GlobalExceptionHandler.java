@@ -35,6 +35,15 @@ public class GlobalExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ProblemDetail integrite(org.springframework.dao.DataIntegrityViolationException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        pd.setTitle("Conflit de données");
+        pd.setDetail("Une contrainte d'intégrité ou d'unicité a été enfreinte lors de l'enregistrement.");
+        pd.setProperty("code", "CONFLIT_INTEGRITE");
+        return pd;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail interne(Exception ex) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);

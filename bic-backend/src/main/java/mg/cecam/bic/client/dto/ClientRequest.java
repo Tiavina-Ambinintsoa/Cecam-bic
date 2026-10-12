@@ -25,8 +25,8 @@ public record ClientRequest(
         @Size(max = 40) String codeClientEtablissement,
         String agence,
         String telephone,
-        @Valid @NotNull List<AdresseRequest> adresses,
-        @Valid @NotNull List<IdentifiantRequest> identifiants,
+        @NotNull List<@Valid AdresseRequest> adresses,
+        @NotNull List<@Valid IdentifiantRequest> identifiants,
         EmploiRequest emploi,
         @Valid AffaireIndividuelleRequest affaireIndividuelle
 ) {
@@ -44,7 +44,7 @@ public record ClientRequest(
 
     public record AffaireIndividuelleRequest(
             @NotBlank String nom,
-            @Valid List<AdresseAffaireIndividuelleRequest> adresses
+            List<@Valid AdresseAffaireIndividuelleRequest> adresses
     ) {}
 
     public record AdresseAffaireIndividuelleRequest(

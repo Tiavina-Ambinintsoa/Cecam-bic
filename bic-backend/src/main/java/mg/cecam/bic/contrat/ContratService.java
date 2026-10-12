@@ -296,7 +296,7 @@ public Contrat saisirHistorique(HistoriqueContratRequest req) {
     }
 
     public List<Contrat> listerParClient(Long clientId) {
-        return contratRepository.findByClient_Id(clientId);
+        return contratRepository.findPourClient(clientId);
     }
 
     public List<Contrat> listerTous() {
@@ -342,7 +342,11 @@ public Contrat saisirHistorique(HistoriqueContratRequest req) {
     }
 
     private String genererCodeContratCb() {
-        Long n = contratRepository.prochainCodeContratCb();
-        return String.valueOf(n);
+        String code;
+        do {
+            Long n = contratRepository.prochainCodeContratCb();
+            code = String.valueOf(n);
+        } while (contratRepository.findByIdentifiantContrat(code).isPresent());
+        return code;
     }
 }

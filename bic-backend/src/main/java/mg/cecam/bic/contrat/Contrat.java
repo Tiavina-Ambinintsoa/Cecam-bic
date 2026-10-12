@@ -103,7 +103,7 @@ private String codeDemandeEtablissement;
     @NotNull
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    @Column(name = "origine_donnee", nullable = false, length = 30)
+    @Column(name = "origine_donnee", nullable = false, length = 30, columnDefinition = "varchar(30) default 'NON_RENSEIGNEE'")
     private OrigineDonnee origineDonnee = OrigineDonnee.NON_RENSEIGNEE;
 
     @Column(name = "periodicite_paiement")
@@ -167,7 +167,7 @@ private String codeDemandeEtablissement;
     @Column(name = "motif_cloture", length = 20)
     private MotifCloture motifCloture;
 
-    @Column(name = "code_restructuration", length = 40)
+    @Column(name = "code_restructuration", length = 100)
     private String codeRestructuration;
 
     @Column(name = "date_code_restructuration")

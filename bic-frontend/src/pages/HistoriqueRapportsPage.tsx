@@ -29,7 +29,7 @@ export function HistoriqueRapportsPage() {
         <table className="w-full text-base">
           <thead className="bg-slate-50 text-left text-sm text-slate-600">
             <tr>
-              <th className="p-3">Client</th><th>Code Client CB</th><th>Contrat</th><th>Date demande</th><th>Phase</th>
+              <th className="p-3">Client</th><th>Code Client CB</th><th>Contrat</th><th>Date demande</th><th>Phase</th><th>Rapport</th>
             </tr>
           </thead>
           <tbody>
@@ -44,8 +44,16 @@ export function HistoriqueRapportsPage() {
                 <td>{c.codeContratCb}</td>
                 <td>{formatDateFr(c.dateDemande)}</td>
                 <td>{c.phaseDemande}</td>
+                <td className="p-3">
+                  <Link to={`/demande/rapport/${c.id}`} className="font-medium text-primary underline underline-offset-2">
+                    Ouvrir le rapport
+                  </Link>
+                </td>
               </tr>
             ))}
+            {contrats.length === 0 && (
+              <tr><td colSpan={6} className="p-6 text-center text-slate-500">Aucun contrat disponible.</td></tr>
+            )}
           </tbody>
         </table>
       </div>

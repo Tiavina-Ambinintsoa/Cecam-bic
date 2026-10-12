@@ -37,6 +37,8 @@ public class AffaireIndividuelle {
     @PrePersist
     @PreUpdate
     void onSave() {
-        this.dateDerniereModification = LocalDateTime.now();
+        if (this.dateDerniereModification == null) {
+            this.dateDerniereModification = LocalDateTime.now();
+        }
     }
 }

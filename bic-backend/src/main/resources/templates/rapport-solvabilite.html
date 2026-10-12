@@ -67,6 +67,20 @@
 <div class="titre-rapport">RAPPORT DE SOLVABILITÉ</div>
 <div class="nom-client" th:text="${#strings.toUpperCase(r.client.nomComplet)}">-</div>
 
+<table style="width: 100%; margin: 6px 0 14px; border-bottom: 1.5px solid #174a7e; padding-bottom: 4px; font-size: 8pt;">
+  <tr>
+    <td style="width:33%; text-align:left; color:#174a7e;">
+      <strong>Date de la requête:</strong> <span th:text="${#temporals.format(r.dateRequete, 'dd/MM/yyyy')}">13/04/2026</span>
+    </td>
+    <td style="width:34%; text-align:center; font-weight:bold; color:#174a7e; font-size: 9.5pt;" th:text="${r.statutClient}">
+      Client Trouvé
+    </td>
+    <td style="width:33%; text-align:right; color:#174a7e;">
+      <strong>Identifiant du rapport:</strong> <span th:text="${r.identifiantRapport}">-</span>
+    </td>
+  </tr>
+</table>
+
 <div class="section">CLIENT</div>
 <div class="sous-section">Client</div>
 <table class="grille">
@@ -122,7 +136,13 @@
   <table class="grille">
     <tr>
       <td><div class="lib">Adresse Complète</div><div class="val" th:text="${a.adresseComplete}">-</div></td>
+      <td><div class="lib">N° et Nom de la Rue</div><div class="val" th:text="${a.numeroRue}">-</div></td>
+      <td><div class="lib">Code Postal</div><div class="val" th:text="${a.codePostal}">-</div></td>
       <td><div class="lib">Ville</div><div class="val" th:text="${a.ville}">-</div></td>
+    </tr>
+    <tr>
+      <td><div class="lib">Commune</div><div class="val" th:text="${a.commune}">-</div></td>
+      <td><div class="lib">Région</div><div class="val" th:text="${a.region}">-</div></td>
       <td><div class="lib">Pays</div><div class="val" th:text="${a.pays}">-</div></td>
       <td><div class="lib">Date Dernière Modification</div>
           <div class="val" th:text="${a.dateDerniereModification != null ? #temporals.format(a.dateDerniereModification,'dd/MM/yyyy') : '-'}">-</div></td>
@@ -130,7 +150,7 @@
   </table>
 </div>
 
-<table>
+<table th:if="${!r.contacts.isEmpty()}">
   <tr>
     <td style="width:50%; padding-right:8px">
       <div class="sous-section">Numéro Identifiant</div>
@@ -144,12 +164,20 @@
       <div class="sous-section">Contacts</div>
       <table class="liste">
         <tr><th>Type de Contact</th><th>Contacts</th></tr>
-        <tr th:if="${r.contacts.isEmpty()}"><td colspan="2">-</td></tr>
         <tr th:each="c : ${r.contacts}"><td th:text="${c.typeContact}">-</td><td th:text="${c.valeur}">-</td></tr>
       </table>
     </td>
   </tr>
 </table>
+
+<div th:if="${r.contacts.isEmpty()}" style="max-width: 50%;">
+  <div class="sous-section">Numéro Identifiant</div>
+  <table class="liste">
+    <tr><th>Type identifiant</th><th>Numéro Identifiant</th></tr>
+    <tr th:if="${r.identifiants.isEmpty()}"><td colspan="2">-</td></tr>
+    <tr th:each="i : ${r.identifiants}"><td th:text="${i.typeIdentifiant}">-</td><td th:text="${i.numero}">-</td></tr>
+  </table>
+</div>
 
 <th:block th:if="${r.emploi != null}">
 <div class="sous-section">Emploi</div>
@@ -228,7 +256,7 @@
   <tr>
     <td><div class="lib">Montant Échéance Mensuelle</div>
         <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantEcheanceMensuelle)}">-</div></td>
-    <td><div class="lib">Nombre Totale Échéances</div><div class="val" th:text="${r.detailDemande.nombreTotalEcheances}">-</div></td>
+    <td><div class="lib">Nombre Totale Échéances</div><div class="val" th:text="${r.detailDemande.nombreTotalEcheances != null ? r.detailDemande.nombreTotalEcheances : '-'}">-</div></td>
     <td><div class="lib">Date de la Demande</div>
         <div class="val" th:text="${#temporals.format(r.detailDemande.dateDemande,'dd/MM/yyyy')}">-</div></td>
     <td></td>
@@ -239,9 +267,6 @@
 <div class="score-note" th:text="${r.score.avertissement}">Score expérimental réservé à l'analyse interne.</div>
 <div th:unless="${r.score.calculable}" class="encadre">
   <div class="bloc-titre">Le score n'est pas calculé :</div>
-  <div class="val" th:text="${r.score.message}">-</div>
-</div>
-<div th:if="${r.score.calculable and r.score.message != null}" class="encadre">
   <div class="val" th:text="${r.score.message}">-</div>
 </div>
 <table th:if="${r.score.calculable}" class="eviter-coupure">
@@ -290,6 +315,9 @@
         <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.synthese.totalGarantieSignature)}">-</div></td>
   </tr>
 </table>
+<div class="lib" th:if="${r.synthese.devise == 'Devises multiples/incomplètes'}">
+  Les totaux financiers globaux ne sont pas additionnés entre devises. Les tableaux par catégorie affichent séparément les devises renseignées.
+</div>
 
 <div class="sous-section">Répartition Contrats par Catégorie et Phase</div>
 <table class="liste">
@@ -300,45 +328,87 @@
   </tr>
 </table>
 
-<div class="sous-section">Situation financière par catégorie — encours et impayés mensuels</div>
-<p class="lib">Agrégation des contrats avec échéancier daté disponible, séparée par devise. Les déclarations mensuelles source sans montant ni date exacte ne sont pas transformées en encours.</p>
-<table class="liste" th:if="${!r.situationFinanciereMensuelle.isEmpty()}">
-  <tr><th>Mois</th><th>Catégorie</th><th>Devise</th><th style="text-align:right">Encours</th><th style="text-align:right">Impayés</th><th>Contrats</th></tr>
-  <tr th:each="sf : ${r.situationFinanciereMensuelle}">
-    <td th:text="${sf.mois}">-</td><td th:text="${sf.categorie}">-</td><td th:text="${sf.devise}">-</td>
-    <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sf.encours)}">-</td>
-    <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sf.impayes)}">-</td>
-    <td th:text="${sf.contratsAvecEcheances}">0</td>
+<div class="sous-section">Synthèse Contrats par Catégorie</div>
+<table style="width:100%; border-collapse:collapse; margin-bottom:8px;">
+  <tr>
+    <td style="width:50%; vertical-align:top; padding-right:6px;">
+      <div th:each="sc : ${r.syntheseParCategorie}" th:if="${sc.categorie == 'Financements avec échéanciers'}" class="eviter-coupure" style="margin-bottom:6px">
+        <div class="bloc-titre" style="font-size:7.5pt; margin:2px 0;" th:text="${sc.devise != null ? sc.categorie + ' — ' + sc.devise : sc.categorie}">Financements avec échéanciers</div>
+        <table class="liste" style="font-size:7pt;">
+          <tr><th style="font-size:7pt;" th:text="'Contrats Actifs: ' + ${sc.contratsActifs}">Contrats Actifs: 0</th>
+              <th style="text-align:right; font-size:7pt;">Titulaire/Co-Titulaire</th><th style="text-align:right; font-size:7pt;">Garant</th></tr>
+          <tr><td th:text="${sc.libelleMontantPrincipal}">Montant Échéance Mensuelle</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalGarant)}">0</td></tr>
+          <tr><td>Montant Restant dû</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuGarant)}">0</td></tr>
+          <tr><td>Montant Impayés</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesGarant)}">0</td></tr>
+        </table>
+      </div>
+      <div th:each="sc : ${r.syntheseParCategorie}" th:if="${sc.categorie == 'Cartes de Crédit'}" class="eviter-coupure" style="margin-bottom:6px">
+        <div class="bloc-titre" style="font-size:7.5pt; margin:2px 0;" th:text="${sc.categorie}">Cartes de Crédit</div>
+        <table class="liste" style="font-size:7pt;">
+          <tr><th style="font-size:7pt;" th:text="'Contrats Actifs: ' + ${sc.contratsActifs}">Contrats Actifs: 0</th>
+              <th style="text-align:right; font-size:7pt;">Titulaire/Co-Titulaire</th><th style="text-align:right; font-size:7pt;">Garant</th></tr>
+          <tr><td>Plafond de Crédit</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalGarant)}">0</td></tr>
+          <tr><td>Montant Restant dû</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuGarant)}">0</td></tr>
+          <tr><td>Montant Impayés</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesGarant)}">0</td></tr>
+        </table>
+      </div>
+    </td>
+    <td style="width:50%; vertical-align:top; padding-left:6px;">
+      <div th:each="sc : ${r.syntheseParCategorie}" th:if="${sc.categorie == 'Financements sans échéanciers'}" class="eviter-coupure" style="margin-bottom:6px">
+        <div class="bloc-titre" style="font-size:7.5pt; margin:2px 0;" th:text="${sc.categorie}">Financements sans échéanciers</div>
+        <table class="liste" style="font-size:7pt;">
+          <tr><th style="font-size:7pt;" th:text="'Contrats Actifs: ' + ${sc.contratsActifs}">Contrats Actifs: 0</th>
+              <th style="text-align:right; font-size:7pt;">Titulaire/Co-Titulaire</th><th style="text-align:right; font-size:7pt;">Garant</th></tr>
+          <tr><td>Plafond de Crédit</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalGarant)}">0</td></tr>
+          <tr><td>Montant Restant dû</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuGarant)}">0</td></tr>
+          <tr><td>Montant Impayés</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesGarant)}">0</td></tr>
+        </table>
+      </div>
+      <div th:each="sc : ${r.syntheseParCategorie}" th:if="${sc.categorie == 'Services'}" class="eviter-coupure" style="margin-bottom:6px">
+        <div class="bloc-titre" style="font-size:7.5pt; margin:2px 0;" th:text="${sc.categorie}">Services</div>
+        <table class="liste" style="font-size:7pt;">
+          <tr><th style="font-size:7pt;" th:text="'Contrats Actifs: ' + ${sc.contratsActifs}">Contrats Actifs: 0</th>
+              <th style="text-align:right; font-size:7pt;">Titulaire/Co-Titulaire</th><th style="text-align:right; font-size:7pt;">Garant</th></tr>
+          <tr><td>Montant Facture</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalGarant)}">0</td></tr>
+          <tr><td>Montant Restant dû</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuGarant)}">0</td></tr>
+          <tr><td>Montant Impayés</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesTitulaire)}">0</td>
+              <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesGarant)}">0</td></tr>
+        </table>
+      </div>
+    </td>
   </tr>
 </table>
-<div class="lib" th:if="${r.situationFinanciereMensuelle.isEmpty()}">Aucun échéancier daté permettant de calculer l'historique mensuel en montant.</div>
-
-<th:block th:if="${r.score.calculable}">
-<div class="sous-section">Synthèse Contrats par Catégorie</div>
-<div th:each="sc : ${r.syntheseParCategorie}" class="eviter-coupure" style="margin-bottom:8px">
-  <div class="bloc-titre" th:text="${sc.categorie}">-</div>
-  <table class="liste">
-    <tr><th th:text="'Contrats Actifs : ' + ${sc.contratsActifs}">-</th>
-        <th style="text-align:right">Titulaire/Co-Titulaire</th><th style="text-align:right">Garant</th></tr>
-    <tr><td th:text="${sc.libelleMontantPrincipal}">-</td>
-        <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalTitulaire)}">-</td>
-        <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantPrincipalGarant)}">-</td></tr>
-    <tr><td>Montant Restant dû</td>
-        <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuTitulaire)}">-</td>
-        <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantRestantDuGarant)}">-</td></tr>
-    <tr><td>Montant Impayés</td>
-        <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesTitulaire)}">-</td>
-        <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(sc.montantImpayesGarant)}">-</td></tr>
-  </table>
-</div>
 
 <div th:if="${!r.encoursParCategorie.isEmpty()}" class="eviter-coupure">
   <div class="sous-section">Situation Financière par Catégorie</div>
-  <div th:each="enc : ${r.encoursParCategorie}" style="margin-bottom:10px">
-    <div class="bloc-titre" th:text="${enc.categorie}">-</div>
-    <div class="lib">Montant Encours</div>
+  <div th:each="enc, iterStat : ${r.encoursParCategorie}" style="margin-bottom:12px">
+    <div class="bloc-titre" th:text="${enc.categorie + ' — ' + (enc.devise != null ? enc.devise : 'Devise non renseignée')}">Financements avec échéanciers</div>
+    <div class="lib" style="margin-top:4px; font-weight:bold;">Montant Encours</div>
     <table class="calendrier">
-      <tr><th th:text="${enc.codeEtablissement} ?: 'Non renseigné'">Non renseigné</th>
+      <tr><th th:text="${enc.codeEtablissement} != null and ${enc.codeEtablissement} != '' ? ${enc.codeEtablissement} : 'Autres Instituts'">Autres Instituts</th>
           <th>JAN</th><th>FÉV</th><th>MARS</th><th>AVR</th><th>MAI</th><th>JUIN</th>
           <th>JUILL</th><th>AOÛT</th><th>SEP</th><th>OCT</th><th>NOV</th><th>DÉC</th></tr>
       <tr th:each="ligne : ${enc.lignes}">
@@ -348,6 +418,21 @@
             th:text="${c.libelle}"></td>
       </tr>
     </table>
+
+    <th:block th:if="${r.impayesParCategorie != null and iterStat.index < r.impayesParCategorie.size() and enc.categorie == r.impayesParCategorie[iterStat.index].categorie and enc.codeEtablissement == r.impayesParCategorie[iterStat.index].codeEtablissement and enc.devise == r.impayesParCategorie[iterStat.index].devise}">
+      <div class="lib" style="margin-top:8px; font-weight:bold;">Montant Impayés</div>
+      <table class="calendrier">
+        <tr><th th:text="${r.impayesParCategorie[iterStat.index].codeEtablissement} != null and ${r.impayesParCategorie[iterStat.index].codeEtablissement} != '' ? ${r.impayesParCategorie[iterStat.index].codeEtablissement} : 'Autres Instituts'">Autres Instituts</th>
+            <th>JAN</th><th>FÉV</th><th>MARS</th><th>AVR</th><th>MAI</th><th>JUIN</th>
+            <th>JUILL</th><th>AOÛT</th><th>SEP</th><th>OCT</th><th>NOV</th><th>DÉC</th></tr>
+        <tr th:each="ligne : ${r.impayesParCategorie[iterStat.index].lignes}">
+          <td th:text="${ligne.annee}">-</td>
+          <td th:each="c : ${ligne.mois}"
+              th:style="${c.dansPeriode} ? 'background-color:' + ${c.couleurHex} : ''"
+              th:text="${c.libelle}"></td>
+        </tr>
+      </table>
+    </th:block>
   </div>
 </div>
 
@@ -375,7 +460,7 @@
       <td th:text="${f.codeEtablissementDeclarant}">-</td>
       <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(f.montantFinance)}">-</td>
       <td class="num" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(f.montantEcheanceMensuelle)}">-</td>
-      <td th:text="${f.nombreTotalEcheances}">-</td>
+      <td th:text="${f.nombreTotalEcheances != null ? f.nombreTotalEcheances : '-'}">-</td>
       <td th:text="${f.periodicitePaiement}">-</td>
       <td th:text="${f.dateDerniereModification != null ? #temporals.format(f.dateDerniereModification,'dd/MM/yyyy') : '-'}">-</td>
       <td>
@@ -462,15 +547,13 @@
 
   <div class="bloc-titre">Historique de paiement</div>
   <table class="liste" th:if="${!d.historiquePaiement.isEmpty()}">
-    <tr><th>Année</th><th>Mois</th><th>Nombre Échéances</th><th>Nombre Échéances Impayées</th><th>Nombre Jours de retard</th><th>Bucket de retard</th><th>Statut</th><th>Détails source</th></tr>
+    <tr><th>Année</th><th>Mois</th><th>Nombre Échéances Impayées</th><th>Nombre Jours de retard</th><th>Statut</th></tr>
     <tr th:each="h : ${d.historiquePaiement}">
-      <td th:text="${h.annee}">-</td><td th:text="${h.mois}">-</td>
-      <td th:text="${h.nombreEcheances != null ? h.nombreEcheances : '-'}">-</td>
-      <td th:text="${h.nombreEcheancesImpayees != null ? h.nombreEcheancesImpayees : '-'}">-</td>
-      <td th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatJoursRetard(h.joursDeRetard)}">-</td>
-      <td th:text="${h.bucketRetard != null ? h.bucketRetard : '-'}">-</td>
-      <td th:text="${h.statut}">-</td>
-      <td th:text="${h.detailsSource != null ? h.detailsSource : '-'}">-</td>
+      <td th:text="${h.annee}">-</td>
+      <td th:text="${h.mois}">-</td>
+      <td th:text="${h.nombreEcheancesImpayees != null ? h.nombreEcheancesImpayees : '0'}">0</td>
+      <td th:text="${T(mg.cecam.bic.common.util.LabelMapper).libelleJoursRetardCrif(h.joursDeRetard, h.statut)}">-</td>
+      <td th:text="${T(mg.cecam.bic.common.util.LabelMapper).codeGrilleCrif(h.statut, h.joursDeRetard)}">-</td>
     </tr>
   </table>
   <div th:if="${d.historiquePaiement.isEmpty()}" class="lib">Aucune déclaration mensuelle sur ce contrat.</div>
@@ -484,7 +567,7 @@
           <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(d.montantTotalDu)}">-</div></td>
       <td><div class="lib">Montant Échéance Mensuelle</div>
           <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(d.montantEcheanceMensuelle)}">-</div></td>
-      <td><div class="lib">Nombre Totale Échéances</div><div class="val" th:text="${d.nombreTotalEcheances}">-</div></td>
+      <td><div class="lib">Nombre Totale Échéances</div><div class="val" th:text="${d.nombreTotalEcheances != null ? d.nombreTotalEcheances : '-'}">-</div></td>
     </tr>
     <tr>
       <td><div class="lib">Montant prochaine échéance</div>

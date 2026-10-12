@@ -159,7 +159,11 @@ public class ClientService {
     }
 
     private String genererCodeClientCb() {
-        return "L" + String.format("%08d", clientRepository.prochainCodeClientCb());
+        String code;
+        do {
+            code = "L" + String.format("%08d", clientRepository.prochainCodeClientCb());
+        } while (clientRepository.findByCodeClientCb(code).isPresent());
+        return code;
     }
 
     private void appliquerAffaireIndividuelle(Client client, ClientRequest.AffaireIndividuelleRequest request) {

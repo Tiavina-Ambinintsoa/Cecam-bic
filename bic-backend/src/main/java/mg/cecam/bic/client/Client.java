@@ -58,7 +58,7 @@ public class Client {
     @NotNull
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    @Column(name = "origine_donnee", nullable = false, length = 30)
+    @Column(name = "origine_donnee", nullable = false, length = 30, columnDefinition = "varchar(30) default 'NON_RENSEIGNEE'")
     @JsonIgnore
     private OrigineDonnee origineDonnee = OrigineDonnee.NON_RENSEIGNEE;
 

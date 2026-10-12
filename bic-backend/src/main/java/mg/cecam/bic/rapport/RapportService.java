@@ -75,7 +75,7 @@ public class RapportService {
 
         auditService.enregistrer("CLIENT", client.getId(), "CONSULTATION", "Consultation du rapport de solvabilité");
 
-        List<Contrat> tous = contratRepository.findByClient_Id(client.getId());
+        List<Contrat> tous = contratRepository.findPourClient(client.getId());
         List<Contrat> historique = tous.stream()
                 .filter(c -> !c.getId().equals(contratId))
                 .sorted(Comparator.comparing(Contrat::getDateDemande,
@@ -141,6 +141,7 @@ public class RapportService {
                 synthese(historique, echeances, garanties, reference),
                 syntheseParCategorie(historique, echeances, reference),
                 encoursParCategorie(historique, echeances, reference),
+                impayesParCategorie(historique, echeances, reference),
                 situationFinanciereMensuelleService.calculer(tous, echeances, reference),
                 financements(historique, echeances, liensParContrat, NON_DECAISSEES, false, reference),
                 financements(historique, echeances, liensParContrat, DECAISSEES, true, reference),
@@ -186,15 +187,26 @@ public class RapportService {
                 .filter(Objects::nonNull).distinct().count();
 
         boolean vide = historique.isEmpty();
+        Set<String> devises = historique.stream().map(Contrat::getDevise)
+                .filter(this::deviseRenseignee).collect(Collectors.toCollection(TreeSet::new));
+        long contratsSansDevise = historique.stream().filter(c -> !deviseRenseignee(c.getDevise())).count();
+        boolean totauxCompatibles = devises.size() == 1 && contratsSansDevise == 0;
+        String devise = totauxCompatibles ? devises.iterator().next()
+                : vide ? "-" : "Devises multiples/incomplètes";
 
         return new SyntheseDTO(
                 historique.size(), etablissements,
-                vide ? "-" : "Non", "Ariary malgache",
-                vide ? null : exposition,
-                vide ? null : restantDu,
-                vide ? null : impayes,
-                demandes, garantieSignature,
+                vide ? "-" : "Non", devise,
+                totauxCompatibles ? exposition : null,
+                totauxCompatibles ? restantDu : null,
+                totauxCompatibles ? impayes : null,
+                totauxCompatibles ? demandes : null,
+                totauxCompatibles ? garantieSignature : null,
                 repartition(historique));
+    }
+
+    private boolean deviseRenseignee(String devise) {
+        return devise != null && !devise.isBlank();
     }
 
     private List<RepartitionLigneDTO> repartition(List<Contrat> historique) {
@@ -234,19 +246,36 @@ public class RapportService {
         Predicate<Echeance> aEchoir = e -> !e.estPayee() && !e.estEnSouffrance(reference);
         Predicate<Echeance> enSouffrance = e -> e.estEnSouffrance(reference);
 
-        SyntheseCategorieDTO avecEcheancier = new SyntheseCategorieDTO(
-                "Financements avec échéanciers", actifs.size(), "Montant Échéance Mensuelle",
-                somme(actifs, false, Contrat::getMontantEcheanceMensuelle),
-                somme(actifs, true,  Contrat::getMontantEcheanceMensuelle),
-                sommeEcheances(actifs, false, echeances, aEchoir),
-                sommeEcheances(actifs, true,  echeances, aEchoir),
-                sommeEcheances(actifs, false, echeances, enSouffrance),
-                sommeEcheances(actifs, true,  echeances, enSouffrance));
+        List<SyntheseCategorieDTO> parDevise = new ArrayList<>();
+        List<String> devises = actifs.stream().map(Contrat::getDevise).filter(this::deviseRenseignee)
+                .distinct().sorted().toList();
+        for (String devise : devises) {
+            List<Contrat> contratsDansDevise = actifs.stream()
+                    .filter(c -> Objects.equals(c.getDevise(), devise)).toList();
+            parDevise.add(new SyntheseCategorieDTO(
+                    "Financements avec échéanciers", devise, contratsDansDevise.size(), "Montant Échéance Mensuelle",
+                    somme(contratsDansDevise, false, Contrat::getMontantEcheanceMensuelle),
+                    somme(contratsDansDevise, true,  Contrat::getMontantEcheanceMensuelle),
+                    sommeEcheances(contratsDansDevise, false, echeances, aEchoir),
+                    sommeEcheances(contratsDansDevise, true,  echeances, aEchoir),
+                    sommeEcheances(contratsDansDevise, false, echeances, enSouffrance),
+                    sommeEcheances(contratsDansDevise, true,  echeances, enSouffrance)));
+        }
+        long contratsSansDevise = actifs.stream().filter(c -> !deviseRenseignee(c.getDevise())).count();
+        if (contratsSansDevise > 0) {
+            parDevise.add(new SyntheseCategorieDTO("Financements avec échéanciers", "Devise non renseignée",
+                    (int) contratsSansDevise, "Montant Échéance Mensuelle",
+                    null, null, null, null, null, null));
+        }
+        if (parDevise.isEmpty()) {
+            parDevise.add(SyntheseCategorieDTO.vide(
+                    "Financements avec échéanciers", "Montant Échéance Mensuelle"));
+        }
 
-        return List.of(avecEcheancier,
-                SyntheseCategorieDTO.vide("Financements sans échéanciers", "Plafond de Crédit"),
-                SyntheseCategorieDTO.vide("Cartes de Crédit", "Plafond de Crédit"),
-                SyntheseCategorieDTO.vide("Services", "Montant Facture"));
+        parDevise.add(SyntheseCategorieDTO.vide("Financements sans échéanciers", "Plafond de Crédit"));
+        parDevise.add(SyntheseCategorieDTO.vide("Cartes de Crédit", "Plafond de Crédit"));
+        parDevise.add(SyntheseCategorieDTO.vide("Services", "Montant Facture"));
+        return List.copyOf(parDevise);
     }
 
     private BigDecimal somme(List<Contrat> contrats, boolean garant, Function<Contrat, BigDecimal> extracteur) {
@@ -288,12 +317,56 @@ public class RapportService {
                     .toList();
 
             for (String etablissement : etablissements) {
-                List<Contrat> contratsGroupe = contratsCategorie.stream()
+                List<Contrat> contratsEtablissement = contratsCategorie.stream()
                         .filter(c -> Objects.equals(c.getCodeEtablissementDeclarant(), etablissement))
                         .toList();
-                EncoursCategorieDTO dto = calendrierService.encours(
-                        categorie, etablissement, contratsGroupe, echeances, reference);
-                if (!dto.lignes().isEmpty()) resultats.add(dto);
+                List<String> devises = contratsEtablissement.stream().map(Contrat::getDevise).distinct()
+                        .sorted(Comparator.nullsLast(Comparator.naturalOrder())).toList();
+                for (String devise : devises) {
+                    List<Contrat> contratsGroupe = contratsEtablissement.stream()
+                            .filter(c -> Objects.equals(c.getDevise(), devise)).toList();
+                    EncoursCategorieDTO dto = calendrierService.encours(
+                            categorie, etablissement, devise, contratsGroupe, echeances, reference);
+                    if (!dto.lignes().isEmpty()) resultats.add(dto);
+                }
+            }
+        }
+        return List.copyOf(resultats);
+    }
+
+    private List<EncoursCategorieDTO> impayesParCategorie(List<Contrat> historique,
+                                                          Map<Long, List<Echeance>> echeances,
+                                                          LocalDate reference) {
+        List<Contrat> avecEcheancier = historique.stream()
+                .filter(c -> DECAISSEES.contains(c.getPhaseDemande()))
+                .filter(c -> !echeances.getOrDefault(c.getId(), List.of()).isEmpty())
+                .toList();
+        if (avecEcheancier.isEmpty()) return List.of();
+
+        List<EncoursCategorieDTO> resultats = new ArrayList<>();
+        for (String categorie : List.of(CAT_AVEC_ECHEANCIER, CAT_SANS_ECHEANCIER, CAT_CARTES, CAT_SERVICES)) {
+            List<Contrat> contratsCategorie = avecEcheancier.stream()
+                    .filter(c -> categorie.equals(categorieDe(c)))
+                    .toList();
+            List<String> etablissements = contratsCategorie.stream()
+                    .map(Contrat::getCodeEtablissementDeclarant)
+                    .distinct()
+                    .sorted(Comparator.nullsLast(Comparator.naturalOrder()))
+                    .toList();
+
+            for (String etablissement : etablissements) {
+                List<Contrat> contratsEtablissement = contratsCategorie.stream()
+                        .filter(c -> Objects.equals(c.getCodeEtablissementDeclarant(), etablissement))
+                        .toList();
+                List<String> devises = contratsEtablissement.stream().map(Contrat::getDevise).distinct()
+                        .sorted(Comparator.nullsLast(Comparator.naturalOrder())).toList();
+                for (String devise : devises) {
+                    List<Contrat> contratsGroupe = contratsEtablissement.stream()
+                            .filter(c -> Objects.equals(c.getDevise(), devise)).toList();
+                    EncoursCategorieDTO dto = calendrierService.impayes(
+                            categorie, etablissement, devise, contratsGroupe, echeances, reference);
+                    if (!dto.lignes().isEmpty()) resultats.add(dto);
+                }
             }
         }
         return List.copyOf(resultats);
@@ -315,6 +388,10 @@ public class RapportService {
         List<LigneFinancementDTO> lignes = new ArrayList<>();
         int i = 1;
         for (Contrat c : retenus) {
+            List<HistoriquePaiementMensuel> histo = avecGrille
+                    ? historiquePaiementMensuelRepository.findByContrat_IdOrderByMoisDesc(c.getId())
+                    : List.of();
+
             lignes.add(new LigneFinancementDTO(
                     i++, c.getCodeContratCb(), tiret(c.getCodeContratEtablissement()),
                     c.getTypeContrat(),
@@ -327,7 +404,7 @@ public class RapportService {
                     c.getDateDerniereModification(),
                     c.getDateDebutContrat(), c.getDateFinContrat(), tiret(c.getNote()),
                     avecGrille
-                            ? calendrierService.grilleStatut(c, echeances.getOrDefault(c.getId(), List.of()), reference)
+                            ? calendrierService.grilleStatut(c, echeances.getOrDefault(c.getId(), List.of()), histo, reference)
                             : List.of()));
         }
         return lignes;
@@ -342,7 +419,8 @@ public class RapportService {
         return historique.stream()
                 .sorted(Comparator
                         .comparingInt((Contrat c) -> ordrePhase(c.getPhaseDemande()))
-                        .thenComparing(Contrat::getDateDemande, Comparator.reverseOrder()))
+                        .thenComparing(Contrat::getDateDemande,
+                                Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(c -> toDetailContrat(c,
                         echeances.getOrDefault(c.getId(), List.of()),
                         garanties.getOrDefault(c.getId(), List.of()),
@@ -463,24 +541,46 @@ public class RapportService {
             LocalDate observation = finDeMois.isAfter(reference) ? reference : finDeMois;
 
             List<Echeance> exigibles = echeances.stream()
-                    .filter(e -> !e.getDateEcheance().isAfter(finDeMois))
+                    .filter(e -> e != null && e.getDateEcheance() != null && !e.getDateEcheance().isAfter(finDeMois))
                     .toList();
-            int impayees = (int) exigibles.stream()
-                    .filter(e -> e.statutEffectif(observation) == StatutEcheance.IMPAYE).count();
-            int jours = exigibles.stream().mapToInt(e -> e.joursDeRetard(observation)).max().orElse(0);
-            StatutEcheance pire = exigibles.stream()
-                    .map(e -> e.statutEffectif(observation))
-                    .filter(s -> s != StatutEcheance.A_VENIR)
-                    .max(Comparator.comparingInt(this::rangStatut))
-                    .orElse(StatutEcheance.PAYE_A_TEMPS);
+            List<Integer> retardsObserves = exigibles.stream()
+                    .map(e -> joursRetardObserve(e, observation)).toList();
+            boolean historiqueIncomplet = retardsObserves.stream().anyMatch(Objects::isNull);
+            Integer jours = exigibles.isEmpty() || historiqueIncomplet ? null
+                    : retardsObserves.stream().mapToInt(Integer::intValue).max().orElse(0);
+            List<StatutEcheance> statutsObserves = exigibles.stream()
+                    .map(e -> statutEcheanceObserve(e, observation)).toList();
+            StatutEcheance pire = historiqueIncomplet ? null : statutsObserves.stream()
+                    .filter(Objects::nonNull)
+                    .max(Comparator.comparingInt(this::rangStatut)).orElse(null);
+            int impayees = (int) statutsObserves.stream().filter(s -> s == StatutEcheance.IMPAYE).count();
 
             lignes.add(new HistoriquePaiementLigneDTO(
                     courant.getYear(), MOIS_LONG[courant.getMonthValue() - 1],
-                    null, impayees, jours, LabelMapper.statutEcheance(pire),
-                    Optional.ofNullable(BucketRetard.depuisJours(jours)).map(BucketRetard::libelle).orElse(null), null));
+                    null, impayees, jours, pire == null ? (exigibles.isEmpty() ? "NOUV" : "NDIS") : LabelMapper.statutEcheance(pire),
+                    jours == null ? null : Optional.ofNullable(BucketRetard.depuisJours(jours))
+                            .map(BucketRetard::libelle).orElse(null), null));
             courant = courant.minusMonths(1);
         }
         return lignes;
+    }
+
+    private Integer joursRetardObserve(Echeance echeance, LocalDate observation) {
+        if (echeance.estPayee() && echeance.getDatePaiement() == null) return null;
+        LocalDate fin = echeance.estPayee() && !echeance.getDatePaiement().isAfter(observation)
+                ? echeance.getDatePaiement() : observation;
+        if (!fin.isAfter(echeance.getDateEcheance())) return 0;
+        return (int) java.time.temporal.ChronoUnit.DAYS.between(echeance.getDateEcheance(), fin);
+    }
+
+    private StatutEcheance statutEcheanceObserve(Echeance echeance, LocalDate observation) {
+        Integer jours = joursRetardObserve(echeance, observation);
+        if (jours == null) return null;
+        if (echeance.estPayee() && echeance.getDatePaiement() != null
+                && !echeance.getDatePaiement().isAfter(observation)) {
+            return jours > 0 ? StatutEcheance.EN_RETARD : StatutEcheance.PAYE_A_TEMPS;
+        }
+        return jours > Echeance.SEUIL_IMPAYE_JOURS ? StatutEcheance.IMPAYE : StatutEcheance.EN_RETARD;
     }
 
     private LocalDate dateDerniereDeclaration(Contrat c, LocalDate reference) {
@@ -513,6 +613,8 @@ public class RapportService {
         Map<String, LienClientDTO> parCode = new LinkedHashMap<>();
         for (Contrat c : historique) {
             for (ContratLien l : liens.getOrDefault(c.getId(), List.of())) {
+                if (l.getCodeClientCb() != null
+                        && l.getCodeClientCb().equals(client.getCodeClientCb())) continue;
                 fusionner(parCode, l.getCodeClientCb(), l.getNomClient(),
                         LabelMapper.role(l.getRoleClient()), c.getCodeEtablissementDeclarant());
             }

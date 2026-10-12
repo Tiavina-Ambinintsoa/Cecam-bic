@@ -64,7 +64,7 @@ export interface DetailDemande {
   origineDonnee: string;
   montantFinance: number;
   montantEcheanceMensuelle?: number;
-  nombreTotalEcheances: number;
+  nombreTotalEcheances: number | null;
   dateDemande?: string | null;
 }
 
@@ -102,21 +102,22 @@ export interface Synthese {
   expositionPotentielle: number | null;
   montantTotalRestantDu: number | null;
   montantTotalImpayes: number | null;
-  montantTotalDemandes: number;
-  totalGarantieSignature: number;
+  montantTotalDemandes: number | null;
+  totalGarantieSignature: number | null;
   repartition: RepartitionLigne[];
 }
 
 export interface SyntheseCategorie {
   categorie: string;
+  devise: string | null;
   contratsActifs: number;
   libelleMontantPrincipal: string;
-  montantPrincipalTitulaire: number;
-  montantPrincipalGarant: number;
-  montantRestantDuTitulaire: number;
-  montantRestantDuGarant: number;
-  montantImpayesTitulaire: number;
-  montantImpayesGarant: number;
+  montantPrincipalTitulaire: number | null;
+  montantPrincipalGarant: number | null;
+  montantRestantDuTitulaire: number | null;
+  montantRestantDuGarant: number | null;
+  montantImpayesTitulaire: number | null;
+  montantImpayesGarant: number | null;
 }
 
 export interface CelluleMois {
@@ -145,6 +146,7 @@ export interface CalendrierCredit {
 export interface EncoursCategorie {
   categorie: string;
   codeEtablissement?: string;
+  devise?: string | null;
   lignes: LigneAnnee[];
 }
 
@@ -276,6 +278,7 @@ export interface RapportSolvabilite {
   synthese: Synthese;
   syntheseParCategorie: SyntheseCategorie[];
   encoursParCategorie: EncoursCategorie[];
+  impayesParCategorie?: EncoursCategorie[];
   situationFinanciereMensuelle?: SituationFinanciereMensuelle[];
   calendriers: CalendrierCredit[];
   detailContrats: DetailContrat[];
