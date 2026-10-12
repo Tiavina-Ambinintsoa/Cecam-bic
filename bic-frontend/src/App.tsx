@@ -15,6 +15,7 @@ import { AuditPage } from "@/pages/AuditPage";
 import { SaisieHistoriquePage } from "@/pages/admin/SaisieHistoriquePage";
 import { ImportPage } from "@/pages/admin/ImportPage";
 import { DemandesModificationPage } from "@/pages/admin/DemandesModificationPage";
+import { GestionUtilisateursPage } from "@/pages/admin/GestionUtilisateursPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { DemandeEnCoursProvider } from "@/context/DemandeEnCoursContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -62,6 +63,7 @@ function AppShell() {
             <Route path="/audit" element={<AdminRoute><AuditPage /></AdminRoute>} />
             <Route path="/admin/import" element={<AdminRoute><ImportPage /></AdminRoute>} />
             <Route path="/admin/demandes-modification" element={<AdminRoute><DemandesModificationPage /></AdminRoute>} />
+            <Route path="/admin/utilisateurs" element={<AdminRoute><GestionUtilisateursPage /></AdminRoute>} />
             <Route path="/admin" element={<AdminRoute><SaisieHistoriquePage /></AdminRoute>} />
             <Route path="/admin/saisie-historique" element={<AdminRoute><SaisieHistoriquePage /></AdminRoute>} />
           </Routes>

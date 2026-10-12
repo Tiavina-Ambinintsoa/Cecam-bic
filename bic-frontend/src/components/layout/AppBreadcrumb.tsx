@@ -15,6 +15,7 @@ function segmentsForPath(pathname: string): string[] {
   if (pathname.startsWith("/audit")) return ["Journal d'audit"];
   if (pathname.startsWith("/admin/import")) return ["Importation de clients"];
   if (pathname.startsWith("/admin/demandes-modification")) return ["Demandes de mise à jour", "Validation admin"];
+  if (pathname.startsWith("/admin/utilisateurs")) return ["Gestion des utilisateurs"];
   if (pathname === "/admin" || pathname.startsWith("/admin/saisie-historique")) return ["Saisie d'historique"];
   return [];
 }
@@ -52,6 +53,7 @@ export function AppBreadcrumb() {
               <DropdownMenuItem onClick={() => navigate("/admin/import")}>Importation de clients (Admin)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/admin/demandes-modification")}>Demandes de mise à jour (Admin)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/admin/saisie-historique")}>Saisie d'historique (Admin)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/admin/utilisateurs")}>Gestion des utilisateurs (Admin)</DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate("/audit")}>Journal d'audit (Admin)</DropdownMenuItem>
             </>
           )}

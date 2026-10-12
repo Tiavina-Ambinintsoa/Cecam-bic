@@ -51,6 +51,7 @@ flowchart LR
 | Consulter un rapport | Route `/demande/rapport/:contratId` → `pages/RapportPage.tsx` → `api/rapportApi.ts` → `rapport/RapportController` → `RapportService`, `ScoreService`, services calendrier/PDF → `resources/templates/rapport-solvabilite.html` |
 | Fonctions transverses | Pages de recherche, rapports, alertes et audit → API frontend → contrôleurs `client`, `rapport` et `audit`; les alertes sont calculées depuis les contrats actifs et leurs échéances |
 | Soumettre une mise à jour | `pages/MiseAJourDemandePage.tsx` → `api/modificationContratApi.ts` → `ModificationContratController` → `ModificationContratService` → `ModificationContratDemandeRepository`; seuls les administrateurs peuvent approuver ou refuser |
+| Gérer les utilisateurs | Route `/admin/utilisateurs` → `pages/admin/GestionUtilisateursPage.tsx` → `api/utilisateurApi.ts` → `auth/UtilisateurController` (CRUD complet) → `UtilisateurRepository`; création/modification/suppression/bascule actif réservées à l'admin, mot de passe haché par BCrypt, audit de chaque action, auto-suppression interdite |
 | Importer des clients | `pages/admin/ImportPage.tsx` → `api/clientApi.ts` → `ClientController` → `ClientService.enregistrerOuRecuperer`; les doublons CIN sont comptés et chaque ligne invalide est signalée |
 
 ## Routes frontend
@@ -70,6 +71,7 @@ Les routes applicatives sont déclarées dans `bic-frontend/src/App.tsx`. `/logi
 | `/audit` | `AuditPage` |
 | `/admin/import` | `ImportPage`, protégée par `AdminRoute` |
 | `/admin/demandes-modification` | `DemandesModificationPage`, protégée par `AdminRoute` et API admin |
+| `/admin/utilisateurs` | `GestionUtilisateursPage`, protégée par `AdminRoute` — CRUD comptes agents/admin |
 | `/admin` et `/admin/saisie-historique` | `SaisieHistoriquePage`, protégée par `AdminRoute` |
 
 `axiosClient` prend `VITE_API_BASE_URL` ou utilise `http://localhost:8080/api` par défaut et ajoute le bearer token stocké côté navigateur.
@@ -79,7 +81,7 @@ Les routes applicatives sont déclarées dans `bic-frontend/src/App.tsx`. `/logi
 | Contrôleur | Base de route | Responsabilité |
 |---|---|---|
 | `AuthController` | `/api/auth` | Connexion |
-| `UtilisateurController` | `/api/utilisateurs` | Comptes utilisateurs |
+| `UtilisateurController` | `/api/utilisateurs` | CRUD complet des comptes (lister, créer, modifier, bascule actif, supprimer) — admin uniquement |
 | `ClientController` | `/api/clients` | Création, mise à jour, adresses et recherche client |
 | `ContratController` | `/api/contrats` | Demandes, liste/recherche, historique admin et modifications directes réservées à l'admin |
 | `ModificationContratController` | `/api/demandes-modification` | Soumission agent, demandes personnelles, liste admin, approbation et refus |
