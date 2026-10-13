@@ -14,6 +14,11 @@ export interface AdresseRequest {
 export interface IdentifiantRequest {
   typeIdentifiant: string;
   numero: string;
+}
+
+export interface DocumentIdentificationRequest {
+  typeDocument?: string;
+  numero?: string;
   dateDelivrance?: string;
   dateExpiration?: string;
   paysDelivrance?: string;
@@ -78,6 +83,7 @@ export interface ClientRequest {
   contacts?: ContactRequest[];
   adresses: AdresseRequest[];
   identifiants: IdentifiantRequest[];
+  documentsIdentification?: DocumentIdentificationRequest[];
   emploi?: EmploiRequest;
   affaireIndividuelle?: AffaireIndividuelleRequest;
 }

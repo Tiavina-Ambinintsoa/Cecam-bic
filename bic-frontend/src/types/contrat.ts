@@ -17,6 +17,8 @@ export interface ContratRequest {
   periodiciteBudget?: string;
   montantRecette?: number;
   montantDepense?: number;
+  typeGarantie?: string;
+  valeurGarantie?: number;
 }
 
 export type ContratResponse = Omit<ContratRequest, "montantEcheanceMensuelle" | "devise"> & {

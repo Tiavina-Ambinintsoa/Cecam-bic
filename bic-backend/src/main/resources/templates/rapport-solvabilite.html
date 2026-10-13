@@ -278,6 +278,21 @@
   </table>
 </th:block>
 
+<th:block th:if="${r.detailDemande.valeurGarantie != null}">
+  <div class="sous-section">Garantie de la demande</div>
+  <table class="grille">
+    <tr>
+      <td><div class="lib">Type de Garantie</div><div class="val" th:text="${r.detailDemande.typeGarantie} ?: '-'">-</div></td>
+      <td><div class="lib">Valeur de la Garantie</div>
+          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.valeurGarantie)}">-</div></td>
+      <td><div class="lib">Total Demande + Intérêts (+3%/mois)</div>
+          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantTotalDemandeInteret)}">-</div></td>
+      <td><div class="lib">Ratio Couverture Garantie</div>
+          <div class="val" th:text="${r.detailDemande.ratioCouvertureGarantie != null ? r.detailDemande.ratioCouvertureGarantie + ' %' : '-'}">-</div></td>
+    </tr>
+  </table>
+</th:block>
+
 <div class="section">SCORE CB</div>
 <div class="score-note" th:text="${r.score.avertissement}">Score expérimental réservé à l'analyse interne.</div>
 <div th:unless="${r.score.calculable}" class="encadre">

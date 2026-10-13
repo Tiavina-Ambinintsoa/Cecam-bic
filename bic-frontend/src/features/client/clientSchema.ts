@@ -11,17 +11,22 @@ const adresseSchema = z.object({
   pays: z.string().optional(),
 });
 
-const contactSchema = z.object({
-  typeContact: z.string().min(1, "Type de contact requis"),
-  valeurContact: z.string().optional(),
+const identifiantSchema = z.object({
+  typeIdentifiant: z.string().min(1, "Type d'identifiant requis"),
+  numero: z.string().min(1, "Numéro requis"),
 });
 
-const identifiantSchema = z.object({
-  typeIdentifiant: z.string().min(1, "Type de document requis"),
-  numero: z.string().min(1, "Numéro de document requis"),
+const documentIdentificationSchema = z.object({
+  typeDocument: z.string().optional(),
+  numero: z.string().optional(),
   dateDelivrance: z.string().optional(),
   dateExpiration: z.string().optional(),
   paysDelivrance: z.string().optional(),
+});
+
+const contactSchema = z.object({
+  typeContact: z.string().min(1, "Type de contact requis"),
+  valeurContact: z.string().optional(),
 });
 
 const emploiSchema = z.object({
@@ -69,19 +74,100 @@ export const clientSchema = z.object({
   etatCivil: z.string().optional(),
   codeClientEtablissement: z.string().optional(),
   telephone: z.string().optional(),
-  contacts: z.array(contactSchema).optional(),
   adresses: z.array(adresseSchema).min(1, "Au moins une adresse est requise"),
-  identifiants: z.array(identifiantSchema).min(1, "Au moins un document d'identification est requis"),
+  identifiants: z.array(identifiantSchema).min(1, "Au moins un identifiant (CIN) est requis"),
+  documentsIdentification: z.array(documentIdentificationSchema).optional(),
+  contacts: z.array(contactSchema).optional(),
   emploi: emploiSchema.optional(),
   ajouterAffaireIndividuelle: z.boolean().optional(),
   affaireIndividuelle: affaireIndividuelleSchema.optional(),
 }).superRefine((data, ctx) => {
-  if (data.ajouterAffaireIndividuelle && !data.affaireIndividuelle?.nom?.trim()) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["affaireIndividuelle", "nom"],
-      message: "Le nom de l'affaire individuelle est requis.",
-    });
+  if (data.ajouterAffaireIndividuelle) {
+    if (!data.affaireIndividuelle?.nom?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["affaireIndividuelle", "nom"],
+        message: "Le nom de l'affaire individuelle est requis.",
+      });
+    }
+
+    const adresses = data.affaireIndividuelle?.adresses || [];
+    if (adresses.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["affaireIndividuelle", "adresses"],
+        message: "Au moins une adresse est requise.",
+      });
+    } else {
+      adresses.forEach((a, i) => {
+        if (!a.typeAdresse?.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["affaireIndividuelle", "adresses", i, "typeAdresse"],
+            message: "Le type d'adresse est requis.",
+          });
+        }
+        if (!a.adresseComplete?.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["affaireIndividuelle", "adresses", i, "adresseComplete"],
+            message: "L'adresse complète est requise.",
+          });
+        }
+      });
+    }
+
+    const idents = data.affaireIndividuelle?.identifiants || [];
+    if (idents.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["affaireIndividuelle", "identifiants"],
+        message: "Au moins un identifiant est requis.",
+      });
+    } else {
+      idents.forEach((id, i) => {
+        if (!id.typeIdentifiant?.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["affaireIndividuelle", "identifiants", i, "typeIdentifiant"],
+            message: "Le type d'identifiant est requis.",
+          });
+        }
+        if (!id.numero?.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["affaireIndividuelle", "identifiants", i, "numero"],
+            message: "Le numéro d'identifiant est requis.",
+          });
+        }
+      });
+    }
+
+    const contacts = data.affaireIndividuelle?.contacts || [];
+    if (contacts.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["affaireIndividuelle", "contacts"],
+        message: "Au moins un contact est requis.",
+      });
+    } else {
+      contacts.forEach((c, i) => {
+        if (!c.typeContact?.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["affaireIndividuelle", "contacts", i, "typeContact"],
+            message: "Le type de contact est requis.",
+          });
+        }
+        if (!c.valeurContact?.trim()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["affaireIndividuelle", "contacts", i, "valeurContact"],
+            message: "La valeur du contact est requise.",
+          });
+        }
+      });
+    }
   }
 });
 

@@ -110,6 +110,19 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
             }
         }
 
+        // Calcul demande + intérêt (+3% par mois sur la durée)
+        int moisDuree = request.nombreTotalEcheances() != null && request.nombreTotalEcheances() > 0
+                ? request.nombreTotalEcheances() : 1;
+        BigDecimal tauxInteretGlobal = BigDecimal.valueOf(0.03).multiply(BigDecimal.valueOf(moisDuree));
+        BigDecimal montantInteret = request.montantFinance().multiply(tauxInteretGlobal);
+        BigDecimal totalDemandeInteret = request.montantFinance().add(montantInteret);
+
+        BigDecimal ratioGarantie = null;
+        if (request.valeurGarantie() != null && request.valeurGarantie().compareTo(BigDecimal.ZERO) > 0) {
+            ratioGarantie = request.valeurGarantie().multiply(BigDecimal.valueOf(100))
+                    .divide(totalDemandeInteret, 2, java.math.RoundingMode.HALF_UP);
+        }
+
         Contrat contrat = Contrat.builder()
                 .codeContratCb(genererCodeContratCb())
                 .codeContratEtablissement(request.codeContratEtablissement())
@@ -130,11 +143,27 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                 .montantRecette(request.montantRecette())
                 .montantDepense(request.montantDepense())
                 .ratioRestePourcentage(ratio)
+                .typeGarantie(request.typeGarantie())
+                .valeurGarantie(request.valeurGarantie())
+                .montantTotalDemandeInteret(totalDemandeInteret)
+                .ratioCouvertureGarantie(ratioGarantie)
                 .phaseDemande(PhaseDemande.DEMANDE_EN_COURS)
                 .utilisateurDeclarant(utilisateurConnecte())
                 .build();
 
         contrat = contratRepository.save(contrat);
+
+        if (request.valeurGarantie() != null && request.valeurGarantie().compareTo(BigDecimal.ZERO) > 0) {
+            Garantie garantie = Garantie.builder()
+                    .contrat(contrat)
+                    .typeGarantie(request.typeGarantie() != null ? request.typeGarantie() : "Garantie réelle")
+                    .montantCouvert(request.valeurGarantie())
+                    .nature(mg.cecam.bic.common.enums.NatureGarantie.REELLE)
+                    .dateDebutValidite(contrat.getDateDemande())
+                    .build();
+            garantieRepository.save(garantie);
+        }
+
         auditService.enregistrer("CONTRAT", contrat.getId(), "CREATION", "Nouvelle demande créée");
         return contrat;
     }

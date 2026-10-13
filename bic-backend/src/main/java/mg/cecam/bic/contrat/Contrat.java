@@ -121,6 +121,18 @@ private String codeDemandeEtablissement;
     @Column(name = "ratio_reste_pourcentage", precision = 10, scale = 2)
     private BigDecimal ratioRestePourcentage;
 
+    @Column(name = "type_garantie")
+    private String typeGarantie;
+
+    @Column(name = "valeur_garantie", precision = 19, scale = 2)
+    private BigDecimal valeurGarantie;
+
+    @Column(name = "montant_total_demande_interet", precision = 19, scale = 2)
+    private BigDecimal montantTotalDemandeInteret;
+
+    @Column(name = "ratio_couverture_garantie", precision = 10, scale = 2)
+    private BigDecimal ratioCouvertureGarantie;
+
     @Column(name = "mode_reglement")
     private String modeReglement;
 

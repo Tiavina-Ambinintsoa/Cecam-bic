@@ -9,5 +9,7 @@ public record DetailDemandeDTO(
         BigDecimal montantFinance, BigDecimal montantEcheanceMensuelle,
         Integer nombreTotalEcheances, LocalDate dateDemande,
         String periodiciteBudget, BigDecimal montantRecette, BigDecimal montantDepense,
-        BigDecimal ratioRestePourcentage
+        BigDecimal ratioRestePourcentage,
+        String typeGarantie, BigDecimal valeurGarantie,
+        BigDecimal montantTotalDemandeInteret, BigDecimal ratioCouvertureGarantie
 ) {}

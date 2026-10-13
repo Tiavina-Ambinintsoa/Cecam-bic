@@ -15,7 +15,8 @@ import { DateInput } from "@/components/ui/date-input";
 import { MontantInput } from "@/components/ui/montant-input";
 import { Plus, Trash2 } from "lucide-react";
 
-const FIELD_H = "min-h-10 h-auto py-2";
+// Hauteur stricte et monotone pour un alignement parfait de tous les champs
+const FIELD_H = "h-10 py-2";
 
 const categoriesGroupes = [
   {
@@ -98,26 +99,19 @@ export function ClientForm() {
   const { setClientId } = useDemandeEnCours();
   const [submitting, setSubmitting] = useState(false);
   const [genreLabel, setGenreLabel] = useState<string>();
-  const [titreLabel, setTitreLabel] = useState<string>("Mr");
+  const [titreLabel, setTitreLabel] = useState<string>("M.");
   const [categorieLabel, setCategorieLabel] = useState<string>("0215 - I M F");
   const [etatCivilLabel, setEtatCivilLabel] = useState<string>();
 
   const form = useForm<ClientFormInput, unknown, ClientFormValues>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
-      titre: "Mr",
+      titre: "M.",
       nationalite: "Malgache",
       categorieTiersCode: "0215",
       adresses: [{ typeAdresse: "Individu - Adresse principale", adresseComplete: "" }],
-      identifiants: [
-        {
-          typeIdentifiant: "CIN",
-          numero: "",
-          dateDelivrance: "",
-          dateExpiration: "",
-          paysDelivrance: "Madagascar",
-        },
-      ],
+      identifiants: [{ typeIdentifiant: "CIN", numero: "" }],
+      documentsIdentification: [],
       contacts: [{ typeContact: "Téléphone principal", valeurContact: "" }],
       ajouterAffaireIndividuelle: false,
       affaireIndividuelle: {
@@ -131,6 +125,7 @@ export function ClientForm() {
 
   const adressesArray = useFieldArray({ control: form.control, name: "adresses" });
   const identifiantsArray = useFieldArray({ control: form.control, name: "identifiants" });
+  const documentsArray = useFieldArray({ control: form.control, name: "documentsIdentification" });
   const contactsArray = useFieldArray({ control: form.control, name: "contacts" });
 
   const affaireAdressesArray = useFieldArray({
@@ -152,8 +147,22 @@ export function ClientForm() {
   async function onSubmit(values: ClientFormValues) {
     setSubmitting(true);
     try {
-      const { ajouterAffaireIndividuelle, contacts, ...restValues } = values;
+      const { ajouterAffaireIndividuelle, contacts, documentsIdentification, ...restValues } = values;
       const primaryContact = contacts?.find((c) => c.valeurContact?.trim())?.valeurContact;
+
+      // Rassembler identifiants obligatoires (CIN) + documents d'identification non obligatoires si renseignés
+      const tousIdentifiants = [
+        ...values.identifiants.map((i) => ({
+          typeIdentifiant: i.typeIdentifiant,
+          numero: i.numero,
+        })),
+        ...(documentsIdentification || [])
+          .filter((doc) => doc.numero?.trim())
+          .map((doc) => ({
+            typeIdentifiant: doc.typeDocument || "Passeport",
+            numero: doc.numero!.trim(),
+          })),
+      ];
 
       const affairePayload =
         ajouterAffaireIndividuelle && values.affaireIndividuelle?.nom?.trim()
@@ -171,10 +180,7 @@ export function ClientForm() {
         ...restValues,
         telephone: primaryContact || restValues.telephone,
         affaireIndividuelle: affairePayload,
-        identifiants: values.identifiants.map((i) => ({
-          typeIdentifiant: i.typeIdentifiant,
-          numero: i.numero,
-        })),
+        identifiants: tousIdentifiants,
         adresses: values.adresses.map((a) => ({
           typeAdresse: a.typeAdresse,
           adresseComplete: a.adresseComplete,
@@ -190,19 +196,19 @@ export function ClientForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-6xl space-y-6 p-6">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-6xl w-full min-w-0 space-y-6 p-4 sm:p-6 overflow-hidden">
       <ChampsObligatoiresNote />
 
-      {/* CARTE 1 : Détails client */}
-      <Card>
+      {/* 1. DÉTAILS CLIENT */}
+      <Card className="w-full min-w-0">
         <CardHeader><CardTitle>Détails client</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          {/* Ligne 1 : Titre (1 col) et Catégorie Tiers (2 cols) */}
+          {/* Ligne 1 : Titre (1 col, "M." par défaut) et Catégorie Tiers (2 cols) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5 md:col-span-1">
+            <div className="space-y-1.5 md:col-span-1 min-w-0">
               <Label className="font-normal text-slate-600">Titre</Label>
               <Select
-                defaultValue="Mr"
+                defaultValue="M."
                 onValueChange={(v) => {
                   form.setValue("titre", v as string);
                   setTitreLabel(v as string);
@@ -212,14 +218,14 @@ export function ClientForm() {
                   <span>{titreLabel}</span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Mr">Mr</SelectItem>
+                  <SelectItem value="M.">M.</SelectItem>
                   <SelectItem value="Mme">Mme</SelectItem>
                   <SelectItem value="Mademoiselle">Mademoiselle</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-1.5 md:col-span-2">
+            <div className="space-y-1.5 md:col-span-2 min-w-0">
               <Label className="font-semibold text-slate-800">
                 Catégorie Tiers <span className="text-red-500">*</span>
               </Label>
@@ -236,7 +242,7 @@ export function ClientForm() {
                     !!formValues.categorieTiersCode
                   )}`}
                 >
-                  <span>{categorieLabel}</span>
+                  <span className="truncate">{categorieLabel}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {categoriesGroupes.map((groupe) => (
@@ -259,7 +265,7 @@ export function ClientForm() {
 
           {/* Ligne 2 : Prénom *, Deuxième Prénom, Nom * (3 champs) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-semibold text-slate-800">
                 Prénom <span className="text-red-500">*</span>
               </Label>
@@ -275,7 +281,7 @@ export function ClientForm() {
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">Deuxième Prénom</Label>
               <Input
                 className={`${FIELD_H} ${getFieldBorderClass(
@@ -286,7 +292,7 @@ export function ClientForm() {
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-semibold text-slate-800">
                 Nom <span className="text-red-500">*</span>
               </Label>
@@ -305,7 +311,7 @@ export function ClientForm() {
 
           {/* Ligne 3 : Date de naissance *, Ville de naissance, Pays de naissance (3 champs) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-semibold text-slate-800">
                 Date de naissance <span className="text-red-500">*</span>
               </Label>
@@ -328,7 +334,7 @@ export function ClientForm() {
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">Ville de naissance</Label>
               <Input
                 className={`${FIELD_H} ${getFieldBorderClass(
@@ -339,7 +345,7 @@ export function ClientForm() {
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">Pays de naissance</Label>
               <Input
                 className={`${FIELD_H} ${getFieldBorderClass(
@@ -353,7 +359,7 @@ export function ClientForm() {
 
           {/* Ligne 4 : Genre *, Nationalité *, État civil (3 champs) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label htmlFor="genre" className="font-semibold text-slate-800">
                 Genre <span className="text-red-500">*</span>
               </Label>
@@ -382,7 +388,7 @@ export function ClientForm() {
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-semibold text-slate-800">
                 Nationalité <span className="text-red-500">*</span>
               </Label>
@@ -398,7 +404,7 @@ export function ClientForm() {
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">État civil</Label>
               <Select
                 onValueChange={(v) => {
@@ -426,139 +432,9 @@ export function ClientForm() {
         </CardContent>
       </Card>
 
-      {/* CARTE 2 : Documents d'identification */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle>Documents d&apos;identification</CardTitle>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              identifiantsArray.append({
-                typeIdentifiant: "Passeport",
-                numero: "",
-                dateDelivrance: "",
-                dateExpiration: "",
-                paysDelivrance: "Madagascar",
-              })
-            }
-          >
-            <Plus className="mr-1 h-4 w-4" /> Ajouter un document
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {identifiantsArray.fields.map((field, index) => {
-            const currentItem = formValues.identifiants?.[index];
-            const itemErrors = form.formState.errors.identifiants?.[index];
-
-            return (
-              <div key={field.id} className="relative rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Document #{index + 1}
-                  </span>
-                  {identifiantsArray.fields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 h-8 px-2"
-                      onClick={() => identifiantsArray.remove(index)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" /> Supprimer
-                    </Button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* 1. Type de document */}
-                  <div className="space-y-1.5">
-                    <Label className="font-semibold text-slate-800">
-                      Type de document <span className="text-red-500">*</span>
-                    </Label>
-                    <Select
-                      defaultValue={field.typeIdentifiant || "CIN"}
-                      onValueChange={(v) => form.setValue(`identifiants.${index}.typeIdentifiant`, v as string)}
-                    >
-                      <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.typeIdentifiant, !!currentItem?.typeIdentifiant)}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CIN">CIN</SelectItem>
-                        <SelectItem value="Passeport">Passeport</SelectItem>
-                        <SelectItem value="Carte de séjour">Carte de séjour</SelectItem>
-                        <SelectItem value="Permis de conduire">Permis de conduire</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* 2. Numéro document * */}
-                  <div className="space-y-1.5">
-                    <Label className="font-semibold text-slate-800">
-                      Numéro document <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.numero, !!currentItem?.numero)}`}
-                      {...form.register(`identifiants.${index}.numero` as const)}
-                      placeholder="Ex: 101234567890"
-                    />
-                    {itemErrors?.numero && (
-                      <p className="text-sm text-red-500">{itemErrors.numero.message}</p>
-                    )}
-                  </div>
-
-                  {/* 3. Pays de délivrance */}
-                  <div className="space-y-1.5">
-                    <Label className="font-normal text-slate-600">Pays de délivrance</Label>
-                    <Input
-                      className={`${FIELD_H} ${getFieldBorderClass(false, !!currentItem?.paysDelivrance)}`}
-                      {...form.register(`identifiants.${index}.paysDelivrance` as const)}
-                      placeholder="Ex: Madagascar"
-                    />
-                  </div>
-
-                  {/* 4. Date de délivrance */}
-                  <div className="space-y-1.5">
-                    <Label className="font-normal text-slate-600">Date de délivrance</Label>
-                    <Controller
-                      control={form.control}
-                      name={`identifiants.${index}.dateDelivrance` as const}
-                      render={({ field: dateField }) => (
-                        <DateInput
-                          className={`${FIELD_H} ${getFieldBorderClass(false, !!dateField.value)}`}
-                          value={dateField.value}
-                          onValueChange={dateField.onChange}
-                        />
-                      )}
-                    />
-                  </div>
-
-                  {/* 5. Date d'expiration */}
-                  <div className="space-y-1.5">
-                    <Label className="font-normal text-slate-600">Date d&apos;expiration</Label>
-                    <Controller
-                      control={form.control}
-                      name={`identifiants.${index}.dateExpiration` as const}
-                      render={({ field: dateField }) => (
-                        <DateInput
-                          className={`${FIELD_H} ${getFieldBorderClass(false, !!dateField.value)}`}
-                          value={dateField.value}
-                          onValueChange={dateField.onChange}
-                        />
-                      )}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      {/* CARTE 3 : Adresses */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+      {/* 2. ADRESSES EN 2E */}
+      <Card className="w-full min-w-0">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
           <div>
             <CardTitle>Adresses</CardTitle>
             <p className="text-xs text-slate-500 italic mt-1">
@@ -567,8 +443,8 @@ export function ClientForm() {
           </div>
           <Button
             type="button"
-            variant="outline"
             size="sm"
+            className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
             onClick={() =>
               adressesArray.append({
                 typeAdresse: "Individu - Adresse secondaire",
@@ -576,7 +452,7 @@ export function ClientForm() {
               })
             }
           >
-            <Plus className="mr-1 h-4 w-4" /> Ajouter une adresse
+            <Plus className="mr-1.5 h-4 w-4" /> Ajouter une adresse
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -585,7 +461,7 @@ export function ClientForm() {
             const itemErrors = form.formState.errors.adresses?.[index];
 
             return (
-              <div key={field.id} className="relative rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+              <div key={field.id} className="relative rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3 w-full min-w-0">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Adresse #{index + 1}
@@ -605,7 +481,7 @@ export function ClientForm() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Champ 1 : Type d'adresse */}
-                  <div className="space-y-1.5 md:col-span-1">
+                  <div className="space-y-1.5 md:col-span-1 min-w-0">
                     <Label className="font-semibold text-slate-800">
                       Type d&apos;adresse <span className="text-red-500">*</span>
                     </Label>
@@ -624,7 +500,7 @@ export function ClientForm() {
                   </div>
 
                   {/* Champ 2 : Adresse complète */}
-                  <div className="space-y-1.5 md:col-span-2">
+                  <div className="space-y-1.5 md:col-span-2 min-w-0">
                     <Label className="font-semibold text-slate-800">
                       Adresse complète <span className="text-red-500">*</span>
                     </Label>
@@ -644,14 +520,244 @@ export function ClientForm() {
         </CardContent>
       </Card>
 
-      {/* CARTE 4 : Contacts */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+      {/* 3. IDENTIFIANTS EN 3E (Type identifiant CIN, Numéro) - Bouton Ajouter BIEN VISIBLE */}
+      <Card className="w-full min-w-0">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
+          <div>
+            <CardTitle>Identifiants</CardTitle>
+            <p className="text-xs text-slate-500 mt-1">Identifiant principal officiel (ex: CIN malgache)</p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0 shadow-sm"
+            onClick={() =>
+              identifiantsArray.append({
+                typeIdentifiant: "CIN",
+                numero: "",
+              })
+            }
+          >
+            <Plus className="mr-1.5 h-4 w-4" /> Ajouter un identifiant
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {identifiantsArray.fields.map((field, index) => {
+            const currentItem = formValues.identifiants?.[index];
+            const itemErrors = form.formState.errors.identifiants?.[index];
+
+            return (
+              <div key={field.id} className="relative rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3 w-full min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Identifiant #{index + 1}
+                  </span>
+                  {identifiantsArray.fields.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700 h-8 px-2"
+                      onClick={() => identifiantsArray.remove(index)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" /> Supprimer
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5 min-w-0">
+                    <Label className="font-semibold text-slate-800">
+                      Type identifiant <span className="text-red-500">*</span>
+                    </Label>
+                    <Select
+                      defaultValue={field.typeIdentifiant || "CIN"}
+                      onValueChange={(v) => form.setValue(`identifiants.${index}.typeIdentifiant`, v as string)}
+                    >
+                      <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.typeIdentifiant, !!currentItem?.typeIdentifiant)}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CIN">CIN</SelectItem>
+                        <SelectItem value="Autre identifiant">Autre identifiant</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5 min-w-0">
+                    <Label className="font-semibold text-slate-800">
+                      Numéro <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.numero, !!currentItem?.numero)}`}
+                      {...form.register(`identifiants.${index}.numero` as const)}
+                      placeholder="Ex: 101234567890"
+                    />
+                    {itemErrors?.numero && (
+                      <p className="text-sm text-red-500">{itemErrors.numero.message}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Bouton d'ajout supplémentaire au bas de la liste pour accessibilité immédiate */}
+          <div className="pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-slate-300 text-slate-700 hover:bg-slate-100 font-medium"
+              onClick={() =>
+                identifiantsArray.append({
+                  typeIdentifiant: "CIN",
+                  numero: "",
+                })
+              }
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Ajouter un autre identifiant
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. DOCUMENTS D'IDENTIFICATION EN 4E (Non obligatoire) */}
+      <Card className="w-full min-w-0">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
+          <div>
+            <CardTitle>Documents d&apos;identification</CardTitle>
+            <span className="text-xs font-normal text-slate-500">Optionnel — Passeport, Carte de séjour, Permis de conduire...</span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
+            onClick={() =>
+              documentsArray.append({
+                typeDocument: "Passeport",
+                numero: "",
+                dateDelivrance: "",
+                dateExpiration: "",
+                paysDelivrance: "Madagascar",
+              })
+            }
+          >
+            <Plus className="mr-1.5 h-4 w-4" /> Ajouter un document
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {documentsArray.fields.length === 0 ? (
+            <p className="text-sm text-slate-400 italic py-2">
+              Aucun document d&apos;identification complémentaire ajouté. Cliquez sur &quot;Ajouter un document&quot; si le client possède un passeport, permis ou carte de séjour.
+            </p>
+          ) : (
+            documentsArray.fields.map((field, index) => {
+              const currentItem = formValues.documentsIdentification?.[index];
+
+              return (
+                <div key={field.id} className="relative rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-4 w-full min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Document complémentaire #{index + 1}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700 h-8 px-2"
+                      onClick={() => documentsArray.remove(index)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" /> Supprimer
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* 1. Type de document */}
+                    <div className="space-y-1.5 min-w-0">
+                      <Label className="font-normal text-slate-600">Type de document</Label>
+                      <Select
+                        defaultValue={field.typeDocument || "Passeport"}
+                        onValueChange={(v) => form.setValue(`documentsIdentification.${index}.typeDocument`, v as string)}
+                      >
+                        <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(false, !!currentItem?.typeDocument)}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Passeport">Passeport</SelectItem>
+                          <SelectItem value="Carte de séjour">Carte de séjour</SelectItem>
+                          <SelectItem value="Permis de conduire">Permis de conduire</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* 2. Numéro document */}
+                    <div className="space-y-1.5 min-w-0">
+                      <Label className="font-normal text-slate-600">Numéro document</Label>
+                      <Input
+                        className={`${FIELD_H} ${getFieldBorderClass(false, !!currentItem?.numero)}`}
+                        {...form.register(`documentsIdentification.${index}.numero` as const)}
+                        placeholder="Ex: A1234567"
+                      />
+                    </div>
+
+                    {/* 3. Pays de délivrance */}
+                    <div className="space-y-1.5 min-w-0">
+                      <Label className="font-normal text-slate-600">Pays de délivrance</Label>
+                      <Input
+                        className={`${FIELD_H} ${getFieldBorderClass(false, !!currentItem?.paysDelivrance)}`}
+                        {...form.register(`documentsIdentification.${index}.paysDelivrance` as const)}
+                        placeholder="Ex: Madagascar"
+                      />
+                    </div>
+
+                    {/* 4. Date de délivrance */}
+                    <div className="space-y-1.5 min-w-0">
+                      <Label className="font-normal text-slate-600">Date de délivrance</Label>
+                      <Controller
+                        control={form.control}
+                        name={`documentsIdentification.${index}.dateDelivrance` as const}
+                        render={({ field: dateField }) => (
+                          <DateInput
+                            className={`${FIELD_H} ${getFieldBorderClass(false, !!dateField.value)}`}
+                            value={dateField.value}
+                            onValueChange={dateField.onChange}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    {/* 5. Date d'expiration */}
+                    <div className="space-y-1.5 min-w-0">
+                      <Label className="font-normal text-slate-600">Date d&apos;expiration</Label>
+                      <Controller
+                        control={form.control}
+                        name={`documentsIdentification.${index}.dateExpiration` as const}
+                        render={({ field: dateField }) => (
+                          <DateInput
+                            className={`${FIELD_H} ${getFieldBorderClass(false, !!dateField.value)}`}
+                            value={dateField.value}
+                            onValueChange={dateField.onChange}
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 5. CONTACTS EN 5E */}
+      <Card className="w-full min-w-0">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
           <CardTitle>Contacts</CardTitle>
           <Button
             type="button"
-            variant="outline"
             size="sm"
+            className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
             onClick={() =>
               contactsArray.append({
                 typeContact: "Téléphone portable",
@@ -659,7 +765,7 @@ export function ClientForm() {
               })
             }
           >
-            <Plus className="mr-1 h-4 w-4" /> Ajouter un contact
+            <Plus className="mr-1.5 h-4 w-4" /> Ajouter un contact
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -667,7 +773,7 @@ export function ClientForm() {
             const currentItem = formValues.contacts?.[index];
 
             return (
-              <div key={field.id} className="relative rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+              <div key={field.id} className="relative rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3 w-full min-w-0">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Contact #{index + 1}
@@ -687,7 +793,7 @@ export function ClientForm() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Champ 1 : Type de contact */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 min-w-0">
                     <Label className="font-semibold text-slate-800">
                       Type de contact <span className="text-red-500">*</span>
                     </Label>
@@ -709,12 +815,12 @@ export function ClientForm() {
                   </div>
 
                   {/* Champ 2 : Valeur contact */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 min-w-0">
                     <Label className="font-normal text-slate-600">Valeur contact</Label>
                     <Input
                       className={`${FIELD_H} ${getFieldBorderClass(false, !!currentItem?.valeurContact)}`}
                       {...form.register(`contacts.${index}.valeurContact` as const)}
-                      placeholder="Ex: +261 34 12 345 67 ou nom@email.com"
+                      placeholder="Ex: +261 34 12 345 67 ou client@email.com"
                     />
                   </div>
                 </div>
@@ -724,12 +830,12 @@ export function ClientForm() {
         </CardContent>
       </Card>
 
-      {/* CARTE 5 : Emploi (Placé en dernier) */}
-      <Card>
+      {/* 6. EMPLOI EN 6E */}
+      <Card className="w-full min-w-0">
         <CardHeader><CardTitle>Emploi</CardTitle></CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">Statut Emploi</Label>
               <Input
                 className={`${FIELD_H} ${getFieldBorderClass(false, !!formValues.emploi?.statutEmploi)}`}
@@ -737,21 +843,21 @@ export function ClientForm() {
                 placeholder="Ex: Salarié, Indépendant..."
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">Nom de l&apos;Employeur</Label>
               <Input
                 className={`${FIELD_H} ${getFieldBorderClass(false, !!formValues.emploi?.nomEmployeur)}`}
                 {...form.register("emploi.nomEmployeur")}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">Profession</Label>
               <Input
                 className={`${FIELD_H} ${getFieldBorderClass(false, !!formValues.emploi?.profession)}`}
                 {...form.register("emploi.profession")}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">Date d&apos;embauche</Label>
               <Controller
                 control={form.control}
@@ -765,7 +871,7 @@ export function ClientForm() {
                 )}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">Total Revenu Annuel</Label>
               <Controller
                 control={form.control}
@@ -779,7 +885,7 @@ export function ClientForm() {
                 )}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-600">Devise</Label>
               <Select
                 defaultValue="Ariary malgache"
@@ -800,7 +906,7 @@ export function ClientForm() {
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-slate-300 text-black focus:ring-black"
                 {...form.register("ajouterAffaireIndividuelle")}
               />
               <span className="font-medium text-slate-800 text-sm">
@@ -811,20 +917,23 @@ export function ClientForm() {
         </CardContent>
       </Card>
 
-      {/* CARTE 6 : Affaire individuelle (Si case cochée) */}
+      {/* 7. SECTION AFFAIRE INDIVIDUELLE (100% RESPONSIVE SUR TOUS LES ÉCRANS) */}
       {ajouterAffaire && (
-        <Card className="border-blue-200 bg-blue-50/20">
+        <Card className="border-slate-300 bg-slate-50/40 w-full min-w-0 overflow-hidden shadow-sm">
           <CardHeader>
             <CardTitle>Affaire individuelle</CardTitle>
+            <p className="text-xs text-slate-500">
+              Tous les champs ci-dessous sont obligatoires pour l&apos;enregistrement de l&apos;affaire individuelle.
+            </p>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Nom de l'affaire individuelle * */}
-            <div className="space-y-1.5 max-w-xl">
+            <div className="space-y-1.5 w-full max-w-xl min-w-0">
               <Label className="font-semibold text-slate-800">
                 Nom de l&apos;affaire individuelle <span className="text-red-500">*</span>
               </Label>
               <Input
-                className={`${FIELD_H} ${getFieldBorderClass(
+                className={`${FIELD_H} w-full min-w-0 ${getFieldBorderClass(
                   !!form.formState.errors.affaireIndividuelle?.nom,
                   !!formValues.affaireIndividuelle?.nom
                 )}`}
@@ -838,14 +947,23 @@ export function ClientForm() {
               )}
             </div>
 
-            {/* Sous-section Adresses affaire individuelle */}
-            <div className="border-t pt-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-sm text-slate-700">Adresses de l&apos;affaire individuelle</h4>
+            {/* Sous-section : Affaire individuelle / Adresses */}
+            <div className="border-t pt-4 space-y-4 w-full min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="font-semibold text-sm text-slate-800">
+                    Affaire individuelle / Adresses <span className="text-red-500">*</span>
+                  </h4>
+                  {form.formState.errors.affaireIndividuelle?.adresses?.root && (
+                    <p className="text-xs text-red-500 mt-0.5">
+                      {form.formState.errors.affaireIndividuelle.adresses.root.message}
+                    </p>
+                  )}
+                </div>
                 <Button
                   type="button"
-                  variant="outline"
                   size="sm"
+                  className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
                   onClick={() =>
                     affaireAdressesArray.append({
                       typeAdresse: "Entreprise - Adresse Principale",
@@ -853,60 +971,87 @@ export function ClientForm() {
                     })
                   }
                 >
-                  <Plus className="mr-1 h-4 w-4" /> Ajouter une adresse
+                  <Plus className="mr-1.5 h-4 w-4" /> Ajouter une adresse
                 </Button>
               </div>
 
-              {affaireAdressesArray.fields.map((field, idx) => (
-                <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end p-3 bg-white rounded border">
-                  <div className="space-y-1.5">
-                    <Label className="font-normal text-xs text-slate-600">Type d&apos;adresse</Label>
-                    <Select
-                      defaultValue={field.typeAdresse || "Entreprise - Adresse Principale"}
-                      onValueChange={(v) => form.setValue(`affaireIndividuelle.adresses.${idx}.typeAdresse`, v as string)}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Entreprise - Adresse Principale">Entreprise - Adresse Principale</SelectItem>
-                        <SelectItem value="Entreprise - Adresse Secondaire">Entreprise - Adresse Secondaire</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5 md:col-span-2 flex gap-2">
-                    <div className="flex-1 space-y-1.5">
-                      <Label className="font-normal text-xs text-slate-600">Adresse complète</Label>
-                      <Input
-                        className="h-9"
-                        {...form.register(`affaireIndividuelle.adresses.${idx}.adresseComplete` as const)}
-                        placeholder="Ex: Lot IV B 12, Antananarivo"
-                      />
+              {affaireAdressesArray.fields.map((field, idx) => {
+                const itemErrors = form.formState.errors.affaireIndividuelle?.adresses?.[idx];
+                const currentVal = formValues.affaireIndividuelle?.adresses?.[idx];
+
+                return (
+                  <div key={field.id} className="p-4 bg-white rounded-lg border border-slate-200 space-y-3 w-full min-w-0">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="space-y-1.5 md:col-span-1 min-w-0">
+                        <Label className="font-semibold text-xs text-slate-800">
+                          Type d&apos;adresse <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          defaultValue={field.typeAdresse || "Entreprise - Adresse Principale"}
+                          onValueChange={(v) => form.setValue(`affaireIndividuelle.adresses.${idx}.typeAdresse`, v as string, { shouldValidate: true })}
+                        >
+                          <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.typeAdresse, !!currentVal?.typeAdresse)}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Entreprise - Adresse Principale">Entreprise - Adresse Principale</SelectItem>
+                            <SelectItem value="Entreprise - Adresse Secondaire">Entreprise - Adresse Secondaire</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {itemErrors?.typeAdresse && (
+                          <p className="text-xs text-red-500">{itemErrors.typeAdresse.message}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 md:col-span-2 min-w-0">
+                        <Label className="font-semibold text-xs text-slate-800">
+                          Adresse complète <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2 w-full min-w-0">
+                          <Input
+                            className={`${FIELD_H} flex-1 min-w-0 ${getFieldBorderClass(!!itemErrors?.adresseComplete, !!currentVal?.adresseComplete)}`}
+                            {...form.register(`affaireIndividuelle.adresses.${idx}.adresseComplete` as const)}
+                            placeholder="Ex: Lot IV B 12, Antananarivo"
+                          />
+                          {affaireAdressesArray.fields.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 h-10 w-10 shrink-0 px-2"
+                              onClick={() => affaireAdressesArray.remove(idx)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        {itemErrors?.adresseComplete && (
+                          <p className="text-xs text-red-500">{itemErrors.adresseComplete.message}</p>
+                        )}
+                      </div>
                     </div>
-                    {affaireAdressesArray.fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 h-9 px-2 self-end"
-                        onClick={() => affaireAdressesArray.remove(idx)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Sous-section Identifiants affaire individuelle */}
-            <div className="border-t pt-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-sm text-slate-700">Identifiants de l&apos;affaire individuelle</h4>
+            {/* Sous-section : Affaire individuelle / Identifiants */}
+            <div className="border-t pt-4 space-y-4 w-full min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="font-semibold text-sm text-slate-800">
+                    Affaire individuelle / Identifiants <span className="text-red-500">*</span>
+                  </h4>
+                  {form.formState.errors.affaireIndividuelle?.identifiants?.root && (
+                    <p className="text-xs text-red-500 mt-0.5">
+                      {form.formState.errors.affaireIndividuelle.identifiants.root.message}
+                    </p>
+                  )}
+                </div>
                 <Button
                   type="button"
-                  variant="outline"
                   size="sm"
+                  className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
                   onClick={() =>
                     affaireIdentifiantsArray.append({
                       typeIdentifiant: "STAT",
@@ -914,62 +1059,89 @@ export function ClientForm() {
                     })
                   }
                 >
-                  <Plus className="mr-1 h-4 w-4" /> Ajouter un identifiant
+                  <Plus className="mr-1.5 h-4 w-4" /> Ajouter un identifiant
                 </Button>
               </div>
 
-              {affaireIdentifiantsArray.fields.map((field, idx) => (
-                <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end p-3 bg-white rounded border">
-                  <div className="space-y-1.5">
-                    <Label className="font-normal text-xs text-slate-600">Type d&apos;identifiant</Label>
-                    <Select
-                      defaultValue={field.typeIdentifiant || "NIF"}
-                      onValueChange={(v) => form.setValue(`affaireIndividuelle.identifiants.${idx}.typeIdentifiant`, v as string)}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NIF">NIF</SelectItem>
-                        <SelectItem value="STAT">STAT</SelectItem>
-                        <SelectItem value="RCS">RCS</SelectItem>
-                        <SelectItem value="Autre">Autre</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5 flex gap-2">
-                    <div className="flex-1 space-y-1.5">
-                      <Label className="font-normal text-xs text-slate-600">Numéro</Label>
-                      <Input
-                        className="h-9"
-                        {...form.register(`affaireIndividuelle.identifiants.${idx}.numero` as const)}
-                        placeholder="Ex: 4001234567"
-                      />
+              {affaireIdentifiantsArray.fields.map((field, idx) => {
+                const itemErrors = form.formState.errors.affaireIndividuelle?.identifiants?.[idx];
+                const currentVal = formValues.affaireIndividuelle?.identifiants?.[idx];
+
+                return (
+                  <div key={field.id} className="p-4 bg-white rounded-lg border border-slate-200 space-y-3 w-full min-w-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1.5 min-w-0">
+                        <Label className="font-semibold text-xs text-slate-800">
+                          Type d&apos;identifiant <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          defaultValue={field.typeIdentifiant || "NIF"}
+                          onValueChange={(v) => form.setValue(`affaireIndividuelle.identifiants.${idx}.typeIdentifiant`, v as string, { shouldValidate: true })}
+                        >
+                          <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.typeIdentifiant, !!currentVal?.typeIdentifiant)}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NIF">NIF</SelectItem>
+                            <SelectItem value="STAT">STAT</SelectItem>
+                            <SelectItem value="RCS">RCS</SelectItem>
+                            <SelectItem value="Autre">Autre</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {itemErrors?.typeIdentifiant && (
+                          <p className="text-xs text-red-500">{itemErrors.typeIdentifiant.message}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 min-w-0">
+                        <Label className="font-semibold text-xs text-slate-800">
+                          Numéro <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2 w-full min-w-0">
+                          <Input
+                            className={`${FIELD_H} flex-1 min-w-0 ${getFieldBorderClass(!!itemErrors?.numero, !!currentVal?.numero)}`}
+                            {...form.register(`affaireIndividuelle.identifiants.${idx}.numero` as const)}
+                            placeholder="Ex: 4001234567"
+                          />
+                          {affaireIdentifiantsArray.fields.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 h-10 w-10 shrink-0 px-2"
+                              onClick={() => affaireIdentifiantsArray.remove(idx)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        {itemErrors?.numero && (
+                          <p className="text-xs text-red-500">{itemErrors.numero.message}</p>
+                        )}
+                      </div>
                     </div>
-                    {affaireIdentifiantsArray.fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 h-9 px-2 self-end"
-                        onClick={() => affaireIdentifiantsArray.remove(idx)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Sous-section Contacts affaire individuelle */}
-            <div className="border-t pt-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-sm text-slate-700">Contacts de l&apos;affaire individuelle</h4>
+            {/* Sous-section : Affaire individuelle / Contacts */}
+            <div className="border-t pt-4 space-y-4 w-full min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="font-semibold text-sm text-slate-800">
+                    Affaire individuelle / Contacts <span className="text-red-500">*</span>
+                  </h4>
+                  {form.formState.errors.affaireIndividuelle?.contacts?.root && (
+                    <p className="text-xs text-red-500 mt-0.5">
+                      {form.formState.errors.affaireIndividuelle.contacts.root.message}
+                    </p>
+                  )}
+                </div>
                 <Button
                   type="button"
-                  variant="outline"
                   size="sm"
+                  className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
                   onClick={() =>
                     affaireContactsArray.append({
                       typeContact: "Téléphone professionnel",
@@ -977,59 +1149,82 @@ export function ClientForm() {
                     })
                   }
                 >
-                  <Plus className="mr-1 h-4 w-4" /> Ajouter un contact
+                  <Plus className="mr-1.5 h-4 w-4" /> Ajouter un contact
                 </Button>
               </div>
 
-              {affaireContactsArray.fields.map((field, idx) => (
-                <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end p-3 bg-white rounded border">
-                  <div className="space-y-1.5">
-                    <Label className="font-normal text-xs text-slate-600">Type de contact</Label>
-                    <Select
-                      defaultValue={field.typeContact || "Téléphone professionnel"}
-                      onValueChange={(v) => form.setValue(`affaireIndividuelle.contacts.${idx}.typeContact`, v as string)}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Téléphone professionnel">Téléphone professionnel</SelectItem>
-                        <SelectItem value="Téléphone portable">Téléphone portable</SelectItem>
-                        <SelectItem value="Email">Email</SelectItem>
-                        <SelectItem value="Fax">Fax</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5 flex gap-2">
-                    <div className="flex-1 space-y-1.5">
-                      <Label className="font-normal text-xs text-slate-600">Valeur contact</Label>
-                      <Input
-                        className="h-9"
-                        {...form.register(`affaireIndividuelle.contacts.${idx}.valeurContact` as const)}
-                        placeholder="Ex: +261 20 22 123 45"
-                      />
+              {affaireContactsArray.fields.map((field, idx) => {
+                const itemErrors = form.formState.errors.affaireIndividuelle?.contacts?.[idx];
+                const currentVal = formValues.affaireIndividuelle?.contacts?.[idx];
+
+                return (
+                  <div key={field.id} className="p-4 bg-white rounded-lg border border-slate-200 space-y-3 w-full min-w-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1.5 min-w-0">
+                        <Label className="font-semibold text-xs text-slate-800">
+                          Type de contact <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                          defaultValue={field.typeContact || "Téléphone professionnel"}
+                          onValueChange={(v) => form.setValue(`affaireIndividuelle.contacts.${idx}.typeContact`, v as string, { shouldValidate: true })}
+                        >
+                          <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.typeContact, !!currentVal?.typeContact)}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Téléphone professionnel">Téléphone professionnel</SelectItem>
+                            <SelectItem value="Téléphone portable">Téléphone portable</SelectItem>
+                            <SelectItem value="Email">Email</SelectItem>
+                            <SelectItem value="Fax">Fax</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {itemErrors?.typeContact && (
+                          <p className="text-xs text-red-500">{itemErrors.typeContact.message}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 min-w-0">
+                        <Label className="font-semibold text-xs text-slate-800">
+                          Valeur contact <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex items-center gap-2 w-full min-w-0">
+                          <Input
+                            className={`${FIELD_H} flex-1 min-w-0 ${getFieldBorderClass(!!itemErrors?.valeurContact, !!currentVal?.valeurContact)}`}
+                            {...form.register(`affaireIndividuelle.contacts.${idx}.valeurContact` as const)}
+                            placeholder="Ex: +261 20 22 123 45"
+                          />
+                          {affaireContactsArray.fields.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 h-10 w-10 shrink-0 px-2"
+                              onClick={() => affaireContactsArray.remove(idx)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        {itemErrors?.valeurContact && (
+                          <p className="text-xs text-red-500">{itemErrors.valeurContact.message}</p>
+                        )}
+                      </div>
                     </div>
-                    {affaireContactsArray.fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 h-9 px-2 self-end"
-                        onClick={() => affaireContactsArray.remove(idx)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
       )}
 
       <div className="flex justify-end pt-4">
-        <Button type="submit" disabled={submitting} size="lg">
+        <Button
+          type="submit"
+          disabled={submitting}
+          size="lg"
+          className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto"
+        >
           {submitting ? "Enregistrement..." : "Continuer vers la demande"}
         </Button>
       </div>

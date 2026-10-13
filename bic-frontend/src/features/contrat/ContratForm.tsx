@@ -18,6 +18,8 @@ import { DateInput } from "@/components/ui/date-input";
 
 const today = new Date().toISOString().slice(0, 10);
 
+const FIELD_H = "min-h-10 h-auto py-2";
+
 const getFieldBorderClass = (hasError?: boolean, hasValue?: boolean) => {
   if (hasError) return "border-red-500 focus-visible:ring-red-500 focus-visible:border-red-500";
   if (hasValue) return "border-blue-500 focus-visible:ring-blue-500 focus-visible:border-blue-500";
@@ -38,27 +40,51 @@ export function ContratForm() {
       dateDemande: today,
       devise: "Ariary malgache",
       periodiciteBudget: "Mensuelle",
+      typeGarantie: "Hypothèque immobilière",
     },
   });
 
   const modeRattachement = useWatch({ control: form.control, name: "modeRattachement" });
   const formValues = useWatch({ control: form.control });
+
+  // Calculs budgétaires
   const recette = Number(formValues.montantRecette) || 0;
   const depense = Number(formValues.montantDepense) || 0;
   const aBudget = Boolean(formValues.montantRecette || formValues.montantDepense);
   const reste = recette - depense;
-  const ratio = depense > 0 ? ((reste / depense) * 100) : null;
+  const ratioBudget = depense > 0 ? ((reste / depense) * 100) : null;
 
-  const getEvaluationRisque = () => {
-    if (!aBudget || ratio === null) return null;
-    if (ratio <= 0) return { label: "Risque Très Élevé (Catégorie E, score 300 - 399)", color: "text-red-700 bg-red-50 border-red-300" };
-    if (ratio <= 25) return { label: "Risque Élevé (Catégorie D, score 400 - 459)", color: "text-orange-700 bg-orange-50 border-orange-300" };
-    if (ratio <= 50) return { label: "Risque Moyen (Catégorie C, score 460 - 499)", color: "text-yellow-800 bg-yellow-50 border-yellow-300" };
-    if (ratio < 100) return { label: "Risque Faible (Catégorie B, score 500 - 529)", color: "text-lime-800 bg-lime-50 border-lime-300" };
+  const getEvaluationBudget = () => {
+    if (!aBudget || ratioBudget === null) return null;
+    if (ratioBudget <= 0) return { label: "Risque Très Élevé (Catégorie E, score 300 - 399)", color: "text-red-700 bg-red-50 border-red-300" };
+    if (ratioBudget <= 25) return { label: "Risque Élevé (Catégorie D, score 400 - 459)", color: "text-orange-700 bg-orange-50 border-orange-300" };
+    if (ratioBudget <= 50) return { label: "Risque Moyen (Catégorie C, score 460 - 499)", color: "text-yellow-800 bg-yellow-50 border-yellow-300" };
+    if (ratioBudget < 100) return { label: "Risque Faible (Catégorie B, score 500 - 529)", color: "text-lime-800 bg-lime-50 border-lime-300" };
     return { label: "Risque Très Faible (Catégorie A, score 530 - 850)", color: "text-emerald-800 bg-emerald-50 border-emerald-300" };
   };
+  const evaluationBudget = getEvaluationBudget();
 
-  const evaluation = getEvaluationRisque();
+  // Calculs garantie (+3% du montant demandé par mois)
+  const montantFinance = Number(formValues.montantFinance) || 0;
+  const dureeMois = Number(formValues.nombreTotalEcheances) || 1;
+  const tauxInteretTotal = 0.03 * dureeMois;
+  const montantInteret = montantFinance * tauxInteretTotal;
+  const totalDemandeInteret = montantFinance + montantInteret;
+  const valeurGarantie = Number(formValues.valeurGarantie) || 0;
+  const aGarantie = Boolean(formValues.valeurGarantie || formValues.typeGarantie);
+  const ratioGarantie = totalDemandeInteret > 0 && valeurGarantie > 0
+    ? ((valeurGarantie / totalDemandeInteret) * 100)
+    : null;
+
+  const getEvaluationGarantie = () => {
+    if (!aGarantie || ratioGarantie === null) return null;
+    if (ratioGarantie <= 100) return { label: "Risque Très Élevé (Insuffisant ≤ 100%)", color: "text-red-700 bg-red-50 border-red-300" };
+    if (ratioGarantie <= 120) return { label: "Risque Élevé (100% à 120%)", color: "text-orange-700 bg-orange-50 border-orange-300" };
+    if (ratioGarantie <= 150) return { label: "Risque Moyen (120% à 150%)", color: "text-yellow-800 bg-yellow-50 border-yellow-300" };
+    if (ratioGarantie <= 200) return { label: "Risque Faible (150% à 200%)", color: "text-lime-800 bg-lime-50 border-lime-300" };
+    return { label: "Risque Très Faible (Satisfaisant > 200%)", color: "text-emerald-800 bg-emerald-50 border-emerald-300" };
+  };
+  const evaluationGarantie = getEvaluationGarantie();
 
   async function onSubmit(values: ContratFormValues) {
     if (!clientId) return;
@@ -104,7 +130,7 @@ export function ContratForm() {
               <Input
                 {...form.register("codeClientCbCible")}
                 placeholder="Ex : L00190003"
-                className={getFieldBorderClass(!!form.formState.errors.codeClientCbCible, !!formValues.codeClientCbCible)}
+                className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.codeClientCbCible, !!formValues.codeClientCbCible)}`}
               />
               {form.formState.errors.codeClientCbCible && (
                 <p className="text-sm text-red-500">{form.formState.errors.codeClientCbCible.message}</p>
@@ -116,7 +142,7 @@ export function ContratForm() {
             <div className="space-y-1.5">
               <Label className="font-semibold text-slate-800">Type de contrat <span className="text-red-500">*</span></Label>
               <Select defaultValue="Prêt personnel" onValueChange={(v) => form.setValue("typeContrat", v as string)}>
-                <SelectTrigger className={getFieldBorderClass(!!form.formState.errors.typeContrat, !!formValues.typeContrat)}>
+                <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.typeContrat, !!formValues.typeContrat)}`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -128,7 +154,7 @@ export function ContratForm() {
             <div className="space-y-1.5">
               <Label className="font-semibold text-slate-800">Rôle Client <span className="text-red-500">*</span></Label>
               <Select onValueChange={(v) => form.setValue("roleClient", v as RoleClient, { shouldValidate: true })}>
-                <SelectTrigger className={getFieldBorderClass(!!form.formState.errors.roleClient, !!formValues.roleClient)}>
+                <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.roleClient, !!formValues.roleClient)}`}>
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
@@ -151,7 +177,7 @@ export function ContratForm() {
                   <DateInput
                     value={field.value}
                     onValueChange={field.onChange}
-                    className={getFieldBorderClass(!!form.formState.errors.dateDemande, !!field.value)}
+                    className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.dateDemande, !!field.value)}`}
                   />
                 )}
               />
@@ -164,7 +190,7 @@ export function ContratForm() {
                 name="montantFinance"
                 render={({ field }) => (
                   <MontantInput
-                    className={`h-10 ${getFieldBorderClass(!!form.formState.errors.montantFinance, !!field.value)}`}
+                    className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.montantFinance, !!field.value)}`}
                     value={String(field.value ?? "")}
                     onValueChange={(v) => field.onChange(Number(v))}
                   />
@@ -176,11 +202,11 @@ export function ContratForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-semibold text-slate-800">Nombre total échéances <span className="text-red-500">*</span></Label>
+              <Label className="font-semibold text-slate-800">Nombre total échéances (mois) <span className="text-red-500">*</span></Label>
               <Input
                 type="number"
                 {...form.register("nombreTotalEcheances")}
-                className={getFieldBorderClass(!!form.formState.errors.nombreTotalEcheances, !!formValues.nombreTotalEcheances)}
+                className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.nombreTotalEcheances, !!formValues.nombreTotalEcheances)}`}
               />
               {form.formState.errors.nombreTotalEcheances && (
                 <p className="text-sm text-red-500">{form.formState.errors.nombreTotalEcheances.message}</p>
@@ -193,14 +219,14 @@ export function ContratForm() {
                 type="number"
                 step="0.01"
                 {...form.register("montantEcheanceMensuelle")}
-                className={getFieldBorderClass(!!form.formState.errors.montantEcheanceMensuelle, !!formValues.montantEcheanceMensuelle)}
+                className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.montantEcheanceMensuelle, !!formValues.montantEcheanceMensuelle)}`}
               />
             </div>
 
             <div className="space-y-1.5">
               <Label className="font-semibold text-slate-800">Devise <span className="text-red-500">*</span></Label>
               <Select defaultValue="Ariary malgache" onValueChange={(v) => form.setValue("devise", v as string)}>
-                <SelectTrigger className={getFieldBorderClass(!!form.formState.errors.devise, !!formValues.devise)}>
+                <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.devise, !!formValues.devise)}`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -212,7 +238,7 @@ export function ContratForm() {
             <div className="space-y-1.5">
               <Label className="font-normal text-slate-600">Périodicité de paiement</Label>
               <Select onValueChange={(v) => form.setValue("periodicitePaiement", v as string)}>
-                <SelectTrigger className={getFieldBorderClass(false, !!formValues.periodicitePaiement)}>
+                <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(false, !!formValues.periodicitePaiement)}`}>
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
                 <SelectContent>
@@ -227,10 +253,17 @@ export function ContratForm() {
         </CardContent>
       </Card>
 
-      {/* CARTE 2 : Revenus et Dépenses (Capacité budgétaire) */}
+      {/* CARTE 2 : Revenus et Dépenses (Capacité budgétaire) - OBLIGATOIRE */}
       <Card>
         <CardHeader>
-          <CardTitle>Revenus et Dépenses (Capacité budgétaire)</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>
+              Capacité budgétaire (Revenus et Dépenses) <span className="text-red-500">*</span>
+            </CardTitle>
+            <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full">
+              Obligatoire — conditionne l&apos;évaluation du score
+            </span>
+          </div>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -240,7 +273,7 @@ export function ContratForm() {
                 defaultValue="Mensuelle"
                 onValueChange={(v) => form.setValue("periodiciteBudget", v as string)}
               >
-                <SelectTrigger className={getFieldBorderClass(false, !!formValues.periodiciteBudget)}>
+                <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(false, !!formValues.periodiciteBudget)}`}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -251,39 +284,49 @@ export function ContratForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-normal text-slate-600">Revenus / Recettes (Ar)</Label>
+              <Label className="font-semibold text-slate-800">
+                Revenus / Recettes (Ar) <span className="text-red-500">*</span>
+              </Label>
               <Controller
                 control={form.control}
                 name="montantRecette"
                 render={({ field }) => (
                   <MontantInput
-                    className={`h-10 ${getFieldBorderClass(false, !!field.value)}`}
+                    className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.montantRecette, !!field.value)}`}
                     value={String(field.value ?? "")}
                     onValueChange={(v) => field.onChange(v ? Number(v) : undefined)}
                     placeholder="Ex: 150 000"
                   />
                 )}
               />
+              {form.formState.errors.montantRecette && (
+                <p className="text-sm text-red-500">{form.formState.errors.montantRecette.message}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-normal text-slate-600">Dépenses (Ar)</Label>
+              <Label className="font-semibold text-slate-800">
+                Dépenses (Ar) <span className="text-red-500">*</span>
+              </Label>
               <Controller
                 control={form.control}
                 name="montantDepense"
                 render={({ field }) => (
                   <MontantInput
-                    className={`h-10 ${getFieldBorderClass(false, !!field.value)}`}
+                    className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.montantDepense, !!field.value)}`}
                     value={String(field.value ?? "")}
-                    onValueChange={(v) => field.onChange(v ? Number(v) : undefined)}
+                    onValueChange={(v) => field.onChange(v !== undefined && v !== "" ? Number(v) : undefined)}
                     placeholder="Ex: 120 000"
                   />
                 )}
               />
+              {form.formState.errors.montantDepense && (
+                <p className="text-sm text-red-500">{form.formState.errors.montantDepense.message}</p>
+              )}
             </div>
           </div>
 
-          {/* Calcul dynamique du reste et du ratio */}
+          {/* Calcul dynamique du reste et du ratio budgétaire */}
           {aBudget && (
             <div className="rounded-lg border bg-slate-50 p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
@@ -296,14 +339,14 @@ export function ContratForm() {
                 <div>
                   <span className="text-slate-500 block">Ratio Reste / Dépense</span>
                   <span className="text-base font-semibold text-slate-900">
-                    {ratio !== null ? `${ratio.toFixed(2)} %` : "—"}
+                    {ratioBudget !== null ? `${ratioBudget.toFixed(2)} %` : "—"}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Évaluation de solvabilité</span>
-                  {evaluation ? (
-                    <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-md border ${evaluation.color}`}>
-                      {evaluation.label}
+                  {evaluationBudget ? (
+                    <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-md border ${evaluationBudget.color}`}>
+                      {evaluationBudget.label}
                     </span>
                   ) : (
                     <span className="text-slate-400 text-xs">Veuillez renseigner les dépenses</span>
@@ -311,10 +354,10 @@ export function ContratForm() {
                 </div>
               </div>
 
-              {ratio !== null && (
+              {ratioBudget !== null && (
                 <div className="text-xs text-slate-500 border-t pt-2">
                   <p>
-                    <strong>Barème d&apos;évaluation :</strong> Reste ≤ 0% (Risque Très Élevé - E) | Reste ≤ 25% (Risque Élevé - D) | Reste ~ 50% (Risque Moyen - C) | Reste &lt; 100% (Risque Faible - B) | Recette ≥ 2× Dépenses (Risque Très Faible - A).
+                    <strong>Barème budgétaire :</strong> Reste ≤ 0% (Risque Très Élevé - E) | Reste ≤ 25% (Risque Élevé - D) | Reste ~ 50% (Risque Moyen - C) | Reste &lt; 100% (Risque Faible - B) | Recette ≥ 2× Dépenses (Risque Très Faible - A).
                   </p>
                 </div>
               )}
@@ -323,8 +366,110 @@ export function ContratForm() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={submitting}>
+      {/* CARTE 3 : Garantie - Optionnel mais valorisant */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Garantie de la demande</CardTitle>
+            <span className="text-xs font-normal text-slate-500 bg-slate-100 border px-2.5 py-1 rounded-full">
+              Optionnel — impacte le score si complétée
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="font-normal text-slate-600">Type de garantie</Label>
+              <Select
+                defaultValue="Terrain"
+                onValueChange={(v) => form.setValue("typeGarantie", v as string)}
+              >
+                <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(false, !!formValues.typeGarantie)}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Terrain">Terrain</SelectItem>
+                  <SelectItem value="Maison">Maison</SelectItem>
+                  <SelectItem value="Hypothèque immobilière">Hypothèque immobilière</SelectItem>
+                  <SelectItem value="Gage de véhicule">Gage de véhicule</SelectItem>
+                  <SelectItem value="Nantissement de matériel">Nantissement de matériel</SelectItem>
+                  <SelectItem value="Caution solidaire">Caution solidaire</SelectItem>
+                  <SelectItem value="Dépôt de garantie / Cash collateral">Dépôt de garantie / Cash collateral</SelectItem>
+                  <SelectItem value="Autre garantie réelle">Autre garantie réelle</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-normal text-slate-600">Valeur de la garantie (Ar)</Label>
+              <Controller
+                control={form.control}
+                name="valeurGarantie"
+                render={({ field }) => (
+                  <MontantInput
+                    className={`${FIELD_H} ${getFieldBorderClass(false, !!field.value)}`}
+                    value={String(field.value ?? "")}
+                    onValueChange={(v) => field.onChange(v ? Number(v) : undefined)}
+                    placeholder="Ex: 2 000 000"
+                  />
+                )}
+              />
+            </div>
+          </div>
+
+          {/* Calcul dynamique de la couverture de garantie */}
+          {aGarantie && (
+            <div className="rounded-lg border bg-slate-50 p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="text-slate-500 block">Total Demande + Intérêts (+3%/mois)</span>
+                  <span className="text-base font-semibold text-slate-900">
+                    {Math.round(totalDemandeInteret).toLocaleString("fr-FR")} Ar
+                  </span>
+                  <span className="text-xs text-slate-400 block">
+                    (Demande {montantFinance.toLocaleString("fr-FR")} Ar + Intérêts {Math.round(montantInteret).toLocaleString("fr-FR")} Ar sur {dureeMois} mois)
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Ratio Couverture Garantie</span>
+                  <span className="text-base font-semibold text-slate-900">
+                    {ratioGarantie !== null ? `${ratioGarantie.toFixed(2)} %` : "—"}
+                  </span>
+                  <span className="text-xs text-slate-400 block">
+                    (Valeur garantie / Total dû)
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Évaluation de la garantie</span>
+                  {evaluationGarantie ? (
+                    <span className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-md border ${evaluationGarantie.color}`}>
+                      {evaluationGarantie.label}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 text-xs">Veuillez renseigner la valeur de la garantie</span>
+                  )}
+                </div>
+              </div>
+
+              {ratioGarantie !== null && (
+                <div className="text-xs text-slate-500 border-t pt-2">
+                  <p>
+                    <strong>Barème de garantie :</strong> Couverture ≤ 100% (Risque Très Élevé - Insuffisant) | 100% à 120% (Risque Élevé) | 120% à 150% (Risque Moyen) | 150% à 200% (Risque Faible) | &gt; 200% (Risque Très Faible - Satisfaisant).
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end pt-4">
+        <Button
+          type="submit"
+          disabled={submitting}
+          size="lg"
+          className="bg-black text-white hover:bg-black/90 font-medium"
+        >
           {submitting ? "Enregistrement..." : "Générer le rapport de solvabilité"}
         </Button>
       </div>

@@ -736,7 +736,9 @@ public class RapportService {
                 c.getMontantFinance(),
                 c.getMontantEcheanceMensuelle(), c.getNombreTotalEcheances(), c.getDateDemande(),
                 tiret(c.getPeriodiciteBudget()), c.getMontantRecette(), c.getMontantDepense(),
-                c.getRatioRestePourcentage());
+                c.getRatioRestePourcentage(),
+                tiret(c.getTypeGarantie()), c.getValeurGarantie(),
+                c.getMontantTotalDemandeInteret(), c.getRatioCouvertureGarantie());
     }
 
     private ScoreDTO toScoreDto(ScoreResult r) {

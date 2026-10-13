@@ -50,26 +50,59 @@ public class ScoreService {
                 .toList();
 
         if (empruntsDecaisses.isEmpty()) {
+            Integer scoreBudget = null;
+            Integer scoreGarantie = null;
+
             if (contratEnCours != null && contratEnCours.getRatioRestePourcentage() != null) {
                 double ratio = contratEnCours.getRatioRestePourcentage().doubleValue();
-                int score;
                 if (ratio <= 0) {
-                    score = (int) Math.round(300 + Math.max(0, Math.min(99, 50 + ratio)));
-                    score = Math.min(399, Math.max(300, score));
+                    scoreBudget = (int) Math.round(300 + Math.max(0, Math.min(99, 50 + ratio)));
+                    scoreBudget = Math.min(399, Math.max(300, scoreBudget));
                 } else if (ratio <= 25) {
-                    score = (int) Math.round(400 + (ratio / 25.0) * 59.0);
+                    scoreBudget = (int) Math.round(400 + (ratio / 25.0) * 59.0);
                 } else if (ratio <= 50) {
-                    score = (int) Math.round(460 + ((ratio - 25.0) / 25.0) * 39.0);
+                    scoreBudget = (int) Math.round(460 + ((ratio - 25.0) / 25.0) * 39.0);
                 } else if (ratio < 100) {
-                    score = (int) Math.round(500 + ((ratio - 50.0) / 50.0) * 29.0);
+                    scoreBudget = (int) Math.round(500 + ((ratio - 50.0) / 50.0) * 29.0);
                 } else {
-                    score = Math.min(850, (int) Math.round(530 + Math.min(320.0, ((ratio - 100.0) / 100.0) * 160.0 + 70.0)));
+                    scoreBudget = Math.min(850, (int) Math.round(530 + Math.min(320.0, ((ratio - 100.0) / 100.0) * 160.0 + 70.0)));
                 }
-                GrilleScore grille = grilleScorePour(score);
-                String msg = "Score évalué selon la capacité budgétaire (recettes / dépenses) de la demande en l'absence d'antécédents d'emprunt décaissés.";
-                return ScoreResult.calcule(score, grille.getIntervalle(), grille.getCategorieRisque(),
+            }
+
+            if (contratEnCours != null && contratEnCours.getRatioCouvertureGarantie() != null) {
+                double ratioG = contratEnCours.getRatioCouvertureGarantie().doubleValue();
+                if (ratioG <= 100) {
+                    scoreGarantie = (int) Math.round(300 + Math.max(0, Math.min(99, (ratioG / 100.0) * 99.0)));
+                } else if (ratioG <= 120) {
+                    scoreGarantie = (int) Math.round(400 + ((ratioG - 100.0) / 20.0) * 59.0);
+                } else if (ratioG <= 150) {
+                    scoreGarantie = (int) Math.round(460 + ((ratioG - 120.0) / 30.0) * 39.0);
+                } else if (ratioG <= 200) {
+                    scoreGarantie = (int) Math.round(500 + ((ratioG - 150.0) / 50.0) * 29.0);
+                } else {
+                    scoreGarantie = Math.min(850, (int) Math.round(530 + Math.min(320.0, ((ratioG - 200.0) / 100.0) * 160.0 + 70.0)));
+                }
+            }
+
+            if (scoreBudget != null || scoreGarantie != null) {
+                int scoreFinal;
+                String msg;
+                if (scoreBudget != null && scoreGarantie != null) {
+                    scoreFinal = (int) Math.round((scoreBudget + scoreGarantie) / 2.0);
+                    msg = "Score évalué selon la capacité budgétaire (recettes/dépenses) et la couverture de garantie en l'absence d'antécédents de prêt décaissés.";
+                } else if (scoreBudget != null) {
+                    scoreFinal = scoreBudget;
+                    msg = "Score évalué selon la capacité budgétaire (recettes / dépenses) de la demande en l'absence d'antécédents d'emprunt décaissés.";
+                } else {
+                    scoreFinal = scoreGarantie;
+                    msg = "Score évalué selon la couverture de garantie (valeur / demande + intérêts) en l'absence d'antécédents d'emprunt décaissés.";
+                }
+                scoreFinal = Math.max(p.getScoreBase(), Math.min(p.getScoreMax(), scoreFinal));
+                GrilleScore grille = grilleScorePour(scoreFinal);
+                return ScoreResult.calcule(scoreFinal, grille.getIntervalle(), grille.getCategorieRisque(),
                         grille.getCouleur(), msg);
             }
+
             return ScoreResult.nonCalculable(clientTrouve
                     ? "Aucun contrat décaissé comme emprunteur ne permet d'évaluer son comportement de paiement."
                     : "Ce client vient d'être créé et ne possède pas encore d'historique de remboursement.");
@@ -268,6 +301,20 @@ public class ScoreService {
             } else if (ratio <= 25) {
                 malus += 50;
                 avertissements.add("Capacité budgétaire faible (reste <= 25% des dépenses) : malus appliqué.");
+            }
+        }
+        if (contratEnCours != null && contratEnCours.getRatioCouvertureGarantie() != null) {
+            double ratioG = contratEnCours.getRatioCouvertureGarantie().doubleValue();
+            if (ratioG <= 100) {
+                malus += 80;
+                avertissements.add("Couverture de garantie insuffisante (<= 100% de la demande + intérêts) : Risque très élevé.");
+            } else if (ratioG <= 120) {
+                malus += 30;
+                avertissements.add("Couverture de garantie juste (100% à 120%) : Risque élevé.");
+            } else if (ratioG > 200) {
+                pointsPaiement = Math.min(p.getMaxPaiement(), pointsPaiement + 45);
+            } else if (ratioG > 150) {
+                pointsPaiement = Math.min(p.getMaxPaiement(), pointsPaiement + 25);
             }
         }
         double brut = p.getScoreBase() + pointsPaiement + secondaireRetenu - malus;
