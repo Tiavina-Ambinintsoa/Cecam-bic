@@ -14,6 +14,9 @@ export interface ContratRequest {
   nombreTotalEcheances: number;
   devise: string;
   periodicitePaiement?: string;
+  periodiciteBudget?: string;
+  montantRecette?: number;
+  montantDepense?: number;
 }
 
 export type ContratResponse = Omit<ContratRequest, "montantEcheanceMensuelle" | "devise"> & {

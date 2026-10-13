@@ -734,7 +734,9 @@ public class RapportService {
                 LabelMapper.phase(c.getPhaseDemande(), c.getMotifCloture()), c.getDevise(),
                 tiret(c.getPeriodicitePaiement()), libelleOrigineDonnee(c.getOrigineDonnee()),
                 c.getMontantFinance(),
-                c.getMontantEcheanceMensuelle(), c.getNombreTotalEcheances(), c.getDateDemande());
+                c.getMontantEcheanceMensuelle(), c.getNombreTotalEcheances(), c.getDateDemande(),
+                tiret(c.getPeriodiciteBudget()), c.getMontantRecette(), c.getMontantDepense(),
+                c.getRatioRestePourcentage());
     }
 
     private ScoreDTO toScoreDto(ScoreResult r) {

@@ -50,6 +50,26 @@ public class ScoreService {
                 .toList();
 
         if (empruntsDecaisses.isEmpty()) {
+            if (contratEnCours != null && contratEnCours.getRatioRestePourcentage() != null) {
+                double ratio = contratEnCours.getRatioRestePourcentage().doubleValue();
+                int score;
+                if (ratio <= 0) {
+                    score = (int) Math.round(300 + Math.max(0, Math.min(99, 50 + ratio)));
+                    score = Math.min(399, Math.max(300, score));
+                } else if (ratio <= 25) {
+                    score = (int) Math.round(400 + (ratio / 25.0) * 59.0);
+                } else if (ratio <= 50) {
+                    score = (int) Math.round(460 + ((ratio - 25.0) / 25.0) * 39.0);
+                } else if (ratio < 100) {
+                    score = (int) Math.round(500 + ((ratio - 50.0) / 50.0) * 29.0);
+                } else {
+                    score = Math.min(850, (int) Math.round(530 + Math.min(320.0, ((ratio - 100.0) / 100.0) * 160.0 + 70.0)));
+                }
+                GrilleScore grille = grilleScorePour(score);
+                String msg = "Score évalué selon la capacité budgétaire (recettes / dépenses) de la demande en l'absence d'antécédents d'emprunt décaissés.";
+                return ScoreResult.calcule(score, grille.getIntervalle(), grille.getCategorieRisque(),
+                        grille.getCouleur(), msg);
+            }
             return ScoreResult.nonCalculable(clientTrouve
                     ? "Aucun contrat décaissé comme emprunteur ne permet d'évaluer son comportement de paiement."
                     : "Ce client vient d'être créé et ne possède pas encore d'historique de remboursement.");
@@ -240,6 +260,16 @@ public class ScoreService {
                 * (p.getPlafondSecondaireBase()
                 + p.getPlafondSecondairePart() * (pointsPaiement / p.getMaxPaiement()));
         double secondaireRetenu = Math.min(secondaireBrut, plafond);
+        if (contratEnCours != null && contratEnCours.getRatioRestePourcentage() != null) {
+            double ratio = contratEnCours.getRatioRestePourcentage().doubleValue();
+            if (ratio <= 0) {
+                malus += 120;
+                avertissements.add("Capacité budgétaire critique (recette <= dépense) : malus appliqué.");
+            } else if (ratio <= 25) {
+                malus += 50;
+                avertissements.add("Capacité budgétaire faible (reste <= 25% des dépenses) : malus appliqué.");
+            }
+        }
         double brut = p.getScoreBase() + pointsPaiement + secondaireRetenu - malus;
         int score = Math.max(p.getScoreBase(), Math.min(p.getScoreMax(), (int) Math.round(brut)));
 

@@ -95,6 +95,21 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                         .multiply(BigDecimal.valueOf(request.nombreTotalEcheances()))
                 : request.montantFinance();
 
+        BigDecimal ratio = null;
+        if (request.montantRecette() != null && request.montantDepense() != null) {
+            BigDecimal recette = request.montantRecette();
+            BigDecimal depense = request.montantDepense();
+            if (depense.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal reste = recette.subtract(depense);
+                ratio = reste.multiply(BigDecimal.valueOf(100))
+                        .divide(depense, 2, java.math.RoundingMode.HALF_UP);
+            } else if (recette.compareTo(BigDecimal.ZERO) > 0) {
+                ratio = BigDecimal.valueOf(100);
+            } else {
+                ratio = BigDecimal.ZERO;
+            }
+        }
+
         Contrat contrat = Contrat.builder()
                 .codeContratCb(genererCodeContratCb())
                 .codeContratEtablissement(request.codeContratEtablissement())
@@ -111,6 +126,10 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                 .devise(request.devise())
                 .origineDonnee(OrigineDonnee.NON_RENSEIGNEE)
                 .periodicitePaiement(request.periodicitePaiement())
+                .periodiciteBudget(request.periodiciteBudget())
+                .montantRecette(request.montantRecette())
+                .montantDepense(request.montantDepense())
+                .ratioRestePourcentage(ratio)
                 .phaseDemande(PhaseDemande.DEMANDE_EN_COURS)
                 .utilisateurDeclarant(utilisateurConnecte())
                 .build();

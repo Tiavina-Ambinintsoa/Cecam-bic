@@ -263,6 +263,21 @@
   </tr>
 </table>
 
+<th:block th:if="${r.detailDemande.montantRecette != null or r.detailDemande.montantDepense != null}">
+  <div class="sous-section">Capacité budgétaire (Revenus et Dépenses)</div>
+  <table class="grille">
+    <tr>
+      <td><div class="lib">Périodicité</div><div class="val" th:text="${r.detailDemande.periodiciteBudget} ?: '-'">-</div></td>
+      <td><div class="lib">Revenus / Recettes</div>
+          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantRecette)}">-</div></td>
+      <td><div class="lib">Dépenses</div>
+          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantDepense)}">-</div></td>
+      <td><div class="lib">Ratio Reste / Dépenses</div>
+          <div class="val" th:text="${r.detailDemande.ratioRestePourcentage != null ? r.detailDemande.ratioRestePourcentage + ' %' : '-'}">-</div></td>
+    </tr>
+  </table>
+</th:block>
+
 <div class="section">SCORE CB</div>
 <div class="score-note" th:text="${r.score.avertissement}">Score expérimental réservé à l'analyse interne.</div>
 <div th:unless="${r.score.calculable}" class="encadre">

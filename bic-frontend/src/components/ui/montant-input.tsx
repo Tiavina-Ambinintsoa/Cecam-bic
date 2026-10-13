@@ -11,10 +11,11 @@ interface MontantInputProps {
   value?: string;
   onValueChange: (valeurBrute: string) => void;
   className?: string;
+  placeholder?: string;
 }
 
 export const MontantInput = forwardRef<HTMLInputElement, MontantInputProps>(
-  ({ id, value, onValueChange, className }, ref) => {
+  ({ id, value, onValueChange, className, placeholder }, ref) => {
     const inputRef = useRef<HTMLInputElement>(null);
     useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
 
@@ -36,8 +37,8 @@ export const MontantInput = forwardRef<HTMLInputElement, MontantInputProps>(
       });
     }
 
-    return <Input id={id} ref={inputRef} inputMode="numeric" className={className}
+    return <Input id={id} ref={inputRef} inputMode="numeric" className={className} placeholder={placeholder}
       value={formatAffichage(value ?? "")} onChange={onChange} />;
-  },
+  }
 );
 MontantInput.displayName = "MontantInput";

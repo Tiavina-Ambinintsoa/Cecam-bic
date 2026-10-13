@@ -21,7 +21,10 @@ public record ContratRequest(
         BigDecimal montantEcheanceMensuelle,
         @NotNull @Positive Integer nombreTotalEcheances,
         @NotNull String devise,
-        String periodicitePaiement
+        String periodicitePaiement,
+        String periodiciteBudget,
+        BigDecimal montantRecette,
+        BigDecimal montantDepense
 ) {
     @AssertTrue(message = "Le rattachement à une entreprise ne fait pas partie du périmètre Individu.")
     public boolean isModeDansPerimetreIndividuel() {

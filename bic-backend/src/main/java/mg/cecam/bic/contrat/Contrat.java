@@ -109,6 +109,18 @@ private String codeDemandeEtablissement;
     @Column(name = "periodicite_paiement")
     private String periodicitePaiement;
 
+    @Column(name = "periodicite_budget", length = 30)
+    private String periodiciteBudget;
+
+    @Column(name = "montant_recette", precision = 19, scale = 2)
+    private BigDecimal montantRecette;
+
+    @Column(name = "montant_depense", precision = 19, scale = 2)
+    private BigDecimal montantDepense;
+
+    @Column(name = "ratio_reste_pourcentage", precision = 10, scale = 2)
+    private BigDecimal ratioRestePourcentage;
+
     @Column(name = "mode_reglement")
     private String modeReglement;
 

@@ -11,7 +11,18 @@ export interface AdresseRequest {
   pays?: string;
 }
 
-export interface IdentifiantRequest { typeIdentifiant: string; numero: string; }
+export interface IdentifiantRequest {
+  typeIdentifiant: string;
+  numero: string;
+  dateDelivrance?: string;
+  dateExpiration?: string;
+  paysDelivrance?: string;
+}
+
+export interface ContactRequest {
+  typeContact: string;
+  valeurContact?: string;
+}
 
 export interface EmploiRequest {
   statutEmploi?: string;
@@ -22,7 +33,18 @@ export interface EmploiRequest {
   devise?: string;
 }
 
+export interface AffaireIndividuelleIdentifiantRequest {
+  typeIdentifiant?: string;
+  numero?: string;
+}
+
+export interface AffaireIndividuelleContactRequest {
+  typeContact?: string;
+  valeurContact?: string;
+}
+
 export interface AffaireIndividuelleAdresseRequest {
+  typeAdresse?: string;
   adresseComplete: string;
   numeroRue?: string;
   codePostal?: string;
@@ -35,6 +57,8 @@ export interface AffaireIndividuelleAdresseRequest {
 export interface AffaireIndividuelleRequest {
   nom: string;
   adresses?: AffaireIndividuelleAdresseRequest[];
+  identifiants?: AffaireIndividuelleIdentifiantRequest[];
+  contacts?: AffaireIndividuelleContactRequest[];
 }
 
 export interface ClientRequest {
@@ -51,6 +75,7 @@ export interface ClientRequest {
   etatCivil?: string;
   codeClientEtablissement?: string;
   telephone?: string;
+  contacts?: ContactRequest[];
   adresses: AdresseRequest[];
   identifiants: IdentifiantRequest[];
   emploi?: EmploiRequest;
