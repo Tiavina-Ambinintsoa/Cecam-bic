@@ -4,7 +4,7 @@
 UPDATE grille_score
 SET score_min = 530,
     score_max = 850,
-    categorie_risque = 'Risque faible'
+    categorie_risque = 'Risque tres faible'
 WHERE intervalle = 'A';
 
 UPDATE grille_score
@@ -14,5 +14,5 @@ SET score_min = 500,
 WHERE intervalle = 'B';
 
 UPDATE grille_score
-SET categorie_risque = 'Risque élevé'
+SET categorie_risque = 'Risque tresélevé'
 WHERE intervalle = 'E';

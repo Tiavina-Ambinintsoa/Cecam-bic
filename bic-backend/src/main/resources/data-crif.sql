@@ -9,41 +9,53 @@ CREATE SEQUENCE IF NOT EXISTS seq_code_client_cb  START WITH 200001;
 -- Nettoyage préventif
 DELETE FROM echeance WHERE contrat_id IN (
     SELECT id FROM contrat WHERE client_id IN (
-        SELECT id FROM client WHERE id BETWEEN 9007 AND 9015 OR id BETWEEN 9501 AND 9515
-        OR code_client_cb IN ('500078959','C00094855','E00127416','D00170254','H00151494','700158713','N00172305','C00130366','L00180894')
-    ) OR client_id BETWEEN 9007 AND 9015 OR client_id BETWEEN 9501 AND 9515
+        SELECT id FROM client WHERE id BETWEEN 9007 AND 9020 OR id BETWEEN 9501 AND 9515
+        OR code_client_cb IN ('500078959','C00094855','E00127416','D00170254','H00151494','700158713','N00172305','C00130366','L00180894','B00060035','K00054802','R00073573','400030668')
+    ) OR client_id BETWEEN 9007 AND 9020 OR client_id BETWEEN 9501 AND 9515
     OR code_contrat_cb IN ('F00728095','200647123','600508331','100471980','D00452133','S00441337',
                            'S00725748','500526717','300528701','M00515959',
                            '700735293','100655194','T00611864','D00562708',
                            '800727695','S00706971','J00719389',
-                           'L00730033','T00728181','500562397','I00568335','300767570','600748775')
-    OR id BETWEEN 9511 AND 9560 OR id BETWEEN 9701 AND 9815
+                           'L00730033','T00728181','500562397','I00568335','300767570','600748775',
+                           '800728581','K00717258','A00693573','R00676443','G00654931','A00504452',
+                           'L00715017','M00674656','A00588086','H00589520','000579649','000527079','500442533',
+                           '400701753','600637342','I00630115','H00567810','J00544279','G00472912',
+                           '000730188','400507174')
+    OR id BETWEEN 9511 AND 9560 OR id BETWEEN 9701 AND 9890
 );
 
 DELETE FROM historique_paiement_mensuel WHERE contrat_id IN (
     SELECT id FROM contrat WHERE client_id IN (
-        SELECT id FROM client WHERE id BETWEEN 9007 AND 9015 OR id BETWEEN 9501 AND 9515
-        OR code_client_cb IN ('500078959','C00094855','E00127416','D00170254','H00151494','700158713','N00172305','C00130366','L00180894')
-    ) OR client_id BETWEEN 9007 AND 9015 OR client_id BETWEEN 9501 AND 9515
+        SELECT id FROM client WHERE id BETWEEN 9007 AND 9020 OR id BETWEEN 9501 AND 9515
+        OR code_client_cb IN ('500078959','C00094855','E00127416','D00170254','H00151494','700158713','N00172305','C00130366','L00180894','B00060035','K00054802','R00073573','400030668')
+    ) OR client_id BETWEEN 9007 AND 9020 OR client_id BETWEEN 9501 AND 9515
     OR code_contrat_cb IN ('F00728095','200647123','600508331','100471980','D00452133','S00441337',
                            'S00725748','500526717','300528701','M00515959',
                            '700735293','100655194','T00611864','D00562708',
                            '800727695','S00706971','J00719389',
-                           'L00730033','T00728181','500562397','I00568335','300767570','600748775')
-    OR id BETWEEN 9511 AND 9560 OR id BETWEEN 9701 AND 9815
+                           'L00730033','T00728181','500562397','I00568335','300767570','600748775',
+                           '800728581','K00717258','A00693573','R00676443','G00654931','A00504452',
+                           'L00715017','M00674656','A00588086','H00589520','000579649','000527079','500442533',
+                           '400701753','600637342','I00630115','H00567810','J00544279','G00472912',
+                           '000730188','400507174')
+    OR id BETWEEN 9511 AND 9560 OR id BETWEEN 9701 AND 9890
 );
 
 DELETE FROM garantie WHERE contrat_id IN (
     SELECT id FROM contrat WHERE client_id IN (
-        SELECT id FROM client WHERE id BETWEEN 9007 AND 9015 OR id BETWEEN 9501 AND 9515
-        OR code_client_cb IN ('500078959','C00094855','E00127416','D00170254','H00151494','700158713','N00172305','C00130366','L00180894')
-    ) OR client_id BETWEEN 9007 AND 9015 OR client_id BETWEEN 9501 AND 9515
+        SELECT id FROM client WHERE id BETWEEN 9007 AND 9020 OR id BETWEEN 9501 AND 9515
+        OR code_client_cb IN ('500078959','C00094855','E00127416','D00170254','H00151494','700158713','N00172305','C00130366','L00180894','B00060035','K00054802','R00073573','400030668')
+    ) OR client_id BETWEEN 9007 AND 9020 OR client_id BETWEEN 9501 AND 9515
     OR code_contrat_cb IN ('F00728095','200647123','600508331','100471980','D00452133','S00441337',
                            'S00725748','500526717','300528701','M00515959',
                            '700735293','100655194','T00611864','D00562708',
                            '800727695','S00706971','J00719389',
-                           'L00730033','T00728181','500562397','I00568335','300767570','600748775')
-    OR id BETWEEN 9511 AND 9560 OR id BETWEEN 9701 AND 9815
+                           'L00730033','T00728181','500562397','I00568335','300767570','600748775',
+                           '800728581','K00717258','A00693573','R00676443','G00654931','A00504452',
+                           'L00715017','M00674656','A00588086','H00589520','000579649','000527079','500442533',
+                           '400701753','600637342','I00630115','H00567810','J00544279','G00472912',
+                           '000730188','400507174')
+    OR id BETWEEN 9511 AND 9560 OR id BETWEEN 9701 AND 9890
 );
 
 DELETE FROM bien_leasing WHERE contrat_id IN (
@@ -528,12 +540,16 @@ INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etabl
                      code_etablissement_crypte, client_id, mode_rattachement, type_contrat, role_client,
                      date_demande, date_debut_contrat, date_premiere_echeance, date_fin_contrat,
                      montant_finance, montant_total_du, montant_echeance_mensuelle,
-                     nombre_total_echeances, devise, periodicite_paiement, mode_reglement,
+                     nombre_total_echeances, nombre_echeances_restantes, montant_restant_du,
+                     nombre_echeances_impayees, montant_impayes,
+                     devise, periodicite_paiement, mode_reglement,
                      phase_demande, date_derniere_modification, origine_donnee)
 VALUES (9522, '100655194', '0202502978015003', '001',
         '001', 9502, 'NOUVELLE_DEMANDE', 'Prêt Personnel', 'TITULAIRE',
         '2025-02-18', '2025-02-18', '2025-08-18', '2026-02-18',
-        2000000, 2666283, 216244, 4,
+        2000000, 2666283, 216244,
+        4, 1, 122925,
+        0, 0,
         'Ariary malgache', 'MENSUELLE', 'Espèce',
         'ACTIF', '2025-08-18 00:00:00', 'RAPPORT_CRIF');
 
@@ -720,12 +736,12 @@ INSERT INTO emploi (id, client_id, statut_emploi, nom_employeur, profession,
                     date_embauche, revenu_annuel_total, devise)
 VALUES (9007, 9007, NULL, NULL, 'Planteur de riz', NULL, 7200000, 'Ariary malgache');
 
-INSERT INTO contrat (id, code_contrat_cb, code_etablissement_declarant, client_id,
+INSERT INTO contrat (id, code_contrat_cb, code_etablissement_declarant, code_etablissement_crypte, client_id,
                      mode_rattachement, type_contrat, role_client,
                      date_demande, montant_finance, montant_total_du,
                      montant_echeance_mensuelle, nombre_total_echeances,
                      devise, periodicite_paiement, phase_demande, date_derniere_modification, origine_donnee)
-VALUES (9701, 'L00730033', '001', 9007, 'NOUVELLE_DEMANDE',
+VALUES (9701, 'L00730033', '001', '001', 9007, 'NOUVELLE_DEMANDE',
         'Prêt Personnel', 'TITULAIRE', '2026-03-16',
         2500000, 2500000, NULL, 2,
         'Ariary malgache', NULL, 'DEMANDE_EN_COURS', '2026-03-16 00:00:00', 'RAPPORT_CRIF');
@@ -734,42 +750,57 @@ VALUES (9701, 'L00730033', '001', 9007, 'NOUVELLE_DEMANDE',
 INSERT INTO contrat_lien (id, contrat_id, code_client_cb, nom_client, role_client, client_lie_id)
 VALUES (9502, 9701, 'N00172305', 'GEORGETTE RAVAORISOA', 'CO_TITULAIRE', 9507);
 
-INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etablissement_declarant,
+INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etablissement_declarant, code_etablissement_crypte,
                      client_id, mode_rattachement, type_contrat, role_client,
-                     date_demande, date_debut_contrat, date_premiere_echeance, date_fin_contrat,
-                     montant_finance, montant_total_du, montant_echeance_mensuelle,
-                     nombre_total_echeances, devise, periodicite_paiement,
+                     date_demande, date_debut_contrat, date_premiere_echeance, date_prochaine_echeance, date_fin_contrat,
+                     montant_finance, montant_total_du, montant_echeance_mensuelle, montant_prochaine_echeance,
+                     nombre_total_echeances, nombre_echeances_restantes, montant_restant_du,
+                     nombre_echeances_impayees, montant_impayes, max_montant_impayes, max_nombre_echeances_impayees,
+                     nombre_jours_retard, max_nombre_jours_retard, date_max_nombre_jours_retard, pire_statut,
+                     devise, periodicite_paiement,
                      phase_demande, date_derniere_modification, origine_donnee)
-VALUES (9702, 'T00728181', '0202802034015001', '001',
+VALUES (9702, 'T00728181', '0202802034015001', '001', '001',
         9007, 'NOUVELLE_DEMANDE', 'Prêt Personnel', 'TITULAIRE',
-        '2026-03-16', '2026-03-27', '2026-04-27', '2026-09-27',
-        1500000, 1500000, 250000, 6, 'Ariary malgache', 'MENSUELLE',
+        '2026-03-16', '2026-03-27', '2026-06-28', '2026-06-28', '2026-08-28',
+        1500000, 1717875, 334868, 914500,
+        2, 2, 1717875,
+        0, 0, 0, 0,
+        0, 0, '2026-05-31', 'No info',
+        'Ariary malgache', 'Mensuelle- 1 mois',
         'ACTIF', '2026-05-31 00:00:00', 'RAPPORT_CRIF');
 
 INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance,
                       montant_du, montant_paye, date_paiement, statut) VALUES
- (970201, 9702, 1, '2026-04-27', 250000, 250000, '2026-04-27', 'PAYE_A_TEMPS'),
- (970202, 9702, 2, '2026-05-27', 250000, 250000, '2026-05-27', 'PAYE_A_TEMPS'),
- (970203, 9702, 3, '2026-06-27', 250000, 250000, '2026-06-25', 'PAYE_A_TEMPS'),
- (970204, 9702, 4, '2026-07-27', 250000, 250000, '2026-07-27', 'PAYE_A_TEMPS'),
- (970205, 9702, 5, '2026-08-27', 250000, 250000, '2026-08-27', 'PAYE_A_TEMPS'),
- (970206, 9702, 6, '2026-09-27', 250000, NULL,   NULL,         'A_VENIR');
+ (970201, 9702, 1, '2026-06-28', 914500, NULL, NULL, 'A_VENIR'),
+ (970202, 9702, 2, '2026-08-28', 803375, NULL, NULL, 'A_VENIR');
+
+INSERT INTO historique_paiement_mensuel (contrat_id, mois, nombre_echeances, nombre_echeances_impayees, jours_de_retard, statut) VALUES
+ (9702, '2026-03-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9702, '2026-04-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9702, '2026-05-01', 0, 0, 0, 'PAYE_A_TEMPS');
 
 INSERT INTO garantie (id, contrat_id, nature, type_garantie, code_etablissement_garantie,
                       nom_garant, code_client_cb_garant, montant_couvert)
 VALUES (9702, 9702, 'REELLE', 'Nantissement sur Outillage, Matériel, d''Equipement Professionnel',
         'NAM11327 (5)', 'CHRISTIAN RADERA', 'C00130366', 2600000);
 
-INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etablissement_declarant,
+INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etablissement_declarant, code_etablissement_crypte,
                      client_id, mode_rattachement, type_contrat, role_client,
-                     date_demande, date_debut_contrat, date_premiere_echeance, date_fin_contrat,
-                     montant_finance, montant_total_du, montant_echeance_mensuelle,
-                     nombre_total_echeances, devise, periodicite_paiement,
+                     date_demande, date_debut_contrat, date_premiere_echeance, date_fin_contrat, date_dernier_reglement,
+                     montant_finance, montant_total_du, montant_echeance_mensuelle, montant_prochaine_echeance,
+                     nombre_total_echeances, nombre_echeances_restantes, montant_restant_du,
+                     nombre_echeances_impayees, montant_impayes, max_montant_impayes, max_nombre_echeances_impayees,
+                     nombre_jours_retard, max_nombre_jours_retard, date_max_nombre_jours_retard, pire_statut,
+                     devise, periodicite_paiement,
                      phase_demande, motif_cloture, date_derniere_modification, origine_donnee)
-VALUES (9703, '500562397', '0202802034012001', '001',
+VALUES (9703, '500562397', '0202802034012001', '001', '001',
         9007, 'NOUVELLE_DEMANDE', 'Préfinancement de collecte de produits agricoles/Avances', 'TITULAIRE',
-        '2023-06-02', '2023-06-02', '2023-07-28', '2023-11-23',
-        1089000, 1089000, 214334, 5, 'Ariary malgache', 'MENSUELLE',
+        '2023-06-02', '2023-06-02', '2023-11-28', '2023-11-23', '2023-11-23',
+        1089000, 1089000, 214334, 0,
+        1, 0, 0,
+        0, 0, 0, 0,
+        0, 0, '2023-11-30', 'No info',
+        'Ariary malgache', 'Mensuelle- 1 mois',
         'FERME', 'FIN_A_TERME', '2023-11-30 00:00:00', 'RAPPORT_CRIF');
 
 INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance,
@@ -780,21 +811,35 @@ INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance,
  (970304, 9703, 4, '2023-10-28', 214334, 214334, '2023-10-28', 'PAYE_A_TEMPS'),
  (970305, 9703, 5, '2023-11-28', 231664, 231664, '2023-11-23', 'PAYE_A_TEMPS');
 
+INSERT INTO historique_paiement_mensuel (contrat_id, mois, nombre_echeances, nombre_echeances_impayees, jours_de_retard, statut) VALUES
+ (9703, '2023-07-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9703, '2023-08-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9703, '2023-09-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9703, '2023-10-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9703, '2023-11-01', 0, 0, 0, 'PAYE_A_TEMPS');
+
 INSERT INTO garantie (id, contrat_id, nature, type_garantie, code_etablissement_garantie,
                       nom_garant, code_client_cb_garant, montant_couvert)
 VALUES (9703, 9703, 'REELLE', 'Nantissement sur Outillage, Matériel, d''Equipement Professionnel',
         'NAN4535 (60)', 'CHRISTIAN RADERA', 'C00130366', 1089000);
 
-INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etablissement_declarant,
+INSERT INTO contrat (id, code_contrat_cb, code_contrat_etablissement, code_etablissement_declarant, code_etablissement_crypte,
                      client_id, mode_rattachement, type_contrat, role_client,
-                     date_demande, date_debut_contrat, date_premiere_echeance, date_fin_contrat,
-                     montant_finance, montant_total_du, montant_echeance_mensuelle,
-                     nombre_total_echeances, devise, periodicite_paiement,
+                     date_demande, date_debut_contrat, date_premiere_echeance, date_fin_contrat, date_dernier_reglement,
+                     montant_finance, montant_total_du, montant_echeance_mensuelle, montant_prochaine_echeance,
+                     nombre_total_echeances, nombre_echeances_restantes, montant_restant_du,
+                     nombre_echeances_impayees, montant_impayes, max_montant_impayes, max_nombre_echeances_impayees,
+                     nombre_jours_retard, max_nombre_jours_retard, date_max_nombre_jours_retard, pire_statut,
+                     devise, periodicite_paiement,
                      phase_demande, motif_cloture, date_derniere_modification, origine_donnee)
-VALUES (9704, 'I00568335', '0202802034012002', '001',
+VALUES (9704, 'I00568335', '0202802034012002', '001', '001',
         9007, 'NOUVELLE_DEMANDE', 'Préfinancement de collecte de produits agricoles/Avances', 'TITULAIRE',
-        '2023-06-02', '2023-06-02', '2023-07-28', '2023-11-20',
-        264000, 264000, 51827, 5, 'Ariary malgache', 'MENSUELLE',
+        '2023-06-02', '2023-06-02', '2023-11-28', '2023-11-20', '2023-11-20',
+        264000, 264000, 51827, 0,
+        1, 0, 0,
+        0, 0, 0, 0,
+        0, 0, '2023-11-30', 'No info',
+        'Ariary malgache', 'Mensuelle- 1 mois',
         'FERME', 'FIN_A_TERME', '2023-11-30 00:00:00', 'RAPPORT_CRIF');
 
 INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance,
@@ -804,6 +849,13 @@ INSERT INTO echeance (id, contrat_id, numero_echeance, date_echeance,
  (970403, 9704, 3, '2023-09-28', 51827, 51827, '2023-09-28', 'PAYE_A_TEMPS'),
  (970404, 9704, 4, '2023-10-28', 51827, 51827, '2023-10-28', 'PAYE_A_TEMPS'),
  (970405, 9704, 5, '2023-11-28', 56692, 56692, '2023-11-20', 'PAYE_A_TEMPS');
+
+INSERT INTO historique_paiement_mensuel (contrat_id, mois, nombre_echeances, nombre_echeances_impayees, jours_de_retard, statut) VALUES
+ (9704, '2023-07-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9704, '2023-08-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9704, '2023-09-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9704, '2023-10-01', 0, 0, 0, 'PAYE_A_TEMPS'),
+ (9704, '2023-11-01', 0, 0, 0, 'PAYE_A_TEMPS');
 
 INSERT INTO garantie (id, contrat_id, nature, type_garantie, code_etablissement_garantie,
                       nom_garant, code_client_cb_garant, montant_couvert)

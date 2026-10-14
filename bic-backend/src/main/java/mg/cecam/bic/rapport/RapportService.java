@@ -99,23 +99,19 @@ public class RapportService {
         Emploi emploi = emploiRepository.findByClient_Id(client.getId()).orElse(null);
         if (emploi != null && !emploi.estRenseigne()) emploi = null;
 
-        // [CORRIGÉ] "clientTrouve" n'existait nulle part : c'est le même booléen que celui déjà
-        // utilisé par statutClient(...) plus bas, je l'ai factorisé dans clientPreexistant(...)
-        // pour ne calculer la règle qu'à un seul endroit.
         boolean clientTrouve = clientPreexistant(client, contrat, historique);
         ScoreResult scoreResult = scoreService.calculer(client, contrat, clientTrouve);
 
-        // [RÉINTÉGRÉ] ce bloc était à la fin du fichier collé, EN DEHORS de toute méthode
-        // (après la fermeture de tiret()), et référençait client/journalAuditRepository qui
-        // n'existent pas à portée de classe. Il a tout l'air d'une variable locale de
-        // construire() oubliée en dehors : je l'ai remise ici, avec le DTO ConsultationDTO et
-        // le champ RapportSolvabiliteResponse.historiqueConsultations créés en complément.
         List<ConsultationDTO> historiqueConsultations = journalAuditRepository
                 .findByEntiteAndEntiteIdOrderByDateEvenementDesc("CLIENT", client.getId()).stream()
                 .filter(a -> a.getAction().equals("CREATION") || a.getAction().equals("CONSULTATION"))
                 .map(a -> new ConsultationDTO("001", a.getDateEvenement().toLocalDate(),
                         a.getAction().equals("CREATION") ? "Nouvelle Demande" : "Suivi Client"))
                 .toList();
+
+        List<Contrat> contratsSynthese = (contrat.getPhaseDemande() == PhaseDemande.DEMANDE_EN_COURS)
+                ? historique
+                : tous;
 
         return new RapportSolvabiliteResponse(
                 UUID.randomUUID().toString(),
@@ -135,11 +131,11 @@ public class RapportService {
                         emploi.getRevenuAnnuelTotal(), emploi.getDevise()),
                 tousLesLiens(historique, liensParContrat, garanties, client),
                 alerteService.listerParClient(client.getId(), reference),
-                // [CORRIGÉ] c'était toScoreDto(score) alors que la variable s'appelle scoreResult
+                
                 toScoreDto(scoreResult),
                 grille(),
-                synthese(historique, echeances, garanties, reference),
-                syntheseParCategorie(historique, echeances, reference),
+                synthese(contratsSynthese, historique, echeances, garanties, reference),
+                syntheseParCategorie(contratsSynthese, echeances, reference),
                 encoursParCategorie(historique, echeances, reference),
                 impayesParCategorie(historique, echeances, reference),
                 situationFinanciereMensuelleService.calculer(tous, echeances, reference),
@@ -151,7 +147,8 @@ public class RapportService {
     }
 
 
-    private SyntheseDTO synthese(List<Contrat> historique,
+    private SyntheseDTO synthese(List<Contrat> contratsSynthese,
+                                 List<Contrat> historique,
                                  Map<Long, List<Echeance>> echeances,
                                  Map<Long, List<Garantie>> garanties,
                                  LocalDate reference) {
@@ -159,21 +156,43 @@ public class RapportService {
         BigDecimal restantDu = BigDecimal.ZERO;  
         BigDecimal impayes = BigDecimal.ZERO;     
 
-        for (Contrat c : historique) {
+        for (Contrat c : contratsSynthese) {
             if (c.getPhaseDemande() != PhaseDemande.ACTIF) continue;
-            for (Echeance e : echeances.getOrDefault(c.getId(), List.of())) {
-                if (e.estPayee()) continue;
-                if (e.estEnSouffrance(reference)) impayes = impayes.add(e.getMontantDu());
-                else restantDu = restantDu.add(e.getMontantDu());
+
+            BigDecimal contratRestant;
+            if (c.getMontantRestantDu() != null) {
+                contratRestant = c.getMontantRestantDu();
+            } else {
+                List<Echeance> echs = echeances.getOrDefault(c.getId(), List.of());
+                contratRestant = echs.stream()
+                        .filter(e -> !e.estPayee() && !e.estEnSouffrance(reference))
+                        .map(Echeance::getMontantDu)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                if (contratRestant.signum() == 0 && echs.isEmpty()) {
+                    contratRestant = c.totalDu() != null ? c.totalDu() : (c.getMontantFinance() != null ? c.getMontantFinance() : BigDecimal.ZERO);
+                }
             }
+            restantDu = restantDu.add(contratRestant);
+
+            BigDecimal contratImpayes;
+            if (c.getMontantImpayes() != null) {
+                contratImpayes = c.getMontantImpayes();
+            } else {
+                contratImpayes = echeances.getOrDefault(c.getId(), List.of()).stream()
+                        .filter(e -> !e.estPayee() && e.estEnSouffrance(reference))
+                        .map(Echeance::getMontantDu)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            }
+            impayes = impayes.add(contratImpayes);
         }
 
-        BigDecimal demandes = historique.stream()
+        BigDecimal demandes = contratsSynthese.stream()
                 .filter(c -> c.getPhaseDemande() == PhaseDemande.DEMANDE_EN_COURS)
                 .map(Contrat::totalDu)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal garantieSignature = historique.stream()
+        BigDecimal garantieSignature = contratsSynthese.stream()
                 .filter(c -> c.getPhaseDemande() != PhaseDemande.FERME)
                 .flatMap(c -> garanties.getOrDefault(c.getId(), List.<Garantie>of()).stream())
                 .filter(g -> g.getNature() == NatureGarantie.PERSONNELLE)
@@ -182,14 +201,14 @@ public class RapportService {
 
         BigDecimal exposition = restantDu.add(garantieSignature);
 
-        int etablissements = (int) historique.stream()
+        int etablissements = (int) contratsSynthese.stream()
                 .map(Contrat::getCodeEtablissementDeclarant)
                 .filter(Objects::nonNull).distinct().count();
 
-        boolean vide = historique.isEmpty();
-        Set<String> devises = historique.stream().map(Contrat::getDevise)
-                .filter(this::deviseRenseignee).collect(Collectors.toCollection(TreeSet::new));
-        long contratsSansDevise = historique.stream().filter(c -> !deviseRenseignee(c.getDevise())).count();
+        boolean vide = contratsSynthese.isEmpty();
+        Set<String> devises = contratsSynthese.stream().map(Contrat::getDevise)
+                .filter(this::deviseRenseignee).collect(Collectors.toCollection(() -> new TreeSet<>(String.CASE_INSENSITIVE_ORDER)));
+        long contratsSansDevise = contratsSynthese.stream().filter(c -> !deviseRenseignee(c.getDevise())).count();
         boolean totauxCompatibles = devises.size() == 1 && contratsSansDevise == 0;
         String devise = totauxCompatibles ? devises.iterator().next()
                 : vide ? "-" : "Devises multiples/incomplètes";
@@ -235,16 +254,13 @@ public class RapportService {
         return CAT_AVEC_ECHEANCIER;
     }
 
-    private List<SyntheseCategorieDTO> syntheseParCategorie(List<Contrat> historique,
+    private List<SyntheseCategorieDTO> syntheseParCategorie(List<Contrat> contratsSynthese,
                                                             Map<Long, List<Echeance>> echeances,
                                                             LocalDate reference) {
-        List<Contrat> actifs = historique.stream()
+        List<Contrat> actifs = contratsSynthese.stream()
                 .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF)
                 .filter(c -> CAT_AVEC_ECHEANCIER.equals(categorieDe(c)))
                 .toList();
-
-        Predicate<Echeance> aEchoir = e -> !e.estPayee() && !e.estEnSouffrance(reference);
-        Predicate<Echeance> enSouffrance = e -> e.estEnSouffrance(reference);
 
         List<SyntheseCategorieDTO> parDevise = new ArrayList<>();
         List<String> devises = actifs.stream().map(Contrat::getDevise).filter(this::deviseRenseignee)
@@ -256,10 +272,10 @@ public class RapportService {
                     "Financements avec échéanciers", devise, contratsDansDevise.size(), "Montant Échéance Mensuelle",
                     somme(contratsDansDevise, false, Contrat::getMontantEcheanceMensuelle),
                     somme(contratsDansDevise, true,  Contrat::getMontantEcheanceMensuelle),
-                    sommeEcheances(contratsDansDevise, false, echeances, aEchoir),
-                    sommeEcheances(contratsDansDevise, true,  echeances, aEchoir),
-                    sommeEcheances(contratsDansDevise, false, echeances, enSouffrance),
-                    sommeEcheances(contratsDansDevise, true,  echeances, enSouffrance)));
+                    sommeRestantDu(contratsDansDevise, false, echeances, reference),
+                    sommeRestantDu(contratsDansDevise, true,  echeances, reference),
+                    sommeImpayes(contratsDansDevise, false, echeances, reference),
+                    sommeImpayes(contratsDansDevise, true,  echeances, reference)));
         }
         long contratsSansDevise = actifs.stream().filter(c -> !deviseRenseignee(c.getDevise())).count();
         if (contratsSansDevise > 0) {
@@ -285,13 +301,36 @@ public class RapportService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal sommeEcheances(List<Contrat> contrats, boolean garant,
-                                      Map<Long, List<Echeance>> echeances, Predicate<Echeance> filtre) {
+    private BigDecimal sommeRestantDu(List<Contrat> contrats, boolean garant,
+                                      Map<Long, List<Echeance>> echeances, LocalDate reference) {
         return contrats.stream()
                 .filter(c -> (c.getRoleClient() == RoleClient.GARANT) == garant)
-                .flatMap(c -> echeances.getOrDefault(c.getId(), List.<Echeance>of()).stream())
-                .filter(filtre)
-                .map(Echeance::getMontantDu)
+                .map(c -> {
+                    if (c.getMontantRestantDu() != null) return c.getMontantRestantDu();
+                    List<Echeance> echs = echeances.getOrDefault(c.getId(), List.of());
+                    BigDecimal sum = echs.stream()
+                            .filter(e -> !e.estPayee() && !e.estEnSouffrance(reference))
+                            .map(Echeance::getMontantDu)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    if (sum.signum() == 0 && echs.isEmpty()) {
+                        return c.totalDu() != null ? c.totalDu() : (c.getMontantFinance() != null ? c.getMontantFinance() : BigDecimal.ZERO);
+                    }
+                    return sum;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal sommeImpayes(List<Contrat> contrats, boolean garant,
+                                    Map<Long, List<Echeance>> echeances, LocalDate reference) {
+        return contrats.stream()
+                .filter(c -> (c.getRoleClient() == RoleClient.GARANT) == garant)
+                .map(c -> {
+                    if (c.getMontantImpayes() != null) return c.getMontantImpayes();
+                    return echeances.getOrDefault(c.getId(), List.of()).stream()
+                            .filter(e -> !e.estPayee() && e.estEnSouffrance(reference))
+                            .map(Echeance::getMontantDu)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 

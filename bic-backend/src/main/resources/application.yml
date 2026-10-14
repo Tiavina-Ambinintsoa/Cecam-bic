@@ -22,7 +22,7 @@ spring:
   thymeleaf:
     cache: false
 
-spring.sql.init.data-locations: classpath:data.sql, classpath:data-crif.sql
+spring.sql.init.data-locations: classpath:data.sql, classpath:data-crif.sql, classpath:data-crif-fianarantsoa.sql
 
 app:
   cors:
@@ -35,12 +35,12 @@ app:
     score-base: 300
     score-max: 850
 
-    max-paiement: 200
-    max-endettement: 120
-    max-exposition: 100
-    max-anciennete: 60
-    max-nouveaux: 40
-    max-mixite: 30
+    max-paiement: 240
+    max-endettement: 45
+    max-exposition: 25
+    max-anciennete: 35
+    max-nouveaux: 20
+    max-mixite: 15
 
     maturite-mois: 36       
     plancher-confiance: 0.50
@@ -57,8 +57,8 @@ app:
     malus-surendettement-coef: 60
     malus-surendettement-max: 90
 
-    exposition-seuil-vert: 0.25
-    exposition-seuil-rouge: 0.75
+    exposition-seuil-vert: 0.15
+    exposition-seuil-rouge: 0.60
 
     anciennete-mois-plein: 84
 
@@ -70,7 +70,7 @@ app:
     mixite-ratio-deux-types: 0.60
     mixite-ratio-un-type: 0.20
 
-    plafond-secondaire-base: 0.70
-    plafond-secondaire-part: 0.30
+    plafond-secondaire-base: 0.30
+    plafond-secondaire-part: 0.35
 
-    neutre-sans-revenu: 0.60
+    neutre-sans-revenu: 0.0

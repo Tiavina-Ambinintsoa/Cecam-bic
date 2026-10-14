@@ -7,11 +7,11 @@ ALTER TABLE client ALTER COLUMN origine_donnee SET DEFAULT 'NON_RENSEIGNEE';
 ALTER TABLE contrat ALTER COLUMN origine_donnee SET DEFAULT 'NON_RENSEIGNEE';
 
 INSERT INTO grille_score (intervalle, score_min, score_max, categorie_risque, couleur) VALUES
-('A', 530, 850, 'Risque faible', 'Pistache'),
+('A', 530, 850, 'Risque très faible', 'Pistache'),
 ('B', 500, 529, 'Risque faible', 'Jaune moutarde'),
 ('C', 460, 499, 'Risque moyen', 'Jaune Or'),
 ('D', 400, 459, 'Risque élevé', 'Orange citrouille'),
-('E', 300, 399, 'Risque élevé', 'Rouge Vif')
+('E', 300, 399, 'Risque très élevé', 'Rouge Vif')
 ON CONFLICT (intervalle) DO UPDATE SET
     score_min = EXCLUDED.score_min,
     score_max = EXCLUDED.score_max,

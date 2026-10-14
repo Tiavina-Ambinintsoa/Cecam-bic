@@ -48,6 +48,14 @@ public class ContratService {
 
         if (nouvellePhase == PhaseDemande.ACTIF && ancienne != PhaseDemande.ACTIF) {
             if (c.getDateDebutContrat() == null) c.setDateDebutContrat(LocalDate.now());
+            if (c.getMontantRestantDu() == null) {
+                c.setMontantRestantDu(c.totalDu() != null ? c.totalDu() : c.getMontantFinance());
+            }
+            if (c.getMontantImpayes() == null) c.setMontantImpayes(BigDecimal.ZERO);
+            if (c.getNombreEcheancesImpayees() == null) c.setNombreEcheancesImpayees(0);
+            if (c.getNombreEcheancesRestantes() == null) {
+                c.setNombreEcheancesRestantes(c.getNombreTotalEcheances());
+            }
             if (echeanceRepository.findByContrat_IdOrderByNumeroEcheance(contratId).isEmpty()) {
                 genererEcheances(c);
             }
@@ -57,6 +65,8 @@ public class ContratService {
                 c.setMotifCloture(motif != null ? motif : MotifCloture.FIN_A_TERME);
             }
             if (c.getDateFinContrat() == null) c.setDateFinContrat(LocalDate.now());
+            c.setMontantRestantDu(BigDecimal.ZERO);
+            c.setNombreEcheancesRestantes(0);
         }
 
         Contrat enregistre = contratRepository.save(c);
