@@ -10,6 +10,8 @@ export function RapportPage() {
   const [rapport, setRapport] = useState<RapportSolvabilite | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [erreurPdf, setErreurPdf] = useState<string | null>(null);
+  const [telechargementPdf, setTelechargementPdf] = useState(false);
   const [iframeHeight, setIframeHeight] = useState(900);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -47,16 +49,30 @@ export function RapportPage() {
     if (doc) setIframeHeight(doc.documentElement.scrollHeight + 40);
   }
 
+  async function telechargerEtVisualiserPdf() {
+    if (!contratId || telechargementPdf) return;
+    setErreurPdf(null);
+    setTelechargementPdf(true);
+    try {
+      await rapportApi.telechargerEtVisualiserPdf(Number(contratId));
+    } catch {
+      setErreurPdf("Impossible de générer ou d’ouvrir le PDF. Vérifiez que le serveur fonctionne, puis réessayez.");
+    } finally {
+      setTelechargementPdf(false);
+    }
+  }
+
   if (erreur) return <div className="mx-auto max-w-xl p-6 text-red-600">{erreur}</div>;
   if (!rapport || !previewUrl) return <div className="mx-auto max-w-3xl p-6 text-slate-500">Chargement du rapport...</div>;
 
   return (
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-4 flex justify-end gap-3">
-        <Button onClick={() => rapportApi.telechargerEtVisualiserPdf(Number(contratId))}>
-          Télécharger et visualiser le PDF
+        <Button onClick={() => void telechargerEtVisualiserPdf()} disabled={telechargementPdf}>
+          {telechargementPdf ? "Génération du PDF..." : "Télécharger et visualiser le PDF"}
         </Button>
       </div>
+      {erreurPdf && <p role="alert" className="mb-4 text-sm text-red-600">{erreurPdf}</p>}
 
       <iframe
         ref={iframeRef}

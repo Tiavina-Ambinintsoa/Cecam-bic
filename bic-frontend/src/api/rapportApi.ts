@@ -20,15 +20,20 @@ export const rapportApi = {
   telechargerEtVisualiserPdf: async (contratId: number) => {
     const fenetre = window.open("about:blank", "_blank");
     if (fenetre) fenetre.opener = null;
-    const { data } = await axiosClient.get(`/rapports/contrat/${contratId}/pdf`, { responseType: "blob" });
-    const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
-    if (fenetre) fenetre.location.replace(url);
-    const lien = document.createElement("a");
-    lien.href = url;
-    lien.download = `rapport-solvabilite-${contratId}.pdf`;
-    document.body.appendChild(lien);
-    lien.click();
-    lien.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    try {
+      const { data } = await axiosClient.get(`/rapports/contrat/${contratId}/pdf`, { responseType: "blob" });
+      const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+      if (fenetre) fenetre.location.replace(url);
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = `rapport-solvabilite-${contratId}.pdf`;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      fenetre?.close();
+      throw error;
+    }
   },
 };

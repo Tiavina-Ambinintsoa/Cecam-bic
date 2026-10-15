@@ -432,9 +432,9 @@
   </tr>
 </table>
 
-<div th:if="${!r.encoursParCategorie.isEmpty()}" class="eviter-coupure">
+<div th:if="${!r.encoursParCategorie.isEmpty()}">
   <div class="sous-section">Situation Financière par Catégorie</div>
-  <div th:each="enc, iterStat : ${r.encoursParCategorie}" style="margin-bottom:12px">
+  <div th:each="enc : ${r.encoursParCategorie}" style="margin-bottom:12px">
     <div class="bloc-titre" th:text="${enc.categorie + ' — ' + (enc.devise != null ? enc.devise : 'Devise non renseignée')}">Financements avec échéanciers</div>
     <div class="lib" style="margin-top:4px; font-weight:bold;">Montant Encours</div>
     <table class="calendrier">
@@ -449,13 +449,14 @@
       </tr>
     </table>
 
-    <th:block th:if="${r.impayesParCategorie != null and iterStat.index < r.impayesParCategorie.size() and enc.categorie == r.impayesParCategorie[iterStat.index].categorie and enc.codeEtablissement == r.impayesParCategorie[iterStat.index].codeEtablissement and enc.devise == r.impayesParCategorie[iterStat.index].devise}">
+    <th:block th:each="imp : ${r.impayesParCategorie}"
+              th:if="${enc.categorie == imp.categorie and enc.codeEtablissement == imp.codeEtablissement and enc.devise == imp.devise}">
       <div class="lib" style="margin-top:8px; font-weight:bold;">Montant Impayés</div>
       <table class="calendrier">
-        <tr><th th:text="${r.impayesParCategorie[iterStat.index].codeEtablissement} != null and ${r.impayesParCategorie[iterStat.index].codeEtablissement} != '' ? ${r.impayesParCategorie[iterStat.index].codeEtablissement} : 'Autres Instituts'">Autres Instituts</th>
+        <tr><th th:text="${imp.codeEtablissement} != null and ${imp.codeEtablissement} != '' ? ${imp.codeEtablissement} : 'Autres Instituts'">Autres Instituts</th>
             <th>JAN</th><th>FÉV</th><th>MARS</th><th>AVR</th><th>MAI</th><th>JUIN</th>
             <th>JUILL</th><th>AOÛT</th><th>SEP</th><th>OCT</th><th>NOV</th><th>DÉC</th></tr>
-        <tr th:each="ligne : ${r.impayesParCategorie[iterStat.index].lignes}">
+        <tr th:each="ligne : ${imp.lignes}">
           <td th:text="${ligne.annee}">-</td>
           <td th:each="c : ${ligne.mois}"
               th:style="${c.dansPeriode} ? 'background-color:' + ${c.couleurHex} : ''"
@@ -707,7 +708,6 @@
     </div>
   </div>
 </div>
-</th:block>
 
 <div th:if="${!r.alertes.isEmpty()}" class="eviter-coupure">
   <div class="sous-section">Alertes</div>

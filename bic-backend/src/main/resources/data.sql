@@ -1,3 +1,4 @@
+--data.sql
 -- Séquences pour la génération automatique de codes uniques
 CREATE SEQUENCE IF NOT EXISTS seq_code_contrat_cb START WITH 700000001;
 CREATE SEQUENCE IF NOT EXISTS seq_code_client_cb  START WITH 200001;

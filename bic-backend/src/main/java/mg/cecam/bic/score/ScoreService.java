@@ -21,18 +21,6 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-/**
- * Score BIC CECAM v2.
- *
- * score = base + echelle × (points obtenus / points DISPONIBLES), puis plafonds de décision.
- * Un bloc sans donnée (ex. revenu annuel ou recettes/dépenses absents pour un ancien client) est
- * EXCLU du calcul : il n'est ni pénalisé ni récompensé, les autres blocs sont renormalisés.
- *
- * Blocs : paiement (obligatoire si historique), arriérés en cours, endettement, exposition (revenu),
- * budget et garantie (demande), ancienneté, nouveaux crédits, mixité.
- * Règle « mauvais » : événement négatif formel ou retard en cours >= 180 j => score plafonné à la bande
- * « très élevé » ; le drapeau n'est jamais levé pour un score supérieur à cette bande.
- */
 @Service
 @RequiredArgsConstructor
 public class ScoreService {

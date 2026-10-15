@@ -1,6 +1,7 @@
 package mg.cecam.bic.rapport;
 
 import lombok.RequiredArgsConstructor;
+import mg.cecam.bic.common.enums.BucketRetard;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.common.util.LabelMapper;
 import mg.cecam.bic.common.util.MontantFormatUtil;
@@ -218,6 +219,7 @@ public class CalendrierService {
 
                 boolean declare = false;
                 BigDecimal montantImpayes = BigDecimal.ZERO;
+                int retardMaximum = 0;
 
                 for (Contrat c : contrats) {
                     YearMonth d = moisDebutDeclaration(c);
@@ -237,21 +239,40 @@ public class CalendrierService {
                         }
                         BigDecimal restant = e.getMontantDu().subtract(paye).max(BigDecimal.ZERO);
                         montantImpayes = montantImpayes.add(restant);
+                        if (restant.signum() > 0) {
+                            retardMaximum = Math.max(retardMaximum,
+                                    (int) java.time.temporal.ChronoUnit.DAYS.between(e.getDateEcheance(), finDeMois));
+                        }
                     }
                 }
 
                 if (!declare) {
                     cellules.add(CelluleMoisDTO.vide(MOIS[m - 1]));
-                } else if (montantImpayes.signum() == 0) {
-                    cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, BigDecimal.ZERO, null, "", GRIS));
                 } else {
-                    cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, montantImpayes, null,
-                            MontantFormatUtil.formatMontant(montantImpayes), GRIS));
+                    String code = codeCouleurImpayes(retardMaximum);
+                    cellules.add(new CelluleMoisDTO(MOIS[m - 1], true, montantImpayes, code,
+                            montantImpayes.signum() == 0 ? "" : MontantFormatUtil.formatMontant(montantImpayes),
+                            LabelMapper.couleurCodeCrif(code)));
                 }
             }
             lignes.add(new LigneAnneeDTO(annee, cellules));
         }
         return new EncoursCategorieDTO(categorie, codeEtablissement, devise, lignes);
+    }
+
+    private String codeCouleurImpayes(int joursRetard) {
+        if (joursRetard <= 0) return "OK";
+        BucketRetard bucket = BucketRetard.depuisJours(joursRetard);
+        return switch (bucket) {
+            case JOURS_1_29 -> "1-29";
+            case JOURS_30_59 -> "30+";
+            case JOURS_60_89 -> "60+";
+            case JOURS_90_119 -> "90+";
+            case JOURS_120_149 -> "120+";
+            case JOURS_150_179 -> "150+";
+            case JOURS_180_PLUS -> "180+";
+            case A_JOUR -> "OK";
+        };
     }
 
     public YearMonth moisDebutDeclaration(Contrat c) {
