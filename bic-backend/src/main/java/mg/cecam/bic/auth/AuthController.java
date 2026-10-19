@@ -1,5 +1,6 @@
 package mg.cecam.bic.auth;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.auth.dto.LoginRequest;
 import mg.cecam.bic.auth.dto.LoginResponse;
@@ -23,6 +24,7 @@ public class AuthController {
 
     private static final int TENTATIVES_MAX = 5;
     private static final Duration DUREE_BLOCAGE = Duration.ofMinutes(15);
+    private static final int TAILLE_MAX_MAPS = 10_000;
 
     private final UtilisateurRepository utilisateurRepository;
     private final PasswordEncoder passwordEncoder;
@@ -32,7 +34,14 @@ public class AuthController {
     private final Map<String, Instant> blocages = new ConcurrentHashMap<>();
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        // Nettoyage préventif pour éviter l'accumulation mémoire
+        if (blocages.size() > TAILLE_MAX_MAPS) {
+            Instant maintenant = Instant.now();
+            blocages.entrySet().removeIf(e -> e.getValue().isBefore(maintenant));
+            tentatives.entrySet().removeIf(e -> !blocages.containsKey(e.getKey()));
+        }
+
         String identifiant = request.nomUtilisateur() == null ? "" : request.nomUtilisateur().trim();
 
         Instant blocage = blocages.get(identifiant);

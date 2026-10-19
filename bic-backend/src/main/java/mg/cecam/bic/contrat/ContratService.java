@@ -37,6 +37,7 @@ public class ContratService {
     private final BienLeasingRepository bienLeasingRepository;
     private final ContratLienRepository contratLienRepository;
     private final HistoriquePaiementMensuelRepository historiquePaiementMensuelRepository;
+    private final ModificationContratDemandeRepository modificationContratDemandeRepository;
     private final AuditService auditService;
 
     @Transactional
@@ -388,6 +389,9 @@ public Contrat saisirHistorique(HistoriqueContratRequest req) {
         garantieRepository.deleteAll(garantieRepository.findByContrat_Id(id));
         contratLienRepository.deleteAll(contratLienRepository.findByContrat_IdIn(List.of(id)));
         bienLeasingRepository.findByContrat_IdIn(List.of(id)).forEach(bienLeasingRepository::delete);
+        revenuDemandeRepository.deleteAll(revenuDemandeRepository.findByContrat_Id(id));
+        modificationContratDemandeRepository.deleteAll(modificationContratDemandeRepository.findAllByOrderByDateSoumissionDesc()
+                .stream().filter(m -> m.getContrat().getId().equals(id)).toList());
     }
 
     public List<Contrat> listerParClient(Long clientId) {

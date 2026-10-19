@@ -7,6 +7,7 @@ import mg.cecam.bic.client.dto.ClientRequest;
 import mg.cecam.bic.client.dto.ClientResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -19,12 +20,14 @@ public class ClientController {
     private final ClientRepository clientRepository;
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Client> mettreAJour(@PathVariable Long id, @Valid @RequestBody ClientRequest request) {
         return ResponseEntity.ok(clientService.mettreAJour(id, request));
     }
 
     @PostMapping("/{id}/adresses")
-    public ResponseEntity<Adresse> ajouterAdresse(@PathVariable Long id, @RequestBody ClientRequest.AdresseRequest request) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Adresse> ajouterAdresse(@PathVariable Long id, @Valid @RequestBody ClientRequest.AdresseRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(clientService.ajouterAdresse(id, request));
     }
 

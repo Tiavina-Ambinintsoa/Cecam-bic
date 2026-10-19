@@ -32,6 +32,7 @@ export function ContratForm() {
   const navigate = useNavigate();
   const { setContratId } = useDemandeEnCours();
   const [submitting, setSubmitting] = useState(false);
+  const [erreurSoumission, setErreurSoumission] = useState<string | null>(null);
 
   const form = useForm<ContratFormInput, unknown, ContratFormValues>({
     resolver: zodResolver(contratSchema),
@@ -41,7 +42,7 @@ export function ContratForm() {
       dateDemande: today,
       devise: "Ariary malgache",
       periodiciteBudget: "Mensuelle",
-      typeGarantie: "Hypothèque immobilière",
+      typeGarantie: "Terrain",
       revenusComplementaires: [],
     },
   });
@@ -108,6 +109,7 @@ export function ContratForm() {
   async function onSubmit(values: ContratFormValues) {
     if (!clientId) return;
     setSubmitting(true);
+    setErreurSoumission(null);
     try {
       const revenusComplementaires = values.revenusComplementaires?.flatMap((revenu) => {
         const typeRevenu = revenu.typeRevenu?.trim();
@@ -128,6 +130,8 @@ export function ContratForm() {
       });
       setContratId(contrat.id);
       navigate(`/demande/rapport/${contrat.id}`);
+    } catch {
+      setErreurSoumission("Erreur lors de la création du contrat. Vérifiez les données et réessayez.");
     } finally {
       setSubmitting(false);
     }
@@ -135,6 +139,7 @@ export function ContratForm() {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-5xl space-y-6 p-6">
+      {erreurSoumission && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{erreurSoumission}</div>}
       <ChampsObligatoiresNote />
 
       {/* CARTE 1 : Données sur la demande */}

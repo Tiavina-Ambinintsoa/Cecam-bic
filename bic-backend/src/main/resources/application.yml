@@ -34,43 +34,69 @@ app:
   score:
     score-base: 300
     score-max: 850
+    echelle-points: 550       # score effectif = 300 + 550 = 850 (couvre toute la grille A-E)
 
-    max-paiement: 240
-    max-endettement: 45
-    max-exposition: 25
-    max-anciennete: 35
-    max-nouveaux: 20
-    max-mixite: 15
+    # Poids relatifs des blocs (total par défaut = 550, aligné sur echellePoints)
+    poids-paiement: 290
+    poids-arrieres-en-cours: 60
+    poids-endettement: 35
+    poids-exposition: 25
+    poids-budget: 30
+    poids-garantie: 30
+    poids-patrimoine: 30      # poids séparé de la garantie
+    poids-anciennete: 40
+    poids-nouveaux: 30
+    poids-mixite: 10          # Somme = 580 ; composantes absentes exclues du dénominateur
 
-    maturite-mois: 36       
+    # Comportement de paiement
+    observations-pleine-confiance: 12
+    fenetre-confiance-mois: 36
     plancher-confiance: 0.50
-    poids-recent: 1.00          
-    poids-moyen: 0.60        
-    poids-ancien: 0.30           
+    poids-recent: 1.00
+    poids-moyen: 0.60
+    poids-ancien: 0.30
     qualite-paye-a-temps: 1.00
-    qualite-retard-court: 0.50   
-    qualite-retard-long: 0.15     
-    qualite-impaye: 0.00          
+    qualite-retard-court: 0.55
+    qualite-retard-long: 0.15
+    qualite-impaye: 0.00
 
-    endettement-seuil-vert: 0.33
-    endettement-seuil-rouge: 0.70
-    malus-surendettement-coef: 60
-    malus-surendettement-max: 90
+    # Arriérés en cours
+    ratio-arrieres1a29: 0.25
+    ratio-arrieres30a59: 0.20
 
+    # Capacité de remboursement
+    endettement-seuil-vert: 0.30
+    endettement-seuil-rouge: 0.80
     exposition-seuil-vert: 0.15
     exposition-seuil-rouge: 0.60
+    interet-mensuel-demande: 0.03
 
+    # Ancienneté / nouveaux crédits / mixité
     anciennete-mois-plein: 84
-
-    malus-par-contrat-recent: 8
-    malus-par-demande-en-attente: 12
+    malus-par-contrat-recent: 6
+    malus-contrats-recents-max: 18
+    malus-par-demande-en-attente: 10
     fenetre-contrat-recent-mois: 12
     seuil-demande-en-attente-jours: 60
-
     mixite-ratio-deux-types: 0.60
     mixite-ratio-un-type: 0.20
 
-    plafond-secondaire-base: 0.30
-    plafond-secondaire-part: 0.35
+    # Plafonds de décision
+    plafond-sans-capacite: 529
+    plafond-sans-historique: 499
+    plafond-bande-tres-eleve: 399
+    plafond-charge12-mois-sup100: 459
+    plafond-charge12-mois-sup80: 499
+    exposition-plafond-ratio: 1.50
+    plafond-exposition-excessive: 459
+    plafond-arrieres30: 499
+    plafond-arrieres60: 459
+    plafond-arrieres90: 399
+    plafond-budget-critique: 399
+    plafond-budget-faible: 459
+    plafond-garantie-insuffisante: 459
+    plafond-garantie-juste: 499
 
-    neutre-sans-revenu: 0.0
+    # Risque de groupe
+    malus-par-co-oblige-a-risque: 20
+    malus-co-obliges-max: 60

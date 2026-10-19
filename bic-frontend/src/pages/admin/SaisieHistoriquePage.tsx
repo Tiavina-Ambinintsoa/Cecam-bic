@@ -191,7 +191,7 @@ export function SaisieHistoriquePage() {
       <Card>
         <CardHeader><CardTitle>1. Identifier le client</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
-          <Champ label="CIN du client *"><Input value={cinRecherche} onChange={(e) => setCinRecherche(e.target.value)} /></Champ>
+          <Champ label="CIN du client *"><Input value={cinRecherche} onChange={(e) => setCinRecherche(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); rechercherClient(); }}} /></Champ>
           <Button type="button" onClick={rechercherClient} disabled={recherche}>{recherche ? "Recherche…" : "Rechercher"}</Button>
           {clientId && <span className="pb-2 text-sm text-green-700">{clientLibelle}</span>}
         </CardContent>

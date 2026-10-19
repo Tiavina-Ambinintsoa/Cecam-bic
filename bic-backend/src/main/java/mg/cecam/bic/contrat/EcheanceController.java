@@ -1,11 +1,13 @@
 package mg.cecam.bic.contrat;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.audit.AuditService;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.dto.PaiementRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -25,7 +27,8 @@ public class EcheanceController {
     }
 
     @PatchMapping("/{id}/paiement")
-    public ResponseEntity<Echeance> enregistrerPaiement(@PathVariable Long id, @RequestBody PaiementRequest req) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Echeance> enregistrerPaiement(@PathVariable Long id, @Valid @RequestBody PaiementRequest req) {
         if (req == null || req.montantPaye() == null || req.montantPaye().signum() < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le montant payé doit être un montant positif ou nul.");
         }

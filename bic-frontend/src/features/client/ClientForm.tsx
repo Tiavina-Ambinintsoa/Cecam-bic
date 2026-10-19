@@ -144,8 +144,11 @@ export function ClientForm() {
   const ajouterAffaire = useWatch({ control: form.control, name: "ajouterAffaireIndividuelle" });
   const formValues = useWatch({ control: form.control });
 
+  const [erreurSoumission, setErreurSoumission] = useState<string | null>(null);
+
   async function onSubmit(values: ClientFormValues) {
     setSubmitting(true);
+    setErreurSoumission(null);
     try {
       const { ajouterAffaireIndividuelle, contacts, documentsIdentification, ...restValues } = values;
       const primaryContact = contacts?.find((c) => c.valeurContact?.trim())?.valeurContact;
@@ -190,6 +193,8 @@ export function ClientForm() {
       const { client } = await clientApi.creer(clientPayload);
       setClientId(client.id);
       navigate(`/demande/nouvelle/contrat/${client.id}`);
+    } catch {
+      setErreurSoumission("Erreur lors de l'enregistrement du client. Vérifiez les données et réessayez.");
     } finally {
       setSubmitting(false);
     }
@@ -197,6 +202,7 @@ export function ClientForm() {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-6xl w-full min-w-0 space-y-6 p-4 sm:p-6 overflow-hidden">
+      {erreurSoumission && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{erreurSoumission}</div>}
       <ChampsObligatoiresNote />
 
       {/* 1. DÉTAILS CLIENT */}

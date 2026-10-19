@@ -4,12 +4,12 @@
 - cluster-only mode — file stats not available
 
 ## Summary
-- 1370 nodes · 3087 edges · 131 communities (50 shown, 81 thin omitted)
-- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 131 edges (avg confidence: 0.85)
+- 1373 nodes · 3087 edges · 127 communities (50 shown, 77 thin omitted)
+- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 133 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `9492860f`
+- Built from commit: `d2a39088`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -83,8 +83,8 @@
 - scripts
 - useIdleLogout
 - tsconfig.json
+- vite.config.ts
 - MotifCloture
-- RoleClient
 - apiError.ts
 - DemandesModificationPage
 - PageShell.tsx
@@ -96,9 +96,7 @@
 - RepartitionLigneDTO.java
 - ScoreDTO.java
 - client
-- login
-- enums/CategorieTiers.java
-- mg.cecam:bic-backend
+- 20261009_add_data_provenance.sql
 
 ## God Nodes (most connected - your core abstractions)
 1. `Contrat` - 76 edges
@@ -106,196 +104,196 @@
 3. `ScoreService` - 36 edges
 4. `Echeance` - 34 edges
 5. `Client` - 32 edges
-6. `react` - 32 edges
-7. `ContratService` - 28 edges
+6. `react` - 30 edges
+7. `ContratService` - 29 edges
 8. `Button()` - 26 edges
 9. `Input()` - 23 edges
 10. `GestionUtilisateursPage()` - 23 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `RapportService` --references--> `CalendrierService`  [EXTRACTED]
+  bic-backend/src/main/java/mg/cecam/bic/rapport/RapportService.java → bic-backend/src/main/java/mg/cecam/bic/rapport/CalendrierService.java
+- `LigneAnneeDTO` --references--> `CelluleMoisDTO`  [EXTRACTED]
+  bic-backend/src/main/java/mg/cecam/bic/rapport/dto/LigneAnneeDTO.java → bic-backend/src/main/java/mg/cecam/bic/rapport/dto/CelluleMoisDTO.java
 - `JwtAuthenticationFilter` --references--> `AppUserDetailsService`  [EXTRACTED]
   bic-backend/src/main/java/mg/cecam/bic/auth/JwtAuthenticationFilter.java → bic-backend/src/main/java/mg/cecam/bic/auth/AppUserDetailsService.java
 - `AuthController` --references--> `JwtUtil`  [EXTRACTED]
   bic-backend/src/main/java/mg/cecam/bic/auth/AuthController.java → bic-backend/src/main/java/mg/cecam/bic/auth/JwtUtil.java
 - `ScoreService` --references--> `ScoreProperties`  [EXTRACTED]
   bic-backend/src/main/java/mg/cecam/bic/score/ScoreService.java → bic-backend/src/main/java/mg/cecam/bic/score/ScoreProperties.java
-- `HistoriqueContratRequest` --references--> `OrigineDonnee`  [EXTRACTED]
-  bic-backend/src/main/java/mg/cecam/bic/contrat/dto/HistoriqueContratRequest.java → bic-backend/src/main/java/mg/cecam/bic/common/enums/OrigineDonnee.java
-- `ClientEnregistrementResponse` --references--> `ClientResponse`  [EXTRACTED]
-  bic-frontend/src/api/clientApi.ts → bic-frontend/src/types/client.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (131 total, 81 thin omitted)
+## Communities (127 total, 77 thin omitted)
 
 ### Community 0 - "ScoreService"
+Cohesion: 0.05
+Nodes (20): BucketRetard, A_JOUR, JOURS_120_149, JOURS_150_179, JOURS_180_PLUS, JOURS_1_29, JOURS_30_59, JOURS_60_89 (+12 more)
+
+### Community 1 - "SecurityConfig.java"
 Cohesion: 0.06
 Nodes (4): JwtAuthenticationFilter, JwtUtil, SecurityConfig, ScoreProperties
 
-### Community 1 - "SecurityConfig.java"
-Cohesion: 0.07
-Nodes (38): authApi, App(), AppShell(), pageTransition, RapportPageRoute(), AdminRoute(), ProtectedRoute(), HomeMenu() (+30 more)
-
 ### Community 2 - "App.tsx"
-Cohesion: 0.11
-Nodes (36): ChampsObligatoiresNote(), affichageVersIso(), DateInput, DateInputProps, isoVersAffichage(), Input(), formatAffichage(), MontantInput (+28 more)
+Cohesion: 0.16
+Nodes (25): utilisateurApi, UtilisateurRequest, UtilisateurResponse, Button(), buttonVariants, Card(), CardContent(), CardDescription() (+17 more)
 
 ### Community 3 - "ModificationContratDemande"
-Cohesion: 0.14
-Nodes (28): utilisateurApi, UtilisateurRequest, UtilisateurResponse, Button(), buttonVariants, Card(), CardContent(), CardDescription() (+20 more)
+Cohesion: 0.10
+Nodes (27): App(), AppShell(), pageTransition, RapportPageRoute(), AdminRoute(), ProtectedRoute(), HomeMenu(), Tache (+19 more)
 
 ### Community 4 - "JwtAuthenticationFilter.java"
-Cohesion: 0.05
-Nodes (6): EncoursCategorieDTO, RapportSolvabiliteResponse, SyntheseCategorieDTO, SyntheseDTO, RapportController, RapportPdfService
+Cohesion: 0.06
+Nodes (30): rapportApi, ProblemDetail, RapportPage(), telechargerEtVisualiserPdf(), Adresse, AffaireIndividuelle, Alerte, BienLeasing (+22 more)
 
 ### Community 5 - "ContratForm.tsx"
-Cohesion: 0.06
-Nodes (31): rapportApi, ScoreCardProps, ProblemDetail, RapportPage(), telechargerEtVisualiserPdf(), Adresse, AffaireIndividuelle, Alerte (+23 more)
+Cohesion: 0.14
+Nodes (6): DetailDemandeDTO, GarantieDTO, LienClientDTO, LigneFinancementDTO, RepartitionLigneDTO, RapportService
 
 ### Community 6 - "RapportSolvabiliteResponse"
-Cohesion: 0.09
-Nodes (4): AuthController, LoginRequest, LoginResponse, GlobalExceptionHandler
+Cohesion: 0.16
+Nodes (3): UtilisateurRequest, UtilisateurResponse, UtilisateurController
 
 ### Community 7 - "MiseAJourDemandePage.tsx"
-Cohesion: 0.12
-Nodes (4): ContratLien, ContratLienRepository, LienClientDTO, LigneFinancementDTO
+Cohesion: 0.14
+Nodes (19): authApi, LoginResponse, axiosClient, SelectContent(), SelectItem(), SelectScrollDownButton(), SelectScrollUpButton(), SelectTrigger() (+11 more)
 
 ### Community 8 - "JournalAudit"
-Cohesion: 0.12
-Nodes (3): Contrat, RepartitionLigneDTO, RapportService
-
-### Community 9 - "rapport.ts"
-Cohesion: 0.15
-Nodes (4): ScoreResult, Observation, RevenuEvaluation, ScoreService
+Cohesion: 0.16
+Nodes (19): contratApi, modificationContratApi, RadioGroup(), RadioGroupItem(), today, DEVISES, PHASE_LABELS, PHASES (+11 more)
 
 ### Community 10 - "localdate"
-Cohesion: 0.09
-Nodes (3): ScoreColorMapper, GrilleScoreDTO, ScoreDTO
-
-### Community 11 - "lombok.RequiredArgsConstructor"
-Cohesion: 0.15
-Nodes (8): PhaseRequest, BienLeasingHistoriqueRequest, ClientLieHistoriqueRequest, EcheanceHistoriqueRequest, GarantieHistoriqueRequest, HistoriqueContratRequest, HistoriquePaiementMensuelRequest, ModificationContratRequest
-
-### Community 12 - "GestionUtilisateursPage.tsx"
-Cohesion: 0.12
-Nodes (19): LoginResponse, axiosClient, clientApi, ClientEnregistrementResponse, Champ(), ClientLieLigne, defaults, EcheanceLigne (+11 more)
-
-### Community 13 - "org.springframework.http.ResponseEntity"
 Cohesion: 0.18
 Nodes (4): ModificationContratResponse, ModificationContratController, RefusRequest, ModificationContratService
 
-### Community 15 - "ClientService"
-Cohesion: 0.19
-Nodes (4): UtilisateurController, CodesEtablissementRequest, ContratController, EcheanceMensuelleRequest
+### Community 11 - "lombok.RequiredArgsConstructor"
+Cohesion: 0.16
+Nodes (4): ScoreResult, Observation, RevenuEvaluation, ScoreService
+
+### Community 12 - "GestionUtilisateursPage.tsx"
+Cohesion: 0.17
+Nodes (17): ChampsObligatoiresNote(), affichageVersIso(), DateInput, DateInputProps, isoVersAffichage(), Input(), formatAffichage(), MontantInput (+9 more)
 
 ### Community 17 - "Contrat.java"
 Cohesion: 0.09
 Nodes (21): aliases, components, hooks, lib, ui, utils, iconLibrary, menuAccent (+13 more)
 
 ### Community 18 - "ImportPage.tsx"
-Cohesion: 0.12
-Nodes (19): name, private, type, version, class-variance-authority, eslint, @eslint/js, eslint-plugin-react-hooks (+11 more)
+Cohesion: 0.11
+Nodes (20): name, private, type, version, class-variance-authority, eslint, @eslint/js, eslint-plugin-react-hooks (+12 more)
 
 ### Community 19 - "components.json"
 Cohesion: 0.10
 Nodes (20): compilerOptions, allowArbitraryExtensions, allowImportingTsExtensions, erasableSyntaxOnly, jsx, lib, module, moduleDetection (+12 more)
 
-### Community 22 - "compilerOptions"
+### Community 21 - "package.json"
 Cohesion: 0.11
-Nodes (10): RoleClient, CO_TITULAIRE, GARANT, TITULAIRE, PaiementRequest, BienLeasingDTO, DetailDemandeDTO, EmploiDTO (+2 more)
+Nodes (3): ScoreColorMapper, GrilleScoreDTO, ScoreDTO
 
-### Community 25 - "dropdown-menu.tsx"
+### Community 22 - "compilerOptions"
+Cohesion: 0.15
+Nodes (16): clientApi, ClientEnregistrementResponse, ToastContext, ToastContextValue, ToastItem, analyserCsv(), clientDepuisCsv(), CsvRow (+8 more)
+
+### Community 23 - "RapportService"
 Cohesion: 0.14
 Nodes (6): StatutDemandeModification, APPROUVEE, EN_ATTENTE, REFUSEE, ModificationContratDemande, ModificationContratDemandeRepository
 
-### Community 26 - "Echeance"
+### Community 24 - "Contrat"
 Cohesion: 0.20
 Nodes (9): AppBreadcrumb(), segmentsForPath(), DropdownMenu(), DropdownMenuContent(), DropdownMenuItem(), DropdownMenuSub(), DropdownMenuSubContent(), DropdownMenuSubTrigger() (+1 more)
 
-### Community 27 - "SaisieHistoriquePage.tsx"
+### Community 25 - "dropdown-menu.tsx"
 Cohesion: 0.11
 Nodes (17): adresseSchema, affaireIndividuelleAdresseSchema, affaireIndividuelleContactSchema, affaireIndividuelleIdentifiantSchema, affaireIndividuelleSchema, ClientFormInput, ClientFormValues, clientSchema (+9 more)
 
-### Community 28 - ".construire"
-Cohesion: 0.12
-Nodes (17): dependencies, axios, @base-ui/react, class-variance-authority, cn, @fontsource-variable/geist, @hookform/resolvers, lucide-react (+9 more)
+### Community 27 - "SaisieHistoriquePage.tsx"
+Cohesion: 0.16
+Nodes (3): PaiementRequest, BienLeasingDTO, ConsultationDTO
 
 ### Community 29 - "dependencies"
-Cohesion: 0.27
-Nodes (12): contratApi, modificationContratApi, DEVISES, PHASE_LABELS, PHASES, ContratRequest, ContratResponse, MotifCloture (+4 more)
+Cohesion: 0.11
+Nodes (18): dependencies, axios, @base-ui/react, class-variance-authority, cn, @fontsource-variable/geist, @hookform/resolvers, lucide-react (+10 more)
 
-### Community 30 - "compilerOptions"
+### Community 32 - "EcheanceController.java"
 Cohesion: 0.12
 Nodes (16): compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib, module, moduleDetection, noEmit, noFallthroughCasesInSwitch (+8 more)
 
-### Community 35 - "Garantie"
-Cohesion: 0.18
-Nodes (3): AuditService, JournalAudit, JournalAuditRepository
+### Community 33 - "list"
+Cohesion: 0.16
+Nodes (3): AuthController, LoginRequest, LoginResponse
+
+### Community 34 - ".historiquePaiement"
+Cohesion: 0.20
+Nodes (5): UtilisateurRepository, EmploiRepository, EcheanceRepository, HistoriquePaiementMensuelRepository, GrilleScoreRepository
 
 ### Community 36 - "ContratController"
-Cohesion: 0.21
-Nodes (6): UtilisateurRepository, EvenementNegatifRepository, BienLeasingRepository, GarantieRepository, HistoriquePaiementMensuelRepository, GrilleScoreRepository
+Cohesion: 0.14
+Nodes (5): NatureGarantie, PERSONNELLE, REELLE, Garantie, GarantieRepository
 
 ### Community 38 - "devDependencies"
-Cohesion: 0.14
-Nodes (9): BucketRetard, A_JOUR, JOURS_120_149, JOURS_150_179, JOURS_180_PLUS, JOURS_1_29, JOURS_30_59, JOURS_60_89 (+1 more)
+Cohesion: 0.17
+Nodes (12): ClientLieLigne, defaults, EcheanceLigne, FormValues, GarantieLigne, MoisLigne, optionalDate(), optionalNumber() (+4 more)
 
 ### Community 39 - "AffaireIndividuelle"
-Cohesion: 0.31
+Cohesion: 0.27
 Nodes (3): AuditController, AlerteController, AlerteDTO
 
-### Community 42 - "clientSchema.ts"
+### Community 40 - "Utilisateur"
+Cohesion: 0.14
+Nodes (4): RoleClient, CO_TITULAIRE, GARANT, TITULAIRE
+
+### Community 41 - "ContratLien"
+Cohesion: 0.20
+Nodes (3): CodesEtablissementRequest, ContratController, EcheanceMensuelleRequest
+
+### Community 44 - "AdresseAffaireIndividuelle"
+Cohesion: 0.19
+Nodes (4): ClientInfoDTO, ContactDTO, EmploiDTO, IdentifiantDTO
+
+### Community 45 - "ClientRequest"
 Cohesion: 0.15
 Nodes (13): devDependencies, eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, @types/node, @types/react (+5 more)
 
-### Community 43 - "Adresse"
+### Community 46 - "BienLeasing"
 Cohesion: 0.17
 Nodes (4): Utilisateur, Role, ADMIN, AGENT_CREDIT
 
-### Community 44 - "AdresseAffaireIndividuelle"
-Cohesion: 0.17
-Nodes (4): NatureGarantie, PERSONNELLE, REELLE, Garantie
+### Community 47 - "ContratRepository"
+Cohesion: 0.18
+Nodes (4): ImportResultatDTO, AffaireIndividuelleDTO, CalendrierCreditDTO, LigneAnneeDTO
 
-### Community 48 - "HistoriquePaiementMensuel"
+### Community 49 - "org.springframework.data.jpa.repository.JpaRepository"
+Cohesion: 0.17
+Nodes (10): OrigineDonnee, DONNEE_FICTIVE, NON_RENSEIGNEE, RAPPORT_CRIF, BienLeasingHistoriqueRequest, ClientLieHistoriqueRequest, EcheanceHistoriqueRequest, GarantieHistoriqueRequest (+2 more)
+
+### Community 56 - "GrilleScore"
 Cohesion: 0.18
 Nodes (10): AdresseRequest, AffaireIndividuelleAdresseRequest, AffaireIndividuelleContactRequest, AffaireIndividuelleIdentifiantRequest, AffaireIndividuelleRequest, ContactRequest, DocumentIdentificationRequest, EmploiRequest (+2 more)
 
-### Community 49 - "org.springframework.data.jpa.repository.JpaRepository"
-Cohesion: 0.20
-Nodes (5): StatutEcheance, A_VENIR, EN_RETARD, IMPAYE, PAYE_A_TEMPS
-
-### Community 51 - "axiosClient.ts"
-Cohesion: 0.22
-Nodes (4): ImportResultatDTO, AffaireIndividuelleDTO, CalendrierCreditDTO, LigneAnneeDTO
-
-### Community 52 - ".toScoreDto"
-Cohesion: 0.20
-Nodes (6): PhaseDemande, ABANDONNE, ACTIF, DEMANDE_EN_COURS, FERME, REFUSE
-
-### Community 57 - "GestionUtilisateursPage"
-Cohesion: 0.32
+### Community 59 - "PhaseDemande"
+Cohesion: 0.25
 Nodes (6): AdresseAffaireIndividuelleRequest, AdresseRequest, AffaireIndividuelleRequest, ClientRequest, EmploiRequest, IdentifiantRequest
 
-### Community 65 - "BicBackendApplicationTests.java"
+### Community 62 - "ModeRattachement"
+Cohesion: 0.33
+Nodes (4): SituationFinanciereMensuelleDTO, Cle, SituationFinanciereMensuelleService, Totaux
+
+### Community 66 - "scripts"
 Cohesion: 0.39
 Nodes (6): GestionUtilisateursPage(), chargerUtilisateurs(), fermerFormulaire(), handleSubmit(), handleSupprimer(), handleToggleActif()
 
-### Community 67 - "useIdleLogout"
+### Community 68 - "tsconfig.json"
+Cohesion: 0.29
+Nodes (6): PhaseDemande, ABANDONNE, ACTIF, DEMANDE_EN_COURS, FERME, REFUSE
+
+### Community 69 - "vite.config.ts"
 Cohesion: 0.40
 Nodes (4): ClientResponse, Genre, FEMME, HOMME
 
-### Community 71 - "RoleClient"
+### Community 73 - "DemandesModificationPage"
 Cohesion: 0.40
 Nodes (4): ModeRattachement, DEMANDE_EXISTANTE, ENTREPRISE, NOUVELLE_DEMANDE
-
-### Community 72 - "apiError.ts"
-Cohesion: 0.40
-Nodes (4): OrigineDonnee, DONNEE_FICTIVE, NON_RENSEIGNEE, RAPPORT_CRIF
-
-### Community 73 - "DemandesModificationPage"
-Cohesion: 0.70
-Nodes (3): Cle, SituationFinanciereMensuelleService, Totaux
 
 ### Community 74 - "PageShell.tsx"
 Cohesion: 0.60
@@ -310,44 +308,44 @@ Cohesion: 0.40
 Nodes (5): scripts, build, dev, lint, preview
 
 ### Community 77 - ".enregistrerPaiement"
-Cohesion: 0.40
-Nodes (4): compilerOptions, paths, files, references
+Cohesion: 0.70
+Nodes (5): useIdleLogout(), effacerMinuteur(), enregistrerActivite(), programmerExpiration(), surChangementStockage()
 
 ### Community 78 - "ContactDTO.java"
 Cohesion: 0.40
-Nodes (3): @tailwindcss/vite, vite, @vitejs/plugin-react
+Nodes (4): compilerOptions, paths, files, references
 
 ### Community 79 - "GrilleScoreDTO.java"
+Cohesion: 0.40
+Nodes (3): @tailwindcss/vite, vite, @vitejs/plugin-react
+
+### Community 80 - "RepartitionLigneDTO.java"
 Cohesion: 0.50
 Nodes (3): MotifCloture, FIN_A_TERME, FIN_ANTICIPEE
 
-### Community 80 - "RepartitionLigneDTO.java"
-Cohesion: 0.67
-Nodes (3): MiseAJourDemandePage(), chargerMesDemandes(), soumettre()
-
-### Community 82 - "client"
+### Community 81 - "ScoreDTO.java"
 Cohesion: 0.67
 Nodes (3): approuver(), charger(), refuser()
 
 ## Knowledge Gaps
-- **46 isolated node(s):** `mg.cecam:bic-backend`, `@fontsource-variable/geist`, `shadcn`, `tailwindcss`, `tw-animate-css` (+41 more)
-  These have ≤1 connection - possible missing edges. (Counts symbols only; 561 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **81 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **46 isolated node(s):** `A_JOUR`, `JOURS_120_149`, `JOURS_150_179`, `JOURS_180_PLUS`, `JOURS_1_29` (+41 more)
+  These have ≤1 connection - possible missing edges. (Counts symbols only; 565 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **77 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Contrat` connect `JournalAudit` to `MiseAJourDemandePage.tsx`, `rapport.ts`, `localdate`, `lombok.RequiredArgsConstructor`, `org.springframework.http.ResponseEntity`, `ClientService`, `.toDetailContrat`, `package.json`, `compilerOptions`, `RapportService`, `dropdown-menu.tsx`, `EcheanceController.java`, `.historiquePaiement`, `AdresseAffaireIndividuelle`, `ContratRepository`, `org.springframework.data.jpa.repository.JpaRepository`, `ClientRepository`, `CategorieTiers`, `GrilleScore`, `DetailContratDTO`, `BicBackendApplication.java`, `DemandesModificationPage`?**
-  _High betweenness centrality (0.079) - this node is a cross-community bridge._
-- **What connects `mg.cecam:bic-backend`, `@fontsource-variable/geist`, `shadcn` to the rest of the system?**
+- **Why does `Contrat` connect `ClientService` to `ScoreService`, `ContratForm.tsx`, `localdate`, `lombok.RequiredArgsConstructor`, `bigdecimal`, `.toDetailContrat`, `package.json`, `RapportService`, `Client`, `ContratController`, `Contrat`, `Utilisateur`, `ContratLien`, `AdresseAffaireIndividuelle`, `HistoriquePaiementMensuel`, `Emploi`, `Identifiant`, `CategorieTiers`, `BicBackendApplication.java`, `ModeRattachement`?**
+  _High betweenness centrality (0.055) - this node is a cross-community bridge._
+- **What connects `A_JOUR`, `JOURS_120_149`, `JOURS_150_179` to the rest of the system?**
   _46 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `ScoreService` be split into smaller, more focused modules?**
-  _Cohesion score 0.05844155844155844 - nodes in this community are weakly interconnected._
-- **Why does `RapportService` connect `JournalAudit` to `.historiquePaiement`, `JwtAuthenticationFilter.java`, `Contrat`, `ContratController`, `MiseAJourDemandePage.tsx`, `AffaireIndividuelle`, `DemandesModificationPage`, `localdate`, `rapport.ts`, `lombok.RequiredArgsConstructor`, `.toDetailContrat`, `Emploi`, `ContratService`, `RapportService`, `ModeRattachement`?**
-  _High betweenness centrality (0.044) - this node is a cross-community bridge._
+  _Cohesion score 0.050351721584598295 - nodes in this community are weakly interconnected._
+- **Why does `RapportService` connect `ContratForm.tsx` to `ScoreService`, `lombok.RequiredArgsConstructor`, `ClientService`, `.toDetailContrat`, `package.json`, `.construire`, `compilerOptions`, `.historiquePaiement`, `ContratController`, `Contrat`, `AffaireIndividuelle`, `Utilisateur`, `clientSchema.ts`, `AdresseAffaireIndividuelle`, `Emploi`, `axiosClient.ts`, `Identifiant`, `Genre`, `ModeRattachement`?**
+  _High betweenness centrality (0.035) - this node is a cross-community bridge._
 - **Should `SecurityConfig.java` be split into smaller, more focused modules?**
-  _Cohesion score 0.07467532467532467 - nodes in this community are weakly interconnected._
-- **Why does `Client` connect `list` to `EcheanceController.java`, `vite.config.ts`, `MiseAJourDemandePage.tsx`, `Utilisateur`, `ContratLien`, `lombok.RequiredArgsConstructor`, `ClientRequest`, `bigdecimal`, `Identifiant`, `Contrat`, `GestionUtilisateursPage`, `Genre`, `Client`?**
-  _High betweenness centrality (0.036) - this node is a cross-community bridge._
-- **Should `App.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.10714285714285714 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05925925925925926 - nodes in this community are weakly interconnected._
+- **Why does `Client` connect `Garantie` to `useIdleLogout`, `RoleClient`, `rapport.ts`, `org.springframework.http.ResponseEntity`, `HistoriquePaiementMensuel`, `Emploi`, `.toScoreDto`, `package.json`, `ClientRepository`, `GestionUtilisateursPage`, `DetailContratDTO`, `Client`?**
+  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+- **Should `ModificationContratDemande` be split into smaller, more focused modules?**
+  _Cohesion score 0.10384615384615385 - nodes in this community are weakly interconnected._

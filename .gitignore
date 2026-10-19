@@ -4,6 +4,8 @@ graphify-out/*
 !graphify-out/graph.json
 !graphify-out/graph.html
 !graphify-out/manifest.json
+docs/*
+.kilo/*
 
 # Local secrets and generated app artefacts
 .env
@@ -13,3 +15,4 @@ graphify-out/*
 **/target/
 **/node_modules/
 **/dist/
+repomix-output.txt

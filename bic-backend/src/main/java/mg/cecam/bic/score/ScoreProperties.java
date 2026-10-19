@@ -13,8 +13,8 @@ public class ScoreProperties {
     // Échelle : score = base + echellePoints * (points obtenus / points disponibles)
     private int scoreBase = 300;
     private int scoreMax = 850;
-    /** Points utiles au-dessus de la base : score effectif 300..700 (A >= 530 = 57,5 % de l'échelle). */
-    private double echellePoints = 400;
+    /** Points utiles au-dessus de la base : score effectif 300..850 (couvre toute la grille A–E). */
+    private double echellePoints = 550;
 
     // Poids relatifs des blocs
     private double poidsPaiement = 290;
@@ -23,6 +23,7 @@ public class ScoreProperties {
     private double poidsExposition = 25;
     private double poidsBudget = 30;
     private double poidsGarantie = 30;
+    private double poidsPatrimoine = 30;
     private double poidsAnciennete = 40;
     private double poidsNouveaux = 30;
     private double poidsMixite = 10;

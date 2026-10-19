@@ -76,7 +76,8 @@ Les routes applicatives sont déclarées dans `bic-frontend/src/App.tsx`. `/logi
 | `/admin/demandes-modification` | `DemandesModificationPage`, protégée par `AdminRoute` et API admin |
 | `/admin/utilisateurs` | `GestionUtilisateursPage`, protégée par `AdminRoute` — CRUD comptes agents/admin |
 | `/admin/creer-agent` | `CreerAgentPage`, protégée par `AdminRoute` — formulaire de création d'un agent de crédit |
-| `/admin` et `/admin/saisie-historique` | `SaisieHistoriquePage`, protégée par `AdminRoute` |
+| `/admin/saisie-historique` | `SaisieHistoriquePage`, protégée par `AdminRoute` |
+| `*` | Redirection vers `/` (catch-all 404) |
 
 `axiosClient` prend `VITE_API_BASE_URL` ou utilise `http://localhost:8080/api` par défaut et ajoute le bearer token stocké côté navigateur.
 

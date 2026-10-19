@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useParams, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useParams, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { TopBar } from "@/components/layout/TopBar";
 import { AppBreadcrumb } from "@/components/layout/AppBreadcrumb";
@@ -66,8 +66,8 @@ function AppShell() {
             <Route path="/admin/demandes-modification" element={<AdminRoute><DemandesModificationPage /></AdminRoute>} />
             <Route path="/admin/utilisateurs" element={<AdminRoute><GestionUtilisateursPage /></AdminRoute>} />
             <Route path="/admin/creer-agent" element={<AdminRoute><CreerAgentPage /></AdminRoute>} />
-            <Route path="/admin" element={<AdminRoute><SaisieHistoriquePage /></AdminRoute>} />
             <Route path="/admin/saisie-historique" element={<AdminRoute><SaisieHistoriquePage /></AdminRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </motion.div>
       </AnimatePresence>

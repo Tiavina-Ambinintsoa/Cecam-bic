@@ -1,2 +1,7 @@
 package mg.cecam.bic.auth.dto;
-public record LoginRequest(String nomUtilisateur, String motDePasse) {}
+
+import jakarta.validation.constraints.NotBlank;
+
+public record LoginRequest(
+        @NotBlank String nomUtilisateur,
+        @NotBlank String motDePasse) {}

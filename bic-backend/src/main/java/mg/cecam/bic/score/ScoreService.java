@@ -183,8 +183,8 @@ public class ScoreService {
         if (contratEnCours != null && contratEnCours.getRatioCouverturePatrimoine() != null) {
             double patrimoine = contratEnCours.getRatioCouverturePatrimoine().doubleValue();
             double pts = pointsCouverture(patrimoine);
-            gagne.put("patrimoine", Math.min(1.0, pts / 30.0) * p.getPoidsGarantie());
-            dispo.put("patrimoine", p.getPoidsGarantie());
+            gagne.put("patrimoine", Math.min(1.0, pts / 30.0) * p.getPoidsPatrimoine());
+            dispo.put("patrimoine", p.getPoidsPatrimoine());
             if (patrimoine <= 100) plafonds.add(plafond(p.getPlafondGarantieInsuffisante(),
                     "patrimoine <= 100 % de la demande + intérêts"));
             else if (patrimoine <= 120) plafonds.add(plafond(p.getPlafondGarantieJuste(),
