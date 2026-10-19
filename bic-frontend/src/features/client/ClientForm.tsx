@@ -602,23 +602,6 @@ export function ClientForm() {
             );
           })}
 
-          {/* Bouton d'ajout supplémentaire au bas de la liste pour accessibilité immédiate */}
-          <div className="pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-slate-300 text-slate-700 hover:bg-slate-100 font-medium"
-              onClick={() =>
-                identifiantsArray.append({
-                  typeIdentifiant: "CIN",
-                  numero: "",
-                })
-              }
-            >
-              <Plus className="mr-1.5 h-4 w-4" /> Ajouter un autre identifiant
-            </Button>
-          </div>
         </CardContent>
       </Card>
 

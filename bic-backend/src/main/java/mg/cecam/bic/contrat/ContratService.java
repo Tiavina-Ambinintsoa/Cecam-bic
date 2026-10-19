@@ -33,6 +33,7 @@ public class ContratService {
     private final ClientRepository clientRepository;
     private final EcheanceRepository echeanceRepository;
     private final GarantieRepository garantieRepository;
+    private final RevenuDemandeRepository revenuDemandeRepository;
     private final BienLeasingRepository bienLeasingRepository;
     private final ContratLienRepository contratLienRepository;
     private final HistoriquePaiementMensuelRepository historiquePaiementMensuelRepository;
@@ -133,6 +134,13 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                     .divide(totalDemandeInteret, 2, java.math.RoundingMode.HALF_UP);
         }
 
+        BigDecimal margePatrimoine = request.valeurPatrimoine() == null
+                ? null : request.valeurPatrimoine().subtract(totalDemandeInteret);
+        BigDecimal ratioPatrimoine = request.valeurPatrimoine() == null
+                || request.valeurPatrimoine().signum() <= 0
+                ? null
+                : request.valeurPatrimoine().multiply(BigDecimal.valueOf(100))
+                        .divide(totalDemandeInteret, 2, RoundingMode.HALF_UP);
         Contrat contrat = Contrat.builder()
                 .codeContratCb(genererCodeContratCb())
                 .codeContratEtablissement(request.codeContratEtablissement())
@@ -157,11 +165,18 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                 .valeurGarantie(request.valeurGarantie())
                 .montantTotalDemandeInteret(totalDemandeInteret)
                 .ratioCouvertureGarantie(ratioGarantie)
+                .valeurPatrimoine(request.valeurPatrimoine())
+                .margePatrimoine(margePatrimoine)
+                .ratioCouverturePatrimoine(ratioPatrimoine)
+                .totalDepot(request.totalDepot())
+                .totalCreditActif(request.totalCreditActif())
                 .phaseDemande(PhaseDemande.DEMANDE_EN_COURS)
                 .utilisateurDeclarant(utilisateurConnecte())
                 .build();
 
         contrat = contratRepository.save(contrat);
+
+        enregistrerRevenusComplementaires(contrat, request);
 
         if (request.valeurGarantie() != null && request.valeurGarantie().compareTo(BigDecimal.ZERO) > 0) {
             Garantie garantie = Garantie.builder()
@@ -176,6 +191,28 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
 
         auditService.enregistrer("CONTRAT", contrat.getId(), "CREATION", "Nouvelle demande créée");
         return contrat;
+    }
+
+    private void enregistrerRevenusComplementaires(Contrat contrat, ContratRequest request) {
+        if (request.revenusComplementaires() == null) return;
+        List<RevenuDemande> revenus = new ArrayList<>();
+        for (ContratRequest.RevenuDemandeRequest revenu : request.revenusComplementaires()) {
+            if (revenu == null || revenu.typeRevenu() == null || revenu.typeRevenu().isBlank()
+                    || revenu.description() == null || revenu.description().isBlank()
+                    || revenu.montantAnnuel() == null || revenu.montantAnnuel().signum() <= 0
+                    || revenu.devise() == null || revenu.devise().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Chaque revenu complémentaire doit avoir un type, une description, un montant annuel positif et une devise.");
+            }
+            revenus.add(RevenuDemande.builder()
+                    .contrat(contrat)
+                    .typeRevenu(revenu.typeRevenu().trim())
+                    .description(revenu.description().trim())
+                    .montantAnnuel(revenu.montantAnnuel())
+                    .devise(revenu.devise().trim())
+                    .build());
+        }
+        revenuDemandeRepository.saveAll(revenus);
     }
 
     @Transactional

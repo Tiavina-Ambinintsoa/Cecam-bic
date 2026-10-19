@@ -26,12 +26,15 @@ flowchart LR
     Entities[Entités JPA]
     ClientData[Client / Emploi / Affaire individuelle / adresses]
     Monthly[HistoriquePaiementMensuel]
+    Finance[Contrat / RevenuDemande / clients liés]
     Security[CorsFilter avant Spring Security + filtre JWT]
     Controllers --> Services
     Services --> Repositories
     Repositories --> Entities
     Entities --> Monthly
     Entities --> ClientData
+    Entities --> Finance
+    Finance --> ClientData
     Security -. protège les routes .-> Controllers
   end
 
@@ -47,7 +50,7 @@ flowchart LR
 |---|---|
 | Connexion et session | `src/pages/LoginPage.tsx` → `src/api/authApi.ts` → `auth/AuthController` → `JwtUtil`, `JwtAuthenticationFilter`, `config/SecurityConfig` → `src/context/AuthContext.tsx` → `components/auth/ProtectedRoute.tsx` |
 | Créer un client | Route `/demande/nouvelle/individu` dans `src/App.tsx` → `features/client/ClientForm.tsx` + `clientSchema.ts` → `api/clientApi.ts` → `client/ClientController` → `ClientService` → `ClientRepository` et entités client. Le formulaire enregistre les documents d'identification, adresses simplifiées, contacts, l'emploi et une affaire individuelle facultative avec ses adresses/identifiants/contacts. |
-| Créer une demande | Route `/demande/nouvelle/contrat/:clientId` → `features/contrat/ContratForm.tsx` + `contratSchema.ts` → `api/contratApi.ts` → `contrat/ContratController` → `ContratService` → repositories et entités contrat/échéance. Comprend la capacité budgétaire (recettes, dépenses, ratio dynamique) et impacte l'évaluation de solvabilité de `ScoreService`. |
+| Créer une demande | Route `/demande/nouvelle/contrat/:clientId` → `features/contrat/ContratForm.tsx` + `contratSchema.ts` → `api/contratApi.ts` → `contrat/ContratController` → `ContratService` → repositories et entités contrat/échéance. Comprend le budget, les revenus complémentaires annuels, une section patrimoine indépendante (couverture et marge) et les totaux déclarés des dépôts et crédits actifs. Le formulaire ne recherche pas de contrats pour préremplir les crédits actifs ; le total saisi contribue à l'exposition de `ScoreService`. |
 | Consulter un rapport | Route `/demande/rapport/:contratId` → `pages/RapportPage.tsx` → `api/rapportApi.ts` → `rapport/RapportController` → `RapportService`, `ScoreService`, `CalendrierService` (matrices mensuelles CRIF encours/impayés et codes de statut NOUV, 1-29, 30+... OK) → `resources/templates/rapport-solvabilite.html` |
 | Fonctions transverses | Pages de recherche, rapports, alertes et audit → API frontend → contrôleurs `client`, `rapport` et `audit`; les alertes sont calculées depuis les contrats actifs et leurs échéances |
 | Soumettre une mise à jour | `pages/MiseAJourDemandePage.tsx` → `api/modificationContratApi.ts` → `ModificationContratController` → `ModificationContratService` → `ModificationContratDemandeRepository`; seuls les administrateurs peuvent approuver ou refuser |
@@ -84,7 +87,7 @@ Les routes applicatives sont déclarées dans `bic-frontend/src/App.tsx`. `/logi
 | `AuthController` | `/api/auth` | Connexion |
 | `UtilisateurController` | `/api/utilisateurs` | CRUD complet des comptes (lister, créer, modifier, bascule actif, supprimer) — admin uniquement |
 | `ClientController` | `/api/clients` | Création, mise à jour, adresses et recherche client |
-| `ContratController` | `/api/contrats` | Demandes, liste/recherche, historique admin et modifications directes réservées à l'admin |
+| `ContratController` | `/api/contrats` | Demandes, évaluation des crédits actifs liés, liste/recherche, historique admin et modifications directes réservées à l'admin |
 | `ModificationContratController` | `/api/demandes-modification` | Soumission agent, demandes personnelles, liste admin, approbation et refus |
 | `EcheanceController` | `/api/echeances` | Échéances et paiements |
 | `RapportController` | `/api/rapports/contrat/{contratId}` | Rapport JSON, HTML et PDF |
@@ -101,13 +104,13 @@ Le démarrage local charge les données de base de `bic-backend/src/main/resourc
 
 Quand le rapport reconstruit une grille depuis des échéances exactes, il évalue chaque mois à sa date d'observation : un paiement postérieur ne réécrit pas les mois précédents. Si une échéance est marquée payée sans date de paiement, le rapport indique une observation indisponible au lieu de la présenter comme payée à temps.
 
-Sur une base existante, appliquer une fois les migrations manuelles dans `bic-backend/src/main/resources/db/manual/` : `20261008_allow_partial_historical_contracts.sql`, `20261008_link_contract_clients.sql`, `20261008_add_contract_declaring_user.sql`, `20261009_add_data_provenance.sql`, `20261009_create_modification_requests.sql`, `20261012_add_affaire_individuelle.sql`, `20261012_repair_affaire_individuelle_nom.sql` et `20261012_adjust_score_bands_from_reference_reports.sql`. La migration de réparation ajoute sans toucher aux données la colonne `nom` aux bases où la table `affaire_individuelle` existait déjà sans cette colonne ; elle doit être appliquée après la création de la table. La première migration 20261012 crée les tables facultatives de l'affaire individuelle sans importer de données personnelles ; la migration suivante ajuste les bandes de score internes. Certains rapports ne donnent ni date de demande, ni montant financé, ni nombre d'échéances pour chaque contrat ancien. Les demandes actuelles gardent ces champs obligatoires dans leur DTO.
+Sur une base existante, appliquer une fois les migrations manuelles dans `bic-backend/src/main/resources/db/manual/` : `20261008_allow_partial_historical_contracts.sql`, `20261008_link_contract_clients.sql`, `20261008_add_contract_declaring_user.sql`, `20261009_add_data_provenance.sql`, `20261009_create_modification_requests.sql`, `20261012_add_affaire_individuelle.sql`, `20261012_repair_affaire_individuelle_nom.sql`, `20261012_adjust_score_bands_from_reference_reports.sql` et `20261015_add_application_financial_profile.sql`. La migration de réparation ajoute sans toucher aux données la colonne `nom` aux bases où la table `affaire_individuelle` existait déjà sans cette colonne ; elle doit être appliquée après la création de la table. La première migration 20261012 crée les tables facultatives de l'affaire individuelle sans importer de données personnelles ; la migration suivante ajuste les bandes de score internes. La migration 20261015 ajoute les données facultatives de revenus complémentaires, patrimoine, dépôts et liens financiers de la demande. Certains rapports ne donnent ni date de demande, ni montant financé, ni nombre d'échéances pour chaque contrat ancien. Les demandes actuelles gardent ces champs obligatoires dans leur DTO.
 
 `OrigineDonnee` reste disponible pour la provenance des contrats saisis et historiques, affichée dans le détail de la demande et les contrats historiques du rapport. Le formulaire de nouvelle demande n'expose plus l'origine contrat ; les historiques conservent leur provenance. Le formulaire client fixe la catégorie à `0004` pour le périmètre individuel et demande un code client CECAM facultatif. Aucun code déclarant d'établissement arbitraire n'est prérempli ; la saisie historique conserve les identifiants d'établissement présents dans ses sources. Le formulaire client, l'import CSV et le rapport ne demandent ni n'affichent plus une origine client. La colonne héritée `client.origine_donnee` est conservée pour compatibilité avec la base existante ; elle n'est plus alimentée par le DTO de création/modification client. La migration `20261009_add_data_provenance.sql` conserve les lignes existantes en `NON_RENSEIGNEE` au lieu de déduire leur source.
 
 Les demandes de mise à jour mémorisent les valeurs initiales, les nouvelles valeurs proposées, l'auteur et la justification. Une demande en attente à la fois est autorisée par contrat. L'approbation vérifie que les valeurs courantes n'ont pas changé, puis applique les codes CECAM, l'échéance/devise et la phase dans la transaction ; chaque décision est auditée. Le nouveau schéma et l'index d'unicité sont décrits dans `db/manual/20261009_create_modification_requests.sql`. Les anciennes routes de modification directe sont réservées aux administrateurs.
 
-`RapportService.construire` enregistre aussi la consultation dans le journal d'audit : sa transaction doit donc rester inscriptible même si la lecture des données du rapport est majoritaire. La page de rapport distingue maintenant un contrat absent d'une erreur serveur au lieu d'afficher le même message pour toute erreur.
+`RapportService.construire` enregistre aussi la consultation dans le journal d'audit : sa transaction doit donc rester inscriptible même si la lecture des données du rapport est majoritaire. La page de rapport distingue maintenant un contrat absent d'une erreur serveur au lieu d'afficher le même message pour toute erreur. `SecurityConfig` applique désormais les en-têtes de sécurité HTTP (`X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`) et `JwtAuthenticationFilter` valide `userDetails.isEnabled()` pour bloquer immédiatement les comptes désactivés. `GlobalExceptionHandler` traduit `AccessDeniedException` en 403 Forbidden au lieu d'une 500 interne. `data-crif.sql` intègre les clients de référence CRIF additionnels (Perpétue B00060035, Clotilde K00054802, Léon Marcel R00073573, Marie Florence 400030668) avec la détection formelle des événements négatifs (faillite/contentieux).
 
 ## Repères pour une question ciblée
 
@@ -121,6 +124,6 @@ La migration `bic-backend/src/main/resources/db/manual/20261012_create_contract_
 
 ## Graphe Graphify et mise à jour
 
-`../graphify-out/` contient le rapport lisible (`GRAPH_REPORT.md`), le graphe interrogeable (`graph.json`), le manifeste portable (`manifest.json`) et sa visualisation (`graph.html`). Le 12 octobre 2026, le graphe a été régénéré en mode code uniquement : 188 fichiers de code dans l'index, 1 351 nœuds et 2 911 liens répartis en 141 communautés. Les scripts SQL manuels ne sont pas représentés dans le graphe. Les documents et images ne sont pas inclus, car leur extraction demanderait un backend de modèle ; le cahier des charges reste donc à consulter séparément. Le CLI Graphify est installé sous `C:\Users\ambin\.local\bin\graphify.exe`.
+`../graphify-out/` contient le rapport lisible (`GRAPH_REPORT.md`), le graphe interrogeable (`graph.json`), le manifeste portable (`manifest.json`) et sa visualisation (`graph.html`). Le 15 octobre 2026, le graphe a été régénéré en mode code uniquement : 1 381 nœuds, 3 132 liens et 128 communautés. Les scripts SQL manuels ne sont pas représentés dans le graphe. Les documents et images ne sont pas inclus, car leur extraction demanderait un backend de modèle ; le cahier des charges reste donc à consulter séparément. Le CLI Graphify est installé sous `C:\Users\ambin\.local\bin\graphify.exe`.
 
 Après avoir installé le CLI Graphify (`uv tool install graphifyy`), depuis la racine du dépôt, actualiser avec `graphify . --code-only`, puis `graphify cluster-only .`. Les caches et métadonnées locales sont ignorés par `.gitignore`; les fichiers `graph.json`, `GRAPH_REPORT.md`, `graph.html` et `manifest.json` restent partageables. Si l'architecture ou les routes ont changé, actualiser aussi cette carte Mermaid et vérifier les liens dans le code.

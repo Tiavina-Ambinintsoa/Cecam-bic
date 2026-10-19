@@ -51,6 +51,7 @@ public class ClientController {
         return client == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(client);
     }
 
+    @GetMapping("/{id}")
     public ResponseEntity<ClientResponse> obtenir(@PathVariable Long id) {
         Client client = clientRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));

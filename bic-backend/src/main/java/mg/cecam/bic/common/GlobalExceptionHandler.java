@@ -44,6 +44,15 @@ public class GlobalExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ProblemDetail accesRefuse(org.springframework.security.access.AccessDeniedException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+        pd.setTitle("Accès refusé");
+        pd.setDetail("Vous ne disposez pas des privilèges nécessaires pour effectuer cette action.");
+        pd.setProperty("code", "ACCES_REFUSE");
+        return pd;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail interne(Exception ex) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);

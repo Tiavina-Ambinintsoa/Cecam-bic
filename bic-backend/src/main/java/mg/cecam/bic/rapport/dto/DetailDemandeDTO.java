@@ -11,5 +11,8 @@ public record DetailDemandeDTO(
         String periodiciteBudget, BigDecimal montantRecette, BigDecimal montantDepense,
         BigDecimal ratioRestePourcentage,
         String typeGarantie, BigDecimal valeurGarantie,
-        BigDecimal montantTotalDemandeInteret, BigDecimal ratioCouvertureGarantie
+        BigDecimal montantTotalDemandeInteret, BigDecimal ratioCouvertureGarantie,
+        BigDecimal valeurPatrimoine, BigDecimal margePatrimoine,
+        BigDecimal ratioCouverturePatrimoine, BigDecimal totalDepot,
+        BigDecimal totalCreditActif
 ) {}

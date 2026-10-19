@@ -19,6 +19,15 @@ export interface ContratRequest {
   montantDepense?: number;
   typeGarantie?: string;
   valeurGarantie?: number;
+  valeurPatrimoine?: number;
+  totalDepot?: number;
+  totalCreditActif?: number;
+  revenusComplementaires?: {
+    typeRevenu?: string;
+    description?: string;
+    montantAnnuel?: number;
+    devise?: string;
+  }[];
 }
 
 export type ContratResponse = Omit<ContratRequest, "montantEcheanceMensuelle" | "devise"> & {

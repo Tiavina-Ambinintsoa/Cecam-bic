@@ -777,7 +777,10 @@ public class RapportService {
                 tiret(c.getPeriodiciteBudget()), c.getMontantRecette(), c.getMontantDepense(),
                 c.getRatioRestePourcentage(),
                 tiret(c.getTypeGarantie()), c.getValeurGarantie(),
-                c.getMontantTotalDemandeInteret(), c.getRatioCouvertureGarantie());
+                c.getMontantTotalDemandeInteret(), c.getRatioCouvertureGarantie(),
+                c.getValeurPatrimoine(), c.getMargePatrimoine(),
+                c.getRatioCouverturePatrimoine(), c.getTotalDepot(),
+                c.getTotalCreditActif());
     }
 
     private ScoreDTO toScoreDto(ScoreResult r) {

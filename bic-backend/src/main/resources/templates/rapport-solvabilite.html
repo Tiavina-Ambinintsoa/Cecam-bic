@@ -293,6 +293,38 @@
   </table>
 </th:block>
 
+<th:block th:if="${r.detailDemande.valeurPatrimoine != null}">
+  <div class="sous-section">Patrimoine total du client</div>
+  <table class="grille">
+    <tr>
+      <td><div class="lib">Patrimoine déclaré</div>
+          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.valeurPatrimoine)}">-</div></td>
+      <td><div class="lib">Demande + intérêts</div>
+          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantTotalDemandeInteret)}">-</div></td>
+      <td><div class="lib">Marge patrimoine</div>
+          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.margePatrimoine)}">-</div></td>
+      <td><div class="lib">Couverture patrimoine</div>
+          <div class="val" th:text="${r.detailDemande.ratioCouverturePatrimoine != null ? r.detailDemande.ratioCouverturePatrimoine + ' %' : '-'}">-</div></td>
+    </tr>
+    <tr>
+      <td colspan="4"><div class="lib">Comparaison</div>
+          <div class="val" th:text="${r.detailDemande.margePatrimoine != null ? (r.detailDemande.margePatrimoine.signum() >= 0 ? 'Le patrimoine couvre la demande et les intérêts.' : 'Le patrimoine ne couvre pas la demande et les intérêts.') : '-'}">-</div></td>
+    </tr>
+  </table>
+</th:block>
+
+<th:block th:if="${r.detailDemande.totalDepot != null or r.detailDemande.totalCreditActif != null}">
+  <div class="sous-section">Dépôts et crédits actifs déclarés</div>
+  <table class="grille">
+    <tr>
+      <td th:if="${r.detailDemande.totalDepot != null}"><div class="lib">Total des dépôts</div>
+          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.totalDepot)}">-</div></td>
+      <td th:if="${r.detailDemande.totalCreditActif != null}"><div class="lib">Total des crédits actifs</div>
+          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.totalCreditActif)}">-</div></td>
+    </tr>
+  </table>
+</th:block>
+
 <div class="section">SCORE CB</div>
 <div class="score-note" th:text="${r.score.avertissement}">Score expérimental réservé à l'analyse interne.</div>
 <div th:unless="${r.score.calculable}" class="encadre">

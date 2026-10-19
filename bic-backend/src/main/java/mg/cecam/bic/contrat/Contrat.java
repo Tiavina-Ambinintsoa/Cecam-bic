@@ -133,6 +133,45 @@ private String codeDemandeEtablissement;
     @Column(name = "ratio_couverture_garantie", precision = 10, scale = 2)
     private BigDecimal ratioCouvertureGarantie;
 
+    @Column(name = "valeur_patrimoine", precision = 19, scale = 2)
+    private BigDecimal valeurPatrimoine;
+
+    @Column(name = "marge_patrimoine", precision = 19, scale = 2)
+    private BigDecimal margePatrimoine;
+
+    @Column(name = "ratio_couverture_patrimoine", precision = 10, scale = 2)
+    private BigDecimal ratioCouverturePatrimoine;
+
+    @Column(name = "client_garant_id")
+    private Long clientGarantId;
+
+    @Column(name = "client_fiance_id")
+    private Long clientFianceId;
+
+    @Column(name = "depot_demandeur", precision = 19, scale = 2)
+    private BigDecimal depotDemandeur;
+
+    @Column(name = "depot_garant", precision = 19, scale = 2)
+    private BigDecimal depotGarant;
+
+    @Column(name = "depot_fiance", precision = 19, scale = 2)
+    private BigDecimal depotFiance;
+
+    @Column(name = "total_depot", precision = 19, scale = 2)
+    private BigDecimal totalDepot;
+
+    @Column(name = "credit_actif_demandeur", precision = 19, scale = 2)
+    private BigDecimal creditActifDemandeur;
+
+    @Column(name = "credit_actif_garant", precision = 19, scale = 2)
+    private BigDecimal creditActifGarant;
+
+    @Column(name = "credit_actif_fiance", precision = 19, scale = 2)
+    private BigDecimal creditActifFiance;
+
+    @Column(name = "total_credit_actif", precision = 19, scale = 2)
+    private BigDecimal totalCreditActif;
+
     @Column(name = "mode_reglement")
     private String modeReglement;
 

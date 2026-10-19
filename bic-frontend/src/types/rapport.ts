@@ -66,6 +66,11 @@ export interface DetailDemande {
   montantEcheanceMensuelle?: number;
   nombreTotalEcheances: number | null;
   dateDemande?: string | null;
+  valeurPatrimoine?: number | null;
+  margePatrimoine?: number | null;
+  ratioCouverturePatrimoine?: number | null;
+  totalDepot?: number | null;
+  totalCreditActif?: number | null;
 }
 
 export interface Score {

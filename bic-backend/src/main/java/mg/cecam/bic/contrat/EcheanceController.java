@@ -26,6 +26,12 @@ public class EcheanceController {
 
     @PatchMapping("/{id}/paiement")
     public ResponseEntity<Echeance> enregistrerPaiement(@PathVariable Long id, @RequestBody PaiementRequest req) {
+        if (req == null || req.montantPaye() == null || req.montantPaye().signum() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le montant payé doit être un montant positif ou nul.");
+        }
+        if (req.datePaiement() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La date de paiement est obligatoire.");
+        }
         Echeance e = echeanceRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Échéance introuvable"));
         e.setMontantPaye(req.montantPaye());

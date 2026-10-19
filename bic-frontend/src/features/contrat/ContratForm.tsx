@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useForm, useWatch, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { useDemandeEnCours } from "@/context/DemandeEnCoursContext";
 import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note";
 import { MontantInput } from "@/components/ui/montant-input";
 import { DateInput } from "@/components/ui/date-input";
+import { Plus, Trash2 } from "lucide-react";
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -41,9 +42,11 @@ export function ContratForm() {
       devise: "Ariary malgache",
       periodiciteBudget: "Mensuelle",
       typeGarantie: "Hypothèque immobilière",
+      revenusComplementaires: [],
     },
   });
 
+  const revenusArray = useFieldArray({ control: form.control, name: "revenusComplementaires" });
   const modeRattachement = useWatch({ control: form.control, name: "modeRattachement" });
   const formValues = useWatch({ control: form.control });
 
@@ -86,11 +89,43 @@ export function ContratForm() {
   };
   const evaluationGarantie = getEvaluationGarantie();
 
+  const valeurPatrimoine = Number(formValues.valeurPatrimoine) || 0;
+  const aPatrimoine = formValues.valeurPatrimoine !== undefined && formValues.valeurPatrimoine !== null;
+  const margePatrimoine = aPatrimoine ? valeurPatrimoine - totalDemandeInteret : null;
+  const ratioPatrimoine = totalDemandeInteret > 0 && valeurPatrimoine > 0
+    ? valeurPatrimoine / totalDemandeInteret * 100
+    : null;
+  const getEvaluationPatrimoine = () => {
+    if (ratioPatrimoine === null) return null;
+    if (ratioPatrimoine <= 100) return { label: "Insuffisant — inférieur au montant dû", color: "text-red-700 bg-red-50 border-red-300" };
+    if (ratioPatrimoine <= 120) return { label: "Marge faible (100 % à 120 %)", color: "text-orange-700 bg-orange-50 border-orange-300" };
+    if (ratioPatrimoine <= 150) return { label: "Marge moyenne (120 % à 150 %)", color: "text-yellow-800 bg-yellow-50 border-yellow-300" };
+    if (ratioPatrimoine <= 200) return { label: "Marge satisfaisante (150 % à 200 %)", color: "text-lime-800 bg-lime-50 border-lime-300" };
+    return { label: "Marge très satisfaisante (> 200 %)", color: "text-emerald-800 bg-emerald-50 border-emerald-300" };
+  };
+  const evaluationPatrimoine = getEvaluationPatrimoine();
+
   async function onSubmit(values: ContratFormValues) {
     if (!clientId) return;
     setSubmitting(true);
     try {
-      const contrat = await contratApi.creer({ ...values, clientId: Number(clientId) });
+      const revenusComplementaires = values.revenusComplementaires?.flatMap((revenu) => {
+        const typeRevenu = revenu.typeRevenu?.trim();
+        const description = revenu.description?.trim();
+        const montantAnnuel = revenu.montantAnnuel;
+        if (!typeRevenu || !description || montantAnnuel === undefined || montantAnnuel <= 0) return [];
+        return [{
+          typeRevenu,
+          description,
+          montantAnnuel,
+          devise: revenu.devise?.trim() || values.devise,
+        }];
+      });
+      const contrat = await contratApi.creer({
+        ...values,
+        revenusComplementaires,
+        clientId: Number(clientId),
+      });
       setContratId(contrat.id);
       navigate(`/demande/rapport/${contrat.id}`);
     } finally {
@@ -366,6 +401,78 @@ export function ContratForm() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Professions et autres revenus</CardTitle>
+              <p className="mt-1 text-sm text-slate-500">
+                Facultatif — les revenus annuels renseignés complètent le revenu pris en compte pour le score.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => revenusArray.append({ typeRevenu: "PROFESSION", devise: form.getValues("devise") })}
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Ajouter un autre moyen de revenus
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {revenusArray.fields.map((field, index) => (
+            <div key={field.id} className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-700">Revenu complémentaire #{index + 1}</span>
+                <Button type="button" variant="ghost" size="sm" onClick={() => revenusArray.remove(index)}>
+                  <Trash2 className="mr-1 h-4 w-4 text-red-500" /> Supprimer
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label>Type de revenu</Label>
+                  <Select
+                    defaultValue={field.typeRevenu || "PROFESSION"}
+                    onValueChange={(value) => {
+                      if (value) form.setValue(`revenusComplementaires.${index}.typeRevenu`, value);
+                    }}
+                  >
+                    <SelectTrigger className={FIELD_H}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PROFESSION">Profession / activité</SelectItem>
+                      <SelectItem value="AUTRES_REVENUS">Autres revenus</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Description</Label>
+                  <Input
+                    {...form.register(`revenusComplementaires.${index}.description`)}
+                    placeholder="Ex. élevage, plantation, commerce"
+                    className={FIELD_H}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Revenu annuel (Ar)</Label>
+                  <Controller
+                    control={form.control}
+                    name={`revenusComplementaires.${index}.montantAnnuel`}
+                    render={({ field: amountField }) => (
+                      <MontantInput
+                        className={FIELD_H}
+                        value={String(amountField.value ?? "")}
+                        onValueChange={(value) => amountField.onChange(value ? Number(value) : undefined)}
+                        placeholder="Ex. 600 000"
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
       {/* CARTE 3 : Garantie - Optionnel mais valorisant */}
       <Card>
         <CardHeader>
@@ -460,6 +567,109 @@ export function ContratForm() {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Patrimoine total du client</CardTitle>
+              <p className="mt-1 text-sm text-slate-500">
+                Facultatif — comparez le patrimoine à la demande et à ses intérêts, comme pour la garantie.
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-1.5">
+            <Label>Patrimoine total du client (Ar)</Label>
+            <Controller
+              control={form.control}
+              name="valeurPatrimoine"
+              render={({ field }) => (
+                <MontantInput
+                  className={FIELD_H}
+                  value={String(field.value ?? "")}
+                  onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
+                  placeholder="Ex. 5 000 000"
+                />
+              )}
+            />
+          </div>
+
+          {aPatrimoine && (
+            <div className="rounded-lg border bg-slate-50 p-4">
+              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
+                <div>
+                  <span className="block text-slate-500">Demande + intérêts</span>
+                  <span className="font-semibold text-slate-900">
+                    {Math.round(totalDemandeInteret).toLocaleString("fr-FR")} Ar
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-slate-500">Marge patrimoine</span>
+                  <span className={`font-semibold ${margePatrimoine !== null && margePatrimoine < 0 ? "text-red-600" : "text-slate-900"}`}>
+                    {margePatrimoine?.toLocaleString("fr-FR")} Ar
+                  </span>
+                  <span className="block text-xs text-slate-400">Patrimoine − demande et intérêts</span>
+                </div>
+                <div>
+                  <span className="block text-slate-500">Couverture / évaluation</span>
+                  <span className="font-semibold text-slate-900">
+                    {ratioPatrimoine !== null ? `${ratioPatrimoine.toFixed(2)} %` : "—"}
+                  </span>
+                  {evaluationPatrimoine && (
+                    <span className={`mt-1 inline-block rounded-md border px-2 py-1 text-xs font-semibold ${evaluationPatrimoine.color}`}>
+                      {evaluationPatrimoine.label}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Dépôts et crédits actifs</CardTitle>
+          <p className="text-sm text-slate-500">
+            Montants totaux déclarés pour le demandeur, le garant et les autres membres concernés.
+          </p>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Total des dépôts (Ar)</Label>
+            <Controller
+              control={form.control}
+              name="totalDepot"
+              render={({ field }) => (
+                <MontantInput
+                  className={FIELD_H}
+                  value={String(field.value ?? "")}
+                  onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
+                  placeholder="Somme des dépôts"
+                />
+              )}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Total des crédits actifs (Ar)</Label>
+            <Controller
+              control={form.control}
+              name="totalCreditActif"
+              render={({ field }) => (
+                <MontantInput
+                  className={FIELD_H}
+                  value={String(field.value ?? "")}
+                  onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
+                  placeholder="Somme des crédits actifs"
+                />
+              )}
+            />
+            
+          </div>
         </CardContent>
       </Card>
 

@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const montantOptionnel = z.preprocess(
+  (value) => value === "" || value === null ? undefined : value,
+  z.coerce.number().nonnegative().optional(),
+);
+
 export const contratSchema = z.object({
   modeRattachement: z.enum(["NOUVELLE_DEMANDE", "DEMANDE_EXISTANTE"]),
   typeContrat: z.string().min(1),
@@ -15,7 +20,16 @@ export const contratSchema = z.object({
   montantRecette: z.coerce.number({ message: "Le montant des revenus/recettes est requis" }).positive("Le montant des recettes doit être supérieur à 0"),
   montantDepense: z.coerce.number({ message: "Le montant des dépenses est requis" }).nonnegative("Le montant des dépenses doit être positif"),
   typeGarantie: z.string().optional(),
-  valeurGarantie: z.coerce.number().optional(),
+  valeurGarantie: montantOptionnel,
+  valeurPatrimoine: montantOptionnel,
+  totalDepot: montantOptionnel,
+  totalCreditActif: montantOptionnel,
+  revenusComplementaires: z.array(z.object({
+    typeRevenu: z.string().optional(),
+    description: z.string().optional(),
+    montantAnnuel: montantOptionnel,
+    devise: z.string().optional(),
+  })).optional(),
 }).refine((v) => v.modeRattachement !== "DEMANDE_EXISTANTE" || !!v.codeClientCbCible, {
   message: "Le code client CB est requis pour ce mode de rattachement",
   path: ["codeClientCbCible"],

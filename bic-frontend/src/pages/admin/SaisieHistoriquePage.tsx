@@ -47,8 +47,6 @@ interface FormValues {
   nouveauContrat: string; note: string;
   echeances: EcheanceLigne[]; historiquePaiementMensuel: MoisLigne[];
   garanties: GarantieLigne[]; clientsLies: ClientLieLigne[];
-  codeBien: string; valeurBien: string; etatBien: string; marqueBien: string;
-  dateAcquisition: string; immatriculation: string;
   origineDonnee: OrigineDonnee;
 }
 
@@ -64,7 +62,6 @@ const defaults: FormValues = {
   nombreJoursRetard: "", maxNombreJoursRetard: "", dateMaxNombreJoursRetard: "", pireStatut: "",
   datePireStatut: "", codeRestructuration: "", dateCodeRestructuration: "", contratOrigine: "",
   nouveauContrat: "", note: "", echeances: [], historiquePaiementMensuel: [], garanties: [], clientsLies: [],
-  codeBien: "", valeurBien: "", etatBien: "", marqueBien: "", dateAcquisition: "", immatriculation: "",
   origineDonnee: "NON_RENSEIGNEE",
 };
 
@@ -176,12 +173,7 @@ export function SaisieHistoriquePage() {
         clientsLies: values.clientsLies.filter((l) => l.codeClientCb.trim()).map((l) => ({
           codeClientCb: l.codeClientCb.trim(), nomClient: l.nomClient.trim() || null, roleClient: l.roleClient,
         })),
-        bienLeasing: [values.codeBien, values.valeurBien, values.etatBien, values.marqueBien, values.dateAcquisition, values.immatriculation]
-          .some((v) => v.trim()) ? {
-            codeBien: values.codeBien.trim() || null, valeurBien: optionalNumber(values.valeurBien),
-            etatBien: values.etatBien.trim() || null, marqueBien: values.marqueBien.trim() || null,
-            dateAcquisition: optionalDate(values.dateAcquisition), immatriculation: values.immatriculation.trim() || null,
-          } : null,
+        bienLeasing: null,
       });
       toast({ title: "Historique enregistré." });
       reset(defaults);
@@ -321,7 +313,7 @@ export function SaisieHistoriquePage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>6. Garanties, leasing et clients liés</CardTitle></CardHeader>
+        <CardHeader><CardTitle>6. Garanties et clients liés</CardTitle></CardHeader>
         <CardContent className="space-y-5">
           {garanties.fields.map((f, i) => <div key={f.id} className="grid grid-cols-2 gap-3 border-b pb-4 md:grid-cols-4">
             <Champ label="Nature"><Select defaultValue={f.nature} onValueChange={(v) => { if (v) setValue(`garanties.${i}.nature`, v); }}><SelectTrigger><span>{f.nature || "Nature"}</span></SelectTrigger><SelectContent><SelectItem value="REELLE">Réelle</SelectItem><SelectItem value="PERSONNELLE">Personnelle</SelectItem></SelectContent></Select></Champ>
@@ -334,12 +326,6 @@ export function SaisieHistoriquePage() {
             <div className="flex items-end gap-2"><Champ label="Fin de validité"><Controller control={control} name={`garanties.${i}.dateFinValidite`} render={({ field }) => <DateInput value={field.value} onValueChange={field.onChange} />} /></Champ><Button type="button" variant="outline" onClick={() => garanties.remove(i)}>✕</Button></div>
           </div>)}
           <Button type="button" variant="outline" onClick={() => garanties.append({ nature: "REELLE", typeGarantie: "", codeEtablissementGarantie: "", nomGarant: "", codeClientCbGarant: "", montantCouvert: "", dateDebutValidite: "", dateFinValidite: "" })}>+ Ajouter une garantie</Button>
-
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            <Champ label="Code du bien en leasing"><Input {...register("codeBien")} /></Champ><Champ label="Valeur du bien"><Input type="number" min="0" step="0.01" {...register("valeurBien")} /></Champ>
-            <Champ label="Neuf / occasion / état"><Input {...register("etatBien")} /></Champ><Champ label="Marque"><Input {...register("marqueBien")} /></Champ>
-            <Champ label="Date d'acquisition"><Controller control={control} name="dateAcquisition" render={({ field }) => <DateInput value={field.value} onValueChange={field.onChange} />} /></Champ><Champ label="Immatriculation / référence"><Input {...register("immatriculation")} /></Champ>
-          </div>
 
           {clientsLies.fields.map((f, i) => <div key={f.id} className="grid grid-cols-2 gap-3 border-b pb-3 md:grid-cols-4">
             <Champ label="Code client CB lié"><Input {...register(`clientsLies.${i}.codeClientCb`)} /></Champ><Champ label="Nom client lié"><Input {...register(`clientsLies.${i}.nomClient`)} /></Champ>

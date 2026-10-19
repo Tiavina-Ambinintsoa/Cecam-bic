@@ -29,4 +29,3 @@ changerCodesEtablissement: async (contratId: number, codeContratEtablissement: s
   await axiosClient.patch(`/contrats/${contratId}/codes-etablissement`, { codeContratEtablissement, codeDemandeEtablissement });
 },
 };
-

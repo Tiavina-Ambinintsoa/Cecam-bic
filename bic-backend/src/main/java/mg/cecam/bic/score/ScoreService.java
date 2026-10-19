@@ -31,6 +31,7 @@ public class ScoreService {
     private final EcheanceRepository echeanceRepository;
     private final HistoriquePaiementMensuelRepository historiquePaiementMensuelRepository;
     private final EmploiRepository emploiRepository;
+    private final RevenuDemandeRepository revenuDemandeRepository;
     private final EvenementNegatifRepository evenementNegatifRepository;
     private final ScoreProperties p;
 
@@ -131,16 +132,17 @@ public class ScoreService {
 
         // ---- C. Capacité financière (revenu annuel) : exclue si inconnue/incohérente, jamais « 0 point »
         Emploi emploi = emploiRepository.findByClient_Id(client.getId()).orElse(null);
-        BigDecimal revenu = emploi == null ? null : emploi.getRevenuAnnuelTotal();
         Contrat demande = (contratEnCours != null && estEmprunteur(contratEnCours)
                 && contratEnCours.getPhaseDemande() == PhaseDemande.DEMANDE_EN_COURS) ? contratEnCours : null;
+        RevenuEvaluation revenuEvaluation = evaluerRevenus(emploi, demande, avertissements);
+        BigDecimal revenu = revenuEvaluation.montant();
         boolean capaciteRevenu = false;
         if (revenu == null) {
             avertissements.add("Revenu annuel non renseigné : endettement et exposition exclus du calcul (non pénalisés).");
         } else if (revenu.signum() <= 0) {
             avertissements.add("Revenu annuel nul ou négatif : ratios exclus du calcul.");
         } else {
-            double[] charge = chargeEtExposition(actifs, demande, echeancesParContrat, normaliserDevise(emploi.getDevise()), avertissements);
+            double[] charge = chargeEtExposition(actifs, demande, echeancesParContrat, revenuEvaluation.devise(), avertissements);
             if (charge != null) {
                 double rev = revenu.doubleValue();
                 double te = charge[0] / rev, tx = charge[1] / rev;
@@ -178,9 +180,19 @@ public class ScoreService {
             if (g <= 100) plafonds.add(plafond(p.getPlafondGarantieInsuffisante(), "garantie <= 100 % de la demande + intérêts"));
             else if (g <= 120) plafonds.add(plafond(p.getPlafondGarantieJuste(), "garantie entre 100 % et 120 %"));
         }
+        if (contratEnCours != null && contratEnCours.getRatioCouverturePatrimoine() != null) {
+            double patrimoine = contratEnCours.getRatioCouverturePatrimoine().doubleValue();
+            double pts = pointsCouverture(patrimoine);
+            gagne.put("patrimoine", Math.min(1.0, pts / 30.0) * p.getPoidsGarantie());
+            dispo.put("patrimoine", p.getPoidsGarantie());
+            if (patrimoine <= 100) plafonds.add(plafond(p.getPlafondGarantieInsuffisante(),
+                    "patrimoine <= 100 % de la demande + intérêts"));
+            else if (patrimoine <= 120) plafonds.add(plafond(p.getPlafondGarantieJuste(),
+                    "patrimoine entre 100 % et 120 % de la demande + intérêts"));
+        }
 
         boolean preuveCapacite = capaciteRevenu || capaciteBudget;
-        if (!aHistorique && !preuveCapacite && !dispo.containsKey("garantie")) {
+        if (!aHistorique && !preuveCapacite && !dispo.containsKey("garantie") && !dispo.containsKey("patrimoine")) {
             return ScoreResult.nonCalculable(clientTrouve
                     ? "Aucun remboursement observé, ni revenu, ni budget, ni garantie : score non calculable."
                     : "Ce client vient d'être créé et ne possède ni historique de remboursement ni données de capacité.");
@@ -217,7 +229,8 @@ public class ScoreService {
         double malusGroupe = Math.min(p.getMalusCoObligesMax(),
                 p.getMalusParCoObligeARisque() * coObligesARisque(client, actifs));
         if (malusGroupe > 0) avertissements.add("Co-titulaire(s) d'un crédit de groupe en situation négative.");
-        double brut = p.getScoreBase() + p.getEchellePoints() * (possible <= 0 ? 0 : obtenu / possible) - malusGroupe;
+        double brut = p.getScoreBase() + p.getEchellePoints() * (possible <= 0 ? 0 : obtenu / possible)
+                - malusGroupe;
 
         // ---- Plafonds, règle « mauvais »
         boolean mauvais = evenementNegatif || retardCourant >= 180;
@@ -267,6 +280,7 @@ public class ScoreService {
                                         String deviseRevenu, List<String> avertissements) {
         if (deviseRevenu == null) { avertissements.add("Devise du revenu absente : ratios exclus."); return null; }
         double charge = 0, expo = 0;
+        boolean totalCreditActifDeclare = demande != null && demande.getTotalCreditActif() != null;
         for (Contrat c : actifs) {
             String d = normaliserDevise(c.getDevise());
             if (!deviseRevenu.equals(d)) { avertissements.add("Devises différentes ou absentes : ratios exclus (aucune conversion inventée)."); return null; }
@@ -280,7 +294,7 @@ public class ScoreService {
             }
             if (mens.signum() <= 0) { avertissements.add("Mensualité d'un crédit actif inconnue : ratios exclus."); return null; }
             charge += Math.min(reste.doubleValue(), mens.doubleValue() * 12);
-            expo += reste.doubleValue();
+            if (!totalCreditActifDeclare) expo += reste.doubleValue();
         }
         if (demande != null) {
             String d = normaliserDevise(demande.getDevise());
@@ -294,9 +308,61 @@ public class ScoreService {
             int n = demande.getNombreTotalEcheances() == null || demande.getNombreTotalEcheances() <= 0 ? 1 : demande.getNombreTotalEcheances();
             charge += Math.min(total.doubleValue(), total.doubleValue() / n * 12);
             expo += total.doubleValue();
+            BigDecimal creditsActifs = demande.getTotalCreditActif();
+            if (creditsActifs == null) {
+                creditsActifs = BigDecimal.ZERO;
+                if (demande.getCreditActifGarant() != null) creditsActifs = creditsActifs.add(demande.getCreditActifGarant());
+                if (demande.getCreditActifFiance() != null) creditsActifs = creditsActifs.add(demande.getCreditActifFiance());
+            }
+            if (creditsActifs.signum() > 0) {
+                if (!deviseRevenu.equals(d)) {
+                    avertissements.add("Devise des crédits actifs différente de celle du revenu : exposition exclue.");
+                    return null;
+                }
+                expo += creditsActifs.doubleValue();
+            }
         }
         return new double[]{charge, expo};
     }
+
+    private RevenuEvaluation evaluerRevenus(Emploi emploi, Contrat demande, List<String> avertissements) {
+        BigDecimal total = emploi == null ? null : emploi.getRevenuAnnuelTotal();
+        String devise = emploi == null ? null : normaliserDevise(emploi.getDevise());
+        List<RevenuDemande> revenus = demande == null
+                ? List.of() : revenuDemandeRepository.findByContrat_Id(demande.getId());
+        if ((total == null || total.signum() <= 0) && !revenus.isEmpty()) {
+            RevenuDemande premier = revenus.stream()
+                    .filter(r -> r.getMontantAnnuel() != null && r.getMontantAnnuel().signum() > 0)
+                    .filter(r -> normaliserDevise(r.getDevise()) != null)
+                    .findFirst().orElse(null);
+            if (premier != null) {
+                total = BigDecimal.ZERO;
+                devise = normaliserDevise(premier.getDevise());
+            }
+        }
+        for (RevenuDemande revenu : revenus) {
+            String deviseSource = normaliserDevise(revenu.getDevise());
+            if (devise == null || deviseSource == null || !devise.equals(deviseSource)) {
+                avertissements.add("Un revenu complémentaire est exclu : devise absente ou différente (aucune conversion inventée).");
+                continue;
+            }
+            total = (total == null ? BigDecimal.ZERO : total).add(revenu.getMontantAnnuel());
+        }
+        if (total != null && emploi != null && emploi.getRevenuAnnuelTotal() == null && revenus.isEmpty()) {
+            total = null;
+        }
+        return new RevenuEvaluation(total, devise);
+    }
+
+    private double pointsCouverture(double ratio) {
+        if (ratio <= 100) return 0;
+        if (ratio <= 120) return 8 * (ratio - 100) / 20;
+        if (ratio <= 150) return 8 + 8 * (ratio - 120) / 30;
+        if (ratio <= 200) return 16 + 8 * (ratio - 150) / 50;
+        return 30;
+    }
+
+    private record RevenuEvaluation(BigDecimal montant, String devise) {}
 
     private BigDecimal mensualite(Contrat c) {
         if (c.getMontantEcheanceMensuelle() != null && c.getMontantEcheanceMensuelle().signum() > 0) return c.getMontantEcheanceMensuelle();
