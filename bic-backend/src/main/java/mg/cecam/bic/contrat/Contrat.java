@@ -130,6 +130,9 @@ private String codeDemandeEtablissement;
     @Column(name = "montant_total_demande_interet", precision = 19, scale = 2)
     private BigDecimal montantTotalDemandeInteret;
 
+    @Column(name = "taux_interet_mensuel", precision = 5, scale = 2)
+    private BigDecimal tauxInteretMensuel;
+
     @Column(name = "ratio_couverture_garantie", precision = 10, scale = 2)
     private BigDecimal ratioCouvertureGarantie;
 

@@ -66,11 +66,15 @@ export interface DetailDemande {
   montantEcheanceMensuelle?: number;
   nombreTotalEcheances: number | null;
   dateDemande?: string | null;
+  valeurGarantie?: number | null;
+  montantTotalDemandeInteret?: number | null;
+  ratioCouvertureGarantie?: number | null;
   valeurPatrimoine?: number | null;
   margePatrimoine?: number | null;
   ratioCouverturePatrimoine?: number | null;
   totalDepot?: number | null;
   totalCreditActif?: number | null;
+  tauxInteretMensuel?: number | null;
 }
 
 export interface Score {
@@ -263,6 +267,16 @@ export interface SituationFinanciereMensuelle {
   mois: string; categorie: string; devise: string; encours: number; impayes: number; contratsAvecEcheances: number;
 }
 
+export interface DernierContrat {
+  dateOctroi?: string;
+  montant?: number;
+  datePrevueRemboursement?: string;
+  dateRemboursement?: string;
+  joursRetard?: number;
+  statut?: string;
+  libelleAvance?: string;
+}
+
 export interface RapportSolvabilite {
   identifiantRapport: string;
   dateRequete: string;
@@ -287,4 +301,5 @@ export interface RapportSolvabilite {
   situationFinanciereMensuelle?: SituationFinanciereMensuelle[];
   calendriers: CalendrierCredit[];
   detailContrats: DetailContrat[];
+  derniersContrats?: DernierContrat[];
 }

@@ -14,5 +14,6 @@ public record DetailDemandeDTO(
         BigDecimal montantTotalDemandeInteret, BigDecimal ratioCouvertureGarantie,
         BigDecimal valeurPatrimoine, BigDecimal margePatrimoine,
         BigDecimal ratioCouverturePatrimoine, BigDecimal totalDepot,
-        BigDecimal totalCreditActif
+        BigDecimal totalCreditActif,
+        BigDecimal tauxInteretMensuel
 ) {}

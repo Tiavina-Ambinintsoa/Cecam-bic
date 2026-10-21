@@ -1,0 +1,9 @@
+package mg.cecam.bic.contrat;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface DernierContratRepository extends JpaRepository<DernierContrat, Long> {
+    List<DernierContrat> findByContrat_IdOrderByDateOctroiAsc(Long contratId);
+}

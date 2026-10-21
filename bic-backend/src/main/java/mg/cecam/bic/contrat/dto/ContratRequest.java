@@ -35,13 +35,22 @@ public record ContratRequest(
         @PositiveOrZero BigDecimal valeurPatrimoine,
         @Size(max = 20) List<@Valid RevenuDemandeRequest> revenusComplementaires,
         @PositiveOrZero BigDecimal totalDepot,
-        @PositiveOrZero BigDecimal totalCreditActif
+        @PositiveOrZero BigDecimal totalCreditActif,
+        BigDecimal tauxInteretMensuel,
+        @Size(max = 3) List<@Valid DernierContratRequest> derniersContrats
 ) {
     public record RevenuDemandeRequest(
             String typeRevenu,
             String description,
             @Positive BigDecimal montantAnnuel,
             String devise
+    ) {}
+
+    public record DernierContratRequest(
+            LocalDate dateOctroi,
+            BigDecimal montant,
+            LocalDate datePrevueRemboursement,
+            LocalDate dateRemboursement
     ) {}
 
     @AssertTrue(message = "Le rattachement à une entreprise ne fait pas partie du périmètre Individu.")

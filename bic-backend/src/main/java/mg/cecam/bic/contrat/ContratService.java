@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,6 +39,7 @@ public class ContratService {
     private final ContratLienRepository contratLienRepository;
     private final HistoriquePaiementMensuelRepository historiquePaiementMensuelRepository;
     private final ModificationContratDemandeRepository modificationContratDemandeRepository;
+    private final DernierContratRepository dernierContratRepository;
     private final AuditService auditService;
 
     @Transactional
@@ -122,10 +124,13 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
             }
         }
 
-        // Calcul demande + intérêt (+3% par mois sur la durée)
+        // Calcul demande + intérêt (taux mensuel paramétrable, défaut +3%/mois sur la durée)
         int moisDuree = request.nombreTotalEcheances() != null && request.nombreTotalEcheances() > 0
                 ? request.nombreTotalEcheances() : 1;
-        BigDecimal tauxInteretGlobal = BigDecimal.valueOf(0.03).multiply(BigDecimal.valueOf(moisDuree));
+        BigDecimal tauxMensuelPct = request.tauxInteretMensuel() != null && request.tauxInteretMensuel().signum() >= 0
+                ? request.tauxInteretMensuel() : BigDecimal.valueOf(3.0);
+        BigDecimal tauxInteretGlobal = tauxMensuelPct.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(moisDuree));
         BigDecimal montantInteret = request.montantFinance().multiply(tauxInteretGlobal);
         BigDecimal totalDemandeInteret = request.montantFinance().add(montantInteret);
 
@@ -162,8 +167,9 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                 .montantRecette(request.montantRecette())
                 .montantDepense(request.montantDepense())
                 .ratioRestePourcentage(ratio)
-                .typeGarantie(request.typeGarantie())
+                .typeGarantie(request.typeGarantie() != null && !request.typeGarantie().isBlank() ? request.typeGarantie() : "Garantie réelle")
                 .valeurGarantie(request.valeurGarantie())
+                .tauxInteretMensuel(tauxMensuelPct)
                 .montantTotalDemandeInteret(totalDemandeInteret)
                 .ratioCouvertureGarantie(ratioGarantie)
                 .valeurPatrimoine(request.valeurPatrimoine())
@@ -178,6 +184,7 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
         contrat = contratRepository.save(contrat);
 
         enregistrerRevenusComplementaires(contrat, request);
+        enregistrerDerniersContrats(contrat, request);
 
         if (request.valeurGarantie() != null && request.valeurGarantie().compareTo(BigDecimal.ZERO) > 0) {
             Garantie garantie = Garantie.builder()
@@ -214,6 +221,51 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                     .build());
         }
         revenuDemandeRepository.saveAll(revenus);
+    }
+
+    private void enregistrerDerniersContrats(Contrat contrat, ContratRequest request) {
+        if (request.derniersContrats() == null || request.derniersContrats().isEmpty()) return;
+        List<DernierContrat> list = new ArrayList<>();
+        LocalDate ref = LocalDate.now();
+        for (ContratRequest.DernierContratRequest d : request.derniersContrats()) {
+            if (d == null || (d.montant() == null && d.dateOctroi() == null)) continue;
+            int joursRetard = 0;
+            String statut = "A_TEMPS";
+            if (d.datePrevueRemboursement() != null) {
+                if (d.dateRemboursement() != null) {
+                    if (d.dateRemboursement().isAfter(d.datePrevueRemboursement())) {
+                        joursRetard = (int) ChronoUnit.DAYS.between(d.datePrevueRemboursement(), d.dateRemboursement());
+                        statut = "EN_RETARD";
+                    } else if (d.dateRemboursement().isBefore(d.datePrevueRemboursement())) {
+                        long moisAvance = ChronoUnit.MONTHS.between(d.dateRemboursement(), d.datePrevueRemboursement());
+                        long joursAvance = ChronoUnit.DAYS.between(d.dateRemboursement(), d.datePrevueRemboursement());
+                        joursRetard = (int) -joursAvance;
+                        statut = (moisAvance >= 1 || joursAvance >= 25) ? "ANTICIPATION" : "A_TEMPS";
+                    } else {
+                        statut = "A_TEMPS";
+                    }
+                } else {
+                    if (d.datePrevueRemboursement().isBefore(ref)) {
+                        joursRetard = (int) ChronoUnit.DAYS.between(d.datePrevueRemboursement(), ref);
+                        statut = "NON_REMBOURSE";
+                    } else {
+                        statut = "EN_COURS";
+                    }
+                }
+            }
+            list.add(DernierContrat.builder()
+                    .contrat(contrat)
+                    .dateOctroi(d.dateOctroi())
+                    .montant(d.montant())
+                    .datePrevueRemboursement(d.datePrevueRemboursement())
+                    .dateRemboursement(d.dateRemboursement())
+                    .joursRetard(joursRetard)
+                    .statut(statut)
+                    .build());
+        }
+        if (!list.isEmpty()) {
+            dernierContratRepository.saveAll(list);
+        }
     }
 
     @Transactional
@@ -390,6 +442,7 @@ public Contrat saisirHistorique(HistoriqueContratRequest req) {
         contratLienRepository.deleteAll(contratLienRepository.findByContrat_IdIn(List.of(id)));
         bienLeasingRepository.findByContrat_IdIn(List.of(id)).forEach(bienLeasingRepository::delete);
         revenuDemandeRepository.deleteAll(revenuDemandeRepository.findByContrat_Id(id));
+        dernierContratRepository.deleteAll(dernierContratRepository.findByContrat_IdOrderByDateOctroiAsc(id));
         modificationContratDemandeRepository.deleteAll(modificationContratDemandeRepository.findAllByOrderByDateSoumissionDesc()
                 .stream().filter(m -> m.getContrat().getId().equals(id)).toList());
     }

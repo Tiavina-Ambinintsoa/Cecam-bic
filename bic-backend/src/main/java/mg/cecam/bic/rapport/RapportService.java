@@ -64,6 +64,7 @@ public class RapportService {
     private final AuditService auditService;
     private final JournalAuditRepository journalAuditRepository;
     private final SituationFinanciereMensuelleService situationFinanciereMensuelleService;
+    private final DernierContratRepository dernierContratRepository;
 
     @Transactional
     public RapportSolvabiliteResponse construire(Long contratId) {
@@ -113,6 +114,26 @@ public class RapportService {
                 ? historique
                 : tous;
 
+        List<DernierContratDTO> derniersContratsDto = dernierContratRepository
+                .findByContrat_IdOrderByDateOctroiAsc(contratId).stream()
+                .map(dc -> {
+                    String libelleAvance = null;
+                    if ("ANTICIPATION".equals(dc.getStatut()) && dc.getJoursRetard() != null && dc.getJoursRetard() < 0) {
+                        long jours = -dc.getJoursRetard();
+                        long mois = jours / 30;
+                        libelleAvance = (mois > 0 ? (mois + " mois d'avance") : (jours + " jours d'avance"));
+                    }
+                    return new DernierContratDTO(
+                            dc.getDateOctroi(),
+                            dc.getMontant(),
+                            dc.getDatePrevueRemboursement(),
+                            dc.getDateRemboursement(),
+                            dc.getJoursRetard(),
+                            dc.getStatut(),
+                            libelleAvance
+                    );
+                }).toList();
+
         return new RapportSolvabiliteResponse(
                 UUID.randomUUID().toString(),
                 LocalDateTime.now(),
@@ -142,6 +163,7 @@ public class RapportService {
                 financements(historique, echeances, liensParContrat, NON_DECAISSEES, false, reference),
                 financements(historique, echeances, liensParContrat, DECAISSEES, true, reference),
                 detailContrats(historique, echeances, garanties, leasings, liensParContrat, reference),
+                derniersContratsDto,
                 historiqueConsultations
         );
     }
@@ -716,11 +738,12 @@ public class RapportService {
     }
 
     private ClientInfoDTO toClientInfo(Client c) {
-        String nomComplet = ((c.getPrenom() == null ? "" : c.getPrenom()) + " "
-                + (c.getNom() == null ? "" : c.getNom())).trim();
+        String nomMaj = c.getNom() == null ? "" : c.getNom().trim().toUpperCase();
+        String prenom = c.getPrenom() == null ? "" : c.getPrenom().trim();
+        String nomComplet = (nomMaj + " " + prenom).trim();
         return new ClientInfoDTO(
                 c.getCodeClientCb(), tiret(c.getTitre()), nomComplet.isBlank() ? "-" : nomComplet,
-                c.getPrenom(), tiret(c.getDeuxiemePrenom()), c.getNom(),
+                prenom.isBlank() ? "-" : prenom, tiret(c.getDeuxiemePrenom()), nomMaj.isBlank() ? "-" : nomMaj,
                 c.getDateNaissance(), tiret(c.getVilleNaissance()), tiret(c.getPaysNaissance()),
                 c.getGenre() == null ? "-" : c.getGenre().name(), c.getNationalite(),
                 tiret(c.getEtatCivil()), tiret(c.getTelephone()),
@@ -780,7 +803,8 @@ public class RapportService {
                 c.getMontantTotalDemandeInteret(), c.getRatioCouvertureGarantie(),
                 c.getValeurPatrimoine(), c.getMargePatrimoine(),
                 c.getRatioCouverturePatrimoine(), c.getTotalDepot(),
-                c.getTotalCreditActif());
+                c.getTotalCreditActif(),
+                c.getTauxInteretMensuel());
     }
 
     private ScoreDTO toScoreDto(ScoreResult r) {

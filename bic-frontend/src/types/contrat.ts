@@ -3,6 +3,13 @@ export type RoleClient = "TITULAIRE" | "CO_TITULAIRE" | "GARANT";
 export type PhaseDemande = "DEMANDE_EN_COURS" | "ACTIF" | "REFUSE" | "FERME" | "ABANDONNE";
 export type MotifCloture = "FIN_A_TERME" | "FIN_ANTICIPEE";
 
+export interface DernierContratRequest {
+  dateOctroi?: string;
+  montant?: number;
+  datePrevueRemboursement?: string;
+  dateRemboursement?: string;
+}
+
 export interface ContratRequest {
   clientId: number;
   modeRattachement: ModeRattachement;
@@ -22,6 +29,8 @@ export interface ContratRequest {
   valeurPatrimoine?: number;
   totalDepot?: number;
   totalCreditActif?: number;
+  tauxInteretMensuel?: number;
+  derniersContrats?: DernierContratRequest[];
   revenusComplementaires?: {
     typeRevenu?: string;
     description?: string;

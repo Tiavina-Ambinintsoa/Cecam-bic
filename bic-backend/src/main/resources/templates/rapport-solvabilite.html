@@ -45,6 +45,10 @@
     .calendrier th, .calendrier td { border: 1px solid #e3e1da; text-align: center;
                                      font-size: 7pt; padding: 2px 1px; }
     .cube { display: inline-block; }
+    .badge-vert { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #ecfdf5; color: #047857; font-weight: bold; font-size: 7.5pt; }
+    .badge-orange { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #fffbeb; color: #b45309; font-weight: bold; font-size: 7.5pt; }
+    .badge-rouge { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #fef2f2; color: #b91c1c; font-weight: bold; font-size: 7.5pt; }
+    .badge-bleu { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #eff6ff; color: #1d4ed8; font-weight: bold; font-size: 7.5pt; }
   </style>
 </head>
 <body>
@@ -92,10 +96,10 @@
     <td></td>
   </tr>
   <tr>
-    <td><div class="lib">Nom Complet</div><div class="val" th:text="${r.client.nomComplet}">-</div></td>
-    <td><div class="lib">Prénom</div><div class="val" th:text="${r.client.prenom}">-</div></td>
-    <td><div class="lib">Deuxième Prénom</div><div class="val" th:text="${r.client.deuxiemePrenom}">-</div></td>
-    <td><div class="lib">Nom</div><div class="val" th:text="${r.client.nom}">-</div></td>
+    <td><div class="lib">Nom Complet (NOM + Prénoms)</div><div class="val" style="font-weight:bold" th:text="${r.client.nomComplet}">-</div></td>
+    <td><div class="lib">Nom</div><div class="val" style="text-transform: uppercase; font-weight: bold;" th:text="${r.client.nom}">-</div></td>
+    <td><div class="lib">Prénom(s)</div><div class="val" th:text="${r.client.prenom}">-</div></td>
+    <td></td>
   </tr>
   <tr>
     <td><div class="lib">Date de Naissance</div>
@@ -282,13 +286,14 @@
   <div class="sous-section">Garantie de la demande</div>
   <table class="grille">
     <tr>
-      <td><div class="lib">Type de Garantie</div><div class="val" th:text="${r.detailDemande.typeGarantie} ?: '-'">-</div></td>
-      <td><div class="lib">Valeur de la Garantie</div>
-          <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.valeurGarantie)}">-</div></td>
-      <td><div class="lib">Total Demande + Intérêts (+3%/mois)</div>
+      <td><div class="lib">Total Valeur Garantie</div>
+          <div class="val" style="font-weight:bold" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.valeurGarantie)}">-</div></td>
+      <td><div class="lib" th:text="'Total Demande + Intérêts (+' + (${r.detailDemande.tauxInteretMensuel} != null ? ${r.detailDemande.tauxInteretMensuel} : 3) + '%/mois)'">Total Demande + Intérêts</div>
           <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantTotalDemandeInteret)}">-</div></td>
       <td><div class="lib">Ratio Couverture Garantie</div>
-          <div class="val" th:text="${r.detailDemande.ratioCouvertureGarantie != null ? r.detailDemande.ratioCouvertureGarantie + ' %' : '-'}">-</div></td>
+          <div class="val" style="font-weight:bold" th:text="${r.detailDemande.ratioCouvertureGarantie != null ? r.detailDemande.ratioCouvertureGarantie + ' %' : '-'}">-</div></td>
+      <td><div class="lib">Taux d'Intérêt Mensuel</div>
+          <div class="val" th:text="${r.detailDemande.tauxInteretMensuel != null ? r.detailDemande.tauxInteretMensuel + ' %' : '3 %'}">-</div></td>
     </tr>
   </table>
 </th:block>
@@ -322,6 +327,44 @@
       <td th:if="${r.detailDemande.totalCreditActif != null}"><div class="lib">Total des crédits actifs</div>
           <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.totalCreditActif)}">-</div></td>
     </tr>
+  </table>
+</th:block>
+
+<th:block th:if="${r.derniersContrats != null and !r.derniersContrats.isEmpty()}">
+  <div class="sous-section">Historique des 3 derniers crédits déclarés</div>
+  <table class="liste">
+    <thead>
+      <tr>
+        <th>Date d'Octroi</th>
+        <th>Somme Demandée</th>
+        <th>Date Prévue Remboursement</th>
+        <th>Date Remboursement</th>
+        <th>Statut / Situation</th>
+        <th>Impact sur le Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="dc : ${r.derniersContrats}">
+        <td th:text="${dc.dateOctroi != null ? #temporals.format(dc.dateOctroi,'dd/MM/yyyy') : '-'}">-</td>
+        <td th:text="${dc.montant != null ? T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(dc.montant) : '-'}">-</td>
+        <td th:text="${dc.datePrevueRemboursement != null ? #temporals.format(dc.datePrevueRemboursement,'dd/MM/yyyy') : '-'}">-</td>
+        <td th:text="${dc.dateRemboursement != null ? #temporals.format(dc.dateRemboursement,'dd/MM/yyyy') : 'Non encore remboursé'}">-</td>
+        <td>
+          <span th:if="${dc.statut == 'ANTICIPATION'}" class="badge-vert" th:text="'Anticipation (' + (${dc.libelleAvance} ?: 'en avance') + ')'">Anticipation</span>
+          <span th:if="${dc.statut == 'A_TEMPS'}" class="badge-vert">Payé à temps</span>
+          <span th:if="${dc.statut == 'EN_RETARD'}" class="badge-orange" th:text="'En retard de ' + ${dc.joursRetard} + ' jour(s)'">En retard</span>
+          <span th:if="${dc.statut == 'NON_REMBOURSE'}" class="badge-rouge" th:text="'Non remboursé (' + ${dc.joursRetard} + ' j retard)'">Non remboursé</span>
+          <span th:if="${dc.statut == 'EN_COURS'}" class="badge-bleu">En cours (non échu)</span>
+        </td>
+        <td>
+          <span th:if="${dc.statut == 'ANTICIPATION'}" style="color:#059669; font-weight:bold;">+15 pts (Bonus)</span>
+          <span th:if="${dc.statut == 'A_TEMPS'}" style="color:#10b981; font-weight:600;">Régulier (Normal)</span>
+          <span th:if="${dc.statut == 'EN_RETARD'}" style="color:#d97706; font-weight:bold;">Malus de retard</span>
+          <span th:if="${dc.statut == 'NON_REMBOURSE'}" style="color:#dc2626; font-weight:bold;">Risque Élevé / Plafond</span>
+          <span th:if="${dc.statut == 'EN_COURS'}" style="color:#6b7280;">Neutre</span>
+        </td>
+      </tr>
+    </tbody>
   </table>
 </th:block>
 

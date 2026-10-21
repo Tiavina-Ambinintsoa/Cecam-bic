@@ -33,6 +33,7 @@ public class ScoreService {
     private final EmploiRepository emploiRepository;
     private final RevenuDemandeRepository revenuDemandeRepository;
     private final EvenementNegatifRepository evenementNegatifRepository;
+    private final DernierContratRepository dernierContratRepository;
     private final ScoreProperties p;
 
     /** Observation de paiement normalisée : un mois (ou une échéance), un retard en jours, un poids unitaire. */
@@ -96,6 +97,39 @@ public class ScoreService {
             if (contrat.getPhaseDemande() == PhaseDemande.ACTIF) {
                 retardCourant = Math.max(retardCourant, retardCourantSource(contrat, mensuel, ref));
             }
+        }
+
+        // ---- 3 derniers contrats déclarés (historique déclaré sur la demande)
+        List<DernierContrat> derniersContrats = (contratEnCours == null || contratEnCours.getId() == null)
+                ? List.of()
+                : dernierContratRepository.findByContrat_IdOrderByDateOctroiAsc(contratEnCours.getId());
+
+        int bonusAnticipation = 0;
+        int malusRetardHistorique = 0;
+        boolean creditNonRembourse = false;
+
+        for (DernierContrat dc : derniersContrats) {
+            if (dc.getDateRemboursement() != null) {
+                int retard = dc.getJoursRetard() != null ? dc.getJoursRetard() : 0;
+                observations.add(new Observation(dc.getDateRemboursement(), Math.max(0, retard), 1));
+                if ("ANTICIPATION".equals(dc.getStatut()) || retard < -20) {
+                    bonusAnticipation += 15;
+                } else if (retard > 0) {
+                    if (retard < 30) malusRetardHistorique += 10;
+                    else if (retard < 60) malusRetardHistorique += 25;
+                    else malusRetardHistorique += 40;
+                }
+            } else if (dc.getDatePrevueRemboursement() != null && dc.getDatePrevueRemboursement().isBefore(ref)) {
+                int retard = (int) ChronoUnit.DAYS.between(dc.getDatePrevueRemboursement(), ref);
+                observations.add(new Observation(dc.getDatePrevueRemboursement(), Math.max(0, retard), 1));
+                retardCourant = Math.max(retardCourant, retard);
+                creditNonRembourse = true;
+            }
+        }
+
+        if (creditNonRembourse) {
+            plafonds.add(plafond(399, "crédit antérieur non remboursé à échéance"));
+            avertissements.add("Historique : au moins un crédit antérieur déclaré non remboursé à échéance.");
         }
 
         // ---- A. Paiement
@@ -171,14 +205,24 @@ public class ScoreService {
         } else if (demande != null) {
             avertissements.add("Recettes/dépenses non renseignées : capacité budgétaire exclue du calcul (non pénalisée).");
         }
-        if (contratEnCours != null && contratEnCours.getRatioCouvertureGarantie() != null) {
-            double g = contratEnCours.getRatioCouvertureGarantie().doubleValue();
-            double pts = g <= 100 ? 0 : g <= 120 ? 8 * (g - 100) / 20 : g <= 150 ? 8 + 8 * (g - 120) / 30
-                    : g <= 200 ? 16 + 8 * (g - 150) / 50 : 30;
-            gagne.put("garantie", Math.min(1.0, pts / 30.0) * p.getPoidsGarantie());
-            dispo.put("garantie", p.getPoidsGarantie());
-            if (g <= 100) plafonds.add(plafond(p.getPlafondGarantieInsuffisante(), "garantie <= 100 % de la demande + intérêts"));
-            else if (g <= 120) plafonds.add(plafond(p.getPlafondGarantieJuste(), "garantie entre 100 % et 120 %"));
+        if (contratEnCours != null) {
+            BigDecimal valGarantie = contratEnCours.getValeurGarantie();
+            if (valGarantie == null || valGarantie.signum() <= 0) {
+                plafonds.add(plafond(399, "aucune garantie fournie pour couvrir l'octroi demandé"));
+                avertissements.add("Garantie inexistante : risque critique en cas de non-remboursement de l'octroi.");
+            } else if (contratEnCours.getRatioCouvertureGarantie() != null) {
+                double g = contratEnCours.getRatioCouvertureGarantie().doubleValue();
+                double pts = g <= 100 ? 0 : g <= 120 ? 8 * (g - 100) / 20 : g <= 150 ? 8 + 8 * (g - 120) / 30
+                        : g <= 200 ? 16 + 8 * (g - 150) / 50 : 30;
+                gagne.put("garantie", Math.min(1.0, pts / 30.0) * p.getPoidsGarantie());
+                dispo.put("garantie", p.getPoidsGarantie());
+                if (g < 100) {
+                    plafonds.add(plafond(420, "garantie insuffisante (< 100 % de la demande + intérêts)"));
+                    avertissements.add("Garantie insuffisante (" + Math.round(g) + " %) : ne couvre pas l'intégralité du prêt avec intérêts.");
+                } else if (g <= 120) {
+                    plafonds.add(plafond(p.getPlafondGarantieJuste(), "garantie entre 100 % et 120 %"));
+                }
+            }
         }
         if (contratEnCours != null && contratEnCours.getRatioCouverturePatrimoine() != null) {
             double patrimoine = contratEnCours.getRatioCouverturePatrimoine().doubleValue();
@@ -223,14 +267,23 @@ public class ScoreService {
             dispo.put("mixite", p.getPoidsMixite());
         }
 
-        // ---- Score brut renormalisé + risque de groupe
+        // ---- Score brut renormalisé + ajustements (anticipation, retards déclarés, risque groupe)
         double obtenu = gagne.values().stream().mapToDouble(Double::doubleValue).sum();
         double possible = dispo.values().stream().mapToDouble(Double::doubleValue).sum();
         double malusGroupe = Math.min(p.getMalusCoObligesMax(),
                 p.getMalusParCoObligeARisque() * coObligesARisque(client, actifs));
         if (malusGroupe > 0) avertissements.add("Co-titulaire(s) d'un crédit de groupe en situation négative.");
+
+        int bonusAnticipationEffectif = Math.min(30, bonusAnticipation);
+        if (bonusAnticipationEffectif > 0) {
+            avertissements.add("Bonus d'anticipation : remboursement(s) en avance sur les crédits précédents (+" + bonusAnticipationEffectif + " pts).");
+        }
+        if (malusRetardHistorique > 0) {
+            avertissements.add("Malus de retard : retard(s) de remboursement constaté(s) sur les crédits précédents (-" + malusRetardHistorique + " pts).");
+        }
+
         double brut = p.getScoreBase() + p.getEchellePoints() * (possible <= 0 ? 0 : obtenu / possible)
-                - malusGroupe;
+                + bonusAnticipationEffectif - malusRetardHistorique - malusGroupe;
 
         // ---- Plafonds, règle « mauvais »
         boolean mauvais = evenementNegatif || retardCourant >= 180;
@@ -245,6 +298,8 @@ public class ScoreService {
 
         Map<String, Double> composantes = new LinkedHashMap<>();
         gagne.forEach((k, v) -> composantes.put(k, Math.round(v * 10) / 10.0));
+        if (bonusAnticipationEffectif > 0) composantes.put("bonus_anticipation", (double) bonusAnticipationEffectif);
+        if (malusRetardHistorique > 0) composantes.put("malus_retard_historique", (double) -malusRetardHistorique);
         composantes.put("points_disponibles", Math.round(possible * 10) / 10.0);
         composantes.put("malus_groupe", malusGroupe);
         composantes.put("score_avant_plafonds", Math.round(brut * 10) / 10.0);

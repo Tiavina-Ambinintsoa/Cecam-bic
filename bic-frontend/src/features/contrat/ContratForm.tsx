@@ -27,6 +27,54 @@ const getFieldBorderClass = (hasError?: boolean, hasValue?: boolean) => {
   return "";
 };
 
+function getStatutContrat(prevueStr?: string, reelleStr?: string) {
+  if (!prevueStr) return null;
+  const prevue = new Date(prevueStr);
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+
+  if (reelleStr) {
+    const reelle = new Date(reelleStr);
+    const diffDays = Math.round((reelle.getTime() - prevue.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays > 0) {
+      return {
+        badge: `En retard de ${diffDays} jour(s)`,
+        impact: "Malus de points (-)",
+        color: "text-amber-800 bg-amber-50 border-amber-300",
+      };
+    }
+    const moisAvance = (prevue.getFullYear() - reelle.getFullYear()) * 12 + (prevue.getMonth() - reelle.getMonth());
+    const joursAvance = -diffDays;
+    if (moisAvance >= 1 || joursAvance >= 25) {
+      const lib = moisAvance >= 1 ? `${moisAvance} mois d'avance` : `${joursAvance} jours d'avance`;
+      return {
+        badge: `Anticipation (${lib})`,
+        impact: "Bonus de points (+)",
+        color: "text-emerald-800 bg-emerald-50 border-emerald-300",
+      };
+    }
+    return {
+      badge: "À temps (remboursé à l'échéance)",
+      impact: "Remboursement régulier (Normal)",
+      color: "text-green-800 bg-green-50 border-green-300",
+    };
+  } else {
+    if (prevue.getTime() < todayDate.getTime()) {
+      const diffDays = Math.round((todayDate.getTime() - prevue.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        badge: `Non remboursé (${diffDays} j de retard)`,
+        impact: "Risque très élevé / Plafond",
+        color: "text-red-800 bg-red-50 border-red-300",
+      };
+    }
+    return {
+      badge: "En cours (échéance à venir)",
+      impact: "Neutre (en cours)",
+      color: "text-blue-800 bg-blue-50 border-blue-300",
+    };
+  }
+}
+
 export function ContratForm() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
@@ -42,12 +90,15 @@ export function ContratForm() {
       dateDemande: today,
       devise: "Ariary malgache",
       periodiciteBudget: "Mensuelle",
-      typeGarantie: "Terrain",
+      typeGarantie: "Garantie réelle",
+      tauxInteretMensuel: 3,
+      derniersContrats: [],
       revenusComplementaires: [],
     },
   });
 
   const revenusArray = useFieldArray({ control: form.control, name: "revenusComplementaires" });
+  const derniersContratsArray = useFieldArray({ control: form.control, name: "derniersContrats" });
   const modeRattachement = useWatch({ control: form.control, name: "modeRattachement" });
   const formValues = useWatch({ control: form.control });
 
@@ -68,14 +119,17 @@ export function ContratForm() {
   };
   const evaluationBudget = getEvaluationBudget();
 
-  // Calculs garantie (+3% du montant demandé par mois)
+  // Calculs garantie (+X% du montant demandé par mois selon tauxInteretMensuel)
   const montantFinance = Number(formValues.montantFinance) || 0;
   const dureeMois = Number(formValues.nombreTotalEcheances) || 1;
-  const tauxInteretTotal = 0.03 * dureeMois;
+  const tauxMensuel = formValues.tauxInteretMensuel !== undefined && Number(formValues.tauxInteretMensuel) >= 0
+    ? Number(formValues.tauxInteretMensuel)
+    : 3;
+  const tauxInteretTotal = (tauxMensuel / 100) * dureeMois;
   const montantInteret = montantFinance * tauxInteretTotal;
   const totalDemandeInteret = montantFinance + montantInteret;
   const valeurGarantie = Number(formValues.valeurGarantie) || 0;
-  const aGarantie = Boolean(formValues.valeurGarantie || formValues.typeGarantie);
+  const aGarantie = Boolean(formValues.valeurGarantie);
   const ratioGarantie = totalDemandeInteret > 0 && valeurGarantie > 0
     ? ((valeurGarantie / totalDemandeInteret) * 100)
     : null;
@@ -123,8 +177,13 @@ export function ContratForm() {
           devise: revenu.devise?.trim() || values.devise,
         }];
       });
+      const derniersContrats = values.derniersContrats?.filter(
+        (dc) => dc && (dc.montant || dc.dateOctroi || dc.datePrevueRemboursement)
+      );
       const contrat = await contratApi.creer({
         ...values,
+        typeGarantie: "Garantie réelle",
+        derniersContrats,
         revenusComplementaires,
         clientId: Number(clientId),
       });
@@ -289,7 +348,158 @@ export function ContratForm() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-semibold text-slate-800">
+                Taux d'intérêt mensuel (%) <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                {...form.register("tauxInteretMensuel")}
+                placeholder="3"
+                className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.tauxInteretMensuel, formValues.tauxInteretMensuel !== undefined)}`}
+              />
+              <p className="text-xs text-slate-400">Automatique à 3 % / mois, modifiable.</p>
+            </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* CARTE : Historique des 3 derniers contrats */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Historique des 3 derniers contrats du client</CardTitle>
+              <p className="mt-1 text-sm text-slate-500">
+                Saisissez les 3 derniers crédits du client pour évaluer son antériorité (bonus d'anticipation, régularité ou malus de retard).
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={derniersContratsArray.fields.length >= 3}
+              onClick={() => {
+                if (derniersContratsArray.fields.length < 3) {
+                  derniersContratsArray.append({
+                    dateOctroi: "",
+                    montant: undefined,
+                    datePrevueRemboursement: "",
+                    dateRemboursement: "",
+                  });
+                }
+              }}
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Ajouter un crédit ({derniersContratsArray.fields.length}/3)
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {derniersContratsArray.fields.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+              Aucun crédit antérieur renseigné. Si le client a déjà eu des prêts contractés, cliquez sur « Ajouter un crédit » pour valoriser son score.
+            </div>
+          ) : (
+            derniersContratsArray.fields.map((field, index) => {
+              const currentItem = formValues.derniersContrats?.[index];
+              const statutEval = getStatutContrat(currentItem?.datePrevueRemboursement, currentItem?.dateRemboursement);
+
+              return (
+                <div key={field.id} className="rounded-lg border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-800">
+                      Crédit précédent #{index + 1}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => derniersContratsArray.remove(index)}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4 text-red-500" /> Supprimer
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Date d'octroi</Label>
+                      <Controller
+                        control={form.control}
+                        name={`derniersContrats.${index}.dateOctroi`}
+                        render={({ field: dateField }) => (
+                          <DateInput
+                            className={FIELD_H}
+                            value={dateField.value}
+                            onValueChange={dateField.onChange}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Somme demandée (Ar)</Label>
+                      <Controller
+                        control={form.control}
+                        name={`derniersContrats.${index}.montant`}
+                        render={({ field: montantField }) => (
+                          <MontantInput
+                            className={FIELD_H}
+                            value={String(montantField.value ?? "")}
+                            onValueChange={(v) => montantField.onChange(v ? Number(v) : undefined)}
+                            placeholder="Ex. 1 000 000"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Date prévue de remboursement</Label>
+                      <Controller
+                        control={form.control}
+                        name={`derniersContrats.${index}.datePrevueRemboursement`}
+                        render={({ field: dateField }) => (
+                          <DateInput
+                            className={FIELD_H}
+                            value={dateField.value}
+                            onValueChange={dateField.onChange}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Date effective de remboursement</Label>
+                      <Controller
+                        control={form.control}
+                        name={`derniersContrats.${index}.dateRemboursement`}
+                        render={({ field: dateField }) => (
+                          <DateInput
+                            className={FIELD_H}
+                            value={dateField.value}
+                            onValueChange={dateField.onChange}
+                          />
+                        )}
+                      />
+                      <p className="text-[10px] text-slate-400">Vide si non encore remboursé.</p>
+                    </div>
+                  </div>
+
+                  {statutEval && (
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200">
+                      <span className="text-xs text-slate-500 font-medium">Situation observée :</span>
+                      <span className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-md border ${statutEval.color}`}>
+                        {statutEval.badge}
+                      </span>
+                      <span className="text-xs text-slate-500">— Impact score :</span>
+                      <span className="text-xs font-bold text-slate-800">{statutEval.impact}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </CardContent>
       </Card>
 
@@ -489,44 +699,21 @@ export function ContratForm() {
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="font-normal text-slate-600">Type de garantie</Label>
-              <Select
-                defaultValue="Terrain"
-                onValueChange={(v) => form.setValue("typeGarantie", v as string)}
-              >
-                <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(false, !!formValues.typeGarantie)}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Terrain">Terrain</SelectItem>
-                  <SelectItem value="Maison">Maison</SelectItem>
-                  <SelectItem value="Hypothèque immobilière">Hypothèque immobilière</SelectItem>
-                  <SelectItem value="Gage de véhicule">Gage de véhicule</SelectItem>
-                  <SelectItem value="Nantissement de matériel">Nantissement de matériel</SelectItem>
-                  <SelectItem value="Caution solidaire">Caution solidaire</SelectItem>
-                  <SelectItem value="Dépôt de garantie / Cash collateral">Dépôt de garantie / Cash collateral</SelectItem>
-                  <SelectItem value="Autre garantie réelle">Autre garantie réelle</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="font-normal text-slate-600">Valeur de la garantie (Ar)</Label>
-              <Controller
-                control={form.control}
-                name="valeurGarantie"
-                render={({ field }) => (
-                  <MontantInput
-                    className={`${FIELD_H} ${getFieldBorderClass(false, !!field.value)}`}
-                    value={String(field.value ?? "")}
-                    onValueChange={(v) => field.onChange(v ? Number(v) : undefined)}
-                    placeholder="Ex: 2 000 000"
-                  />
-                )}
-              />
-            </div>
+          <div className="space-y-1.5">
+            <Label className="font-semibold text-slate-800">Total valeur de la garantie (Ar)</Label>
+            <Controller
+              control={form.control}
+              name="valeurGarantie"
+              render={({ field }) => (
+                <MontantInput
+                  className={`${FIELD_H} ${getFieldBorderClass(false, !!field.value)}`}
+                  value={String(field.value ?? "")}
+                  onValueChange={(v) => field.onChange(v ? Number(v) : undefined)}
+                  placeholder="Ex: 5 000 000"
+                />
+              )}
+            />
+            <p className="text-xs text-slate-400">Total de la valeur estimée des garanties couvrant le prêt.</p>
           </div>
 
           {/* Calcul dynamique de la couverture de garantie */}
@@ -534,7 +721,7 @@ export function ContratForm() {
             <div className="rounded-lg border bg-slate-50 p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <div>
-                  <span className="text-slate-500 block">Total Demande + Intérêts (+3%/mois)</span>
+                  <span className="text-slate-500 block">Total Demande + Intérêts (+{tauxMensuel}%/mois)</span>
                   <span className="text-base font-semibold text-slate-900">
                     {Math.round(totalDemandeInteret).toLocaleString("fr-FR")} Ar
                   </span>

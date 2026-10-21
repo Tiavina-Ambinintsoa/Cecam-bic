@@ -181,6 +181,8 @@ export function ClientForm() {
 
       const clientPayload = {
         ...restValues,
+        nom: values.nom.trim().toUpperCase(),
+        prenom: values.prenom.trim(),
         telephone: primaryContact || restValues.telephone,
         affaireIndividuelle: affairePayload,
         identifiants: tousIdentifiants,
@@ -269,48 +271,48 @@ export function ClientForm() {
             </div>
           </div>
 
-          {/* Ligne 2 : Prénom *, Deuxième Prénom, Nom * (3 champs) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Ligne 2 : Nom * (en majuscules), Prénom(s) * */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5 min-w-0">
               <Label className="font-semibold text-slate-800">
-                Prénom <span className="text-red-500">*</span>
+                Nom <span className="text-red-500">*</span>
+              </Label>
+              <Controller
+                control={form.control}
+                name="nom"
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                    style={{ textTransform: "uppercase" }}
+                    placeholder="NOM DU CLIENT"
+                    className={`${FIELD_H} font-medium uppercase ${getFieldBorderClass(
+                      !!form.formState.errors.nom,
+                      !!field.value
+                    )}`}
+                  />
+                )}
+              />
+              {form.formState.errors.nom && (
+                <p className="text-sm text-red-500">{form.formState.errors.nom.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5 min-w-0">
+              <Label className="font-semibold text-slate-800">
+                Prénom(s) <span className="text-red-500">*</span>
               </Label>
               <Input
                 className={`${FIELD_H} ${getFieldBorderClass(
                   !!form.formState.errors.prenom,
                   !!formValues.prenom
                 )}`}
+                placeholder="Prénom(s)"
                 {...form.register("prenom")}
               />
               {form.formState.errors.prenom && (
                 <p className="text-sm text-red-500">{form.formState.errors.prenom.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5 min-w-0">
-              <Label className="font-normal text-slate-600">Deuxième Prénom</Label>
-              <Input
-                className={`${FIELD_H} ${getFieldBorderClass(
-                  !!form.formState.errors.deuxiemePrenom,
-                  !!formValues.deuxiemePrenom
-                )}`}
-                {...form.register("deuxiemePrenom")}
-              />
-            </div>
-
-            <div className="space-y-1.5 min-w-0">
-              <Label className="font-semibold text-slate-800">
-                Nom <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                className={`${FIELD_H} ${getFieldBorderClass(
-                  !!form.formState.errors.nom,
-                  !!formValues.nom
-                )}`}
-                {...form.register("nom")}
-              />
-              {form.formState.errors.nom && (
-                <p className="text-sm text-red-500">{form.formState.errors.nom.message}</p>
               )}
             </div>
           </div>

@@ -66,7 +66,7 @@ export function RapportPage() {
   if (!rapport || !previewUrl) return <div className="mx-auto max-w-3xl p-6 text-slate-500">Chargement du rapport...</div>;
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="mx-auto max-w-[1400px] w-full px-4 sm:px-6 py-6">
       <div className="mb-4 flex justify-end gap-3">
         <Button onClick={() => void telechargerEtVisualiserPdf()} disabled={telechargementPdf}>
           {telechargementPdf ? "Génération du PDF..." : "Télécharger et visualiser le PDF"}
