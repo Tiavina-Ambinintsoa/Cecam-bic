@@ -16,7 +16,7 @@ import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note
 import { MontantInput } from "@/components/ui/montant-input";
 import { DateInput } from "@/components/ui/date-input";
 import { Plus, Trash2 } from "lucide-react";
-import { TYPES_CREDIT_INTERET } from "./typescredit";
+import { TYPES_CREDIT_INTERET } from "./typesCredit";
 
 // Type d'un élément de l'historique des contrats (déduit du schéma, sans any)
 type DernierContrat = NonNullable<ContratFormInput["derniersContrats"]>[number];
