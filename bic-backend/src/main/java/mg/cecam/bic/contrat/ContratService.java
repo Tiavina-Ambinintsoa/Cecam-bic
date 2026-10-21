@@ -452,7 +452,7 @@ public Contrat saisirHistorique(HistoriqueContratRequest req) {
     }
 
     public List<Contrat> listerTous() {
-        return contratRepository.findAllByOrderByDateDemandeDesc();
+        return contratRepository.findAllByOrderByIdDesc();
     }
 
     private void genererEcheances(Contrat contrat) {

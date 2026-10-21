@@ -248,6 +248,11 @@ private String codeDemandeEtablissement;
     @Column(name = "note", length = 255)
     private String note;
 
+    @OneToMany(mappedBy = "contrat", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private java.util.List<DernierContrat> derniersContrats = new java.util.ArrayList<>();
+
     @Column(name = "date_derniere_modification")
     private LocalDateTime dateDerniereModification;
 

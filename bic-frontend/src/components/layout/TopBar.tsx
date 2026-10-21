@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -7,6 +8,8 @@ export function TopBar() {
   const [type, setType] = useState<"individuel" | "entreprise">("individuel");
   const { nomUtilisateur, role, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isRapports = location.pathname.startsWith("/rapports");
 
   return (
     <header className="border-b border-border bg-card">
@@ -37,6 +40,19 @@ export function TopBar() {
           >
             Entreprise
           </button>
+          <div className="h-5 w-px bg-border mx-1" />
+          <Link
+            to="/rapports"
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-2 text-base transition-colors",
+              isRapports
+                ? "bg-secondary font-medium text-secondary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60",
+            )}
+          >
+            <FileText className="size-4" />
+            <span>Historique des rapports</span>
+          </Link>
         </nav>
 
         <div className="ml-auto flex items-center gap-4">
