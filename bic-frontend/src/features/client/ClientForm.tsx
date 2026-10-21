@@ -108,6 +108,7 @@ export function ClientForm() {
     defaultValues: {
       titre: "M.",
       nationalite: "Malgache",
+      dateAdhesion: "",
       categorieTiersCode: "0215",
       adresses: [{ typeAdresse: "Individu - Adresse principale", adresseComplete: "" }],
       identifiants: [{ typeIdentifiant: "CIN", numero: "" }],
@@ -183,6 +184,7 @@ export function ClientForm() {
         ...restValues,
         nom: values.nom.trim().toUpperCase(),
         prenom: values.prenom.trim(),
+        dateAdhesion: values.dateAdhesion?.trim() || undefined,
         telephone: primaryContact || restValues.telephone,
         affaireIndividuelle: affairePayload,
         identifiants: tousIdentifiants,
@@ -435,6 +437,33 @@ export function ClientForm() {
                   <SelectItem value="Divorcé(e)">Divorcé(e)</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          {/* Ligne 5 : Membre depuis le (Date d'adhésion du sociétaire) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1.5 min-w-0">
+              <Label className="font-normal text-slate-700">
+                Membre depuis le <span className="text-xs text-slate-400 font-normal">(jj/mm/aaaa)</span>
+              </Label>
+              <Controller
+                control={form.control}
+                name="dateAdhesion"
+                render={({ field }) => (
+                  <DateInput
+                    className={`${FIELD_H} ${getFieldBorderClass(
+                      !!form.formState.errors.dateAdhesion,
+                      !!field.value
+                    )}`}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  />
+                )}
+              />
+              {form.formState.errors.dateAdhesion && (
+                <p className="text-sm text-red-500">{form.formState.errors.dateAdhesion.message}</p>
+              )}
+              <p className="text-xs text-slate-400">Date d'adhésion du sociétaire à la CECAM.</p>
             </div>
           </div>
         </CardContent>

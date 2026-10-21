@@ -15,5 +15,6 @@ public record DetailDemandeDTO(
         BigDecimal valeurPatrimoine, BigDecimal margePatrimoine,
         BigDecimal ratioCouverturePatrimoine, BigDecimal totalDepot,
         BigDecimal totalCreditActif,
+        String typeCredit,
         BigDecimal tauxInteretMensuel
 ) {}

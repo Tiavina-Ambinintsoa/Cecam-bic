@@ -26,6 +26,7 @@ export const contratSchema = z.object({
   periodiciteBudget: z.string().optional(),
   montantRecette: z.coerce.number({ message: "Le montant des revenus/recettes est requis" }).positive("Le montant des recettes doit être supérieur à 0"),
   montantDepense: z.coerce.number({ message: "Le montant des dépenses est requis" }).nonnegative("Le montant des dépenses doit être positif"),
+  typeCredit: z.string().optional(),
   tauxInteretMensuel: z.coerce.number().min(0, "Le taux d'intérêt doit être positif ou nul").optional(),
   typeGarantie: z.string().optional(),
   valeurGarantie: montantOptionnel,

@@ -747,7 +747,8 @@ public class RapportService {
                 c.getDateNaissance(), tiret(c.getVilleNaissance()), tiret(c.getPaysNaissance()),
                 c.getGenre() == null ? "-" : c.getGenre().name(), c.getNationalite(),
                 tiret(c.getEtatCivil()), tiret(c.getTelephone()),
-                c.getCategorieTiersCode(), c.getDateDerniereModification());
+                c.getCategorieTiersCode(), c.getDateDerniereModification(),
+                c.getDateAdhesion());
     }
 
     private AffaireIndividuelleDTO toAffaireIndividuelleDTO(AffaireIndividuelle affaire) {
@@ -804,6 +805,7 @@ public class RapportService {
                 c.getValeurPatrimoine(), c.getMargePatrimoine(),
                 c.getRatioCouverturePatrimoine(), c.getTotalDepot(),
                 c.getTotalCreditActif(),
+                tiret(c.getTypeCredit()),
                 c.getTauxInteretMensuel());
     }
 

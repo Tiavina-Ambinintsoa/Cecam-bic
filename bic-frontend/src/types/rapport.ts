@@ -14,6 +14,7 @@ export interface ClientInfo {
   telephone?: string;
   categorieTiersCode: string;
   dateDerniereModification: string;
+  dateAdhesion?: string;
 }
 
 export interface Contact {
@@ -58,6 +59,7 @@ export interface DetailDemande {
   role: string;
   typeRelationEntreprise?: string;
   typeContrat: string;
+  typeCredit?: string;
   phaseDemande: string;
   devise: string;
   periodicitePaiement?: string;

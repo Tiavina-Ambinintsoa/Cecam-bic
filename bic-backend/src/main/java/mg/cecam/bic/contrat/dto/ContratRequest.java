@@ -36,6 +36,7 @@ public record ContratRequest(
         @Size(max = 20) List<@Valid RevenuDemandeRequest> revenusComplementaires,
         @PositiveOrZero BigDecimal totalDepot,
         @PositiveOrZero BigDecimal totalCreditActif,
+        String typeCredit,
         BigDecimal tauxInteretMensuel,
         @Size(max = 3) List<@Valid DernierContratRequest> derniersContrats
 ) {

@@ -78,7 +78,7 @@ public class Client {
     @Column(name = "telephone")
     private String telephone;
 
-    @Column(name = "date_adhesion", updatable = false)
+    @Column(name = "date_adhesion")
     private LocalDate dateAdhesion;
 
     @Column(name = "date_derniere_modification")
@@ -97,7 +97,9 @@ public class Client {
 
     @PrePersist
     void onCreate() {
-        this.dateAdhesion = LocalDate.now();
+        if (this.dateAdhesion == null) {
+            this.dateAdhesion = LocalDate.now();
+        }
         this.dateDerniereModification = LocalDateTime.now();
     }
 

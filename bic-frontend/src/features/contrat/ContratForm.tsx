@@ -75,6 +75,14 @@ function getStatutContrat(prevueStr?: string, reelleStr?: string) {
   }
 }
 
+export const TYPES_CREDIT_INTERET = [
+  { code: "RFR", label: "RFR (2.75%)", taux: 2.75 },
+  { code: "PRO", label: "PRO (3.5%)", taux: 3.5 },
+  { code: "LVM", label: "LVM (2.75%)", taux: 2.75 },
+  { code: "CIM", label: "CIM (2.75%)", taux: 2.75 },
+  { code: "GCV", label: "GCV (3%)", taux: 3.0 },
+] as const;
+
 export function ContratForm() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
@@ -87,6 +95,7 @@ export function ContratForm() {
     defaultValues: {
       modeRattachement: "NOUVELLE_DEMANDE",
       typeContrat: "Prêt personnel",
+      typeCredit: "GCV",
       dateDemande: today,
       devise: "Ariary malgache",
       periodiciteBudget: "Mensuelle",
@@ -119,12 +128,14 @@ export function ContratForm() {
   };
   const evaluationBudget = getEvaluationBudget();
 
-  // Calculs garantie (+X% du montant demandé par mois selon tauxInteretMensuel)
+  // Calculs garantie (+X% du montant demandé par mois selon tauxInteretMensuel / typeCredit)
   const montantFinance = Number(formValues.montantFinance) || 0;
   const dureeMois = Number(formValues.nombreTotalEcheances) || 1;
+  const selectedTypeCredit = formValues.typeCredit || "GCV";
+  const typeCreditObj = TYPES_CREDIT_INTERET.find((t) => t.code === selectedTypeCredit);
   const tauxMensuel = formValues.tauxInteretMensuel !== undefined && Number(formValues.tauxInteretMensuel) >= 0
     ? Number(formValues.tauxInteretMensuel)
-    : 3;
+    : (typeCreditObj?.taux ?? 3.0);
   const tauxInteretTotal = (tauxMensuel / 100) * dureeMois;
   const montantInteret = montantFinance * tauxInteretTotal;
   const totalDemandeInteret = montantFinance + montantInteret;
@@ -351,17 +362,32 @@ export function ContratForm() {
 
             <div className="space-y-1.5">
               <Label className="font-semibold text-slate-800">
-                Taux d'intérêt mensuel (%) <span className="text-red-500">*</span>
+                Type de crédit <span className="text-red-500">*</span>
               </Label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                {...form.register("tauxInteretMensuel")}
-                placeholder="3"
-                className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.tauxInteretMensuel, formValues.tauxInteretMensuel !== undefined)}`}
-              />
-              <p className="text-xs text-slate-400">Automatique à 3 % / mois, modifiable.</p>
+              <Select
+                value={formValues.typeCredit || "GCV"}
+                onValueChange={(v) => {
+                  form.setValue("typeCredit", v as string, { shouldValidate: true, shouldDirty: true });
+                  const found = TYPES_CREDIT_INTERET.find((t) => t.code === v);
+                  if (found) {
+                    form.setValue("tauxInteretMensuel", found.taux, { shouldValidate: true, shouldDirty: true });
+                  }
+                }}
+              >
+                <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.typeCredit, !!formValues.typeCredit)}`}>
+                  <SelectValue placeholder="Sélectionner le type de crédit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPES_CREDIT_INTERET.map((item) => (
+                    <SelectItem key={item.code} value={item.code}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500">
+                Taux mensuel appliqué : <strong className="text-slate-700">{tauxMensuel} % / mois</strong>
+              </p>
             </div>
           </div>
         </CardContent>

@@ -29,6 +29,7 @@ export interface ContratRequest {
   valeurPatrimoine?: number;
   totalDepot?: number;
   totalCreditActif?: number;
+  typeCredit?: string;
   tauxInteretMensuel?: number;
   derniersContrats?: DernierContratRequest[];
   revenusComplementaires?: {

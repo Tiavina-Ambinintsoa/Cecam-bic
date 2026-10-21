@@ -78,6 +78,7 @@ export interface ClientRequest {
   genre: Genre;
   nationalite: string;
   etatCivil?: string;
+  dateAdhesion?: string;
   codeClientEtablissement?: string;
   telephone?: string;
   contacts?: ContactRequest[];

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -64,6 +65,7 @@ public class ClientService {
                 .codeClientEtablissement(request.codeClientEtablissement())
                 .etatCivil(request.etatCivil())
                 .telephone(request.telephone())
+                .dateAdhesion(request.dateAdhesion() != null ? request.dateAdhesion() : LocalDate.now())
                 .build();
 
         List<Adresse> adresses = request.adresses().stream()
@@ -125,6 +127,9 @@ public class ClientService {
         client.setGenre(request.genre());
         client.setNationalite(request.nationalite());
         client.setEtatCivil(request.etatCivil());
+        if (request.dateAdhesion() != null) {
+            client.setDateAdhesion(request.dateAdhesion());
+        }
         client.setCodeClientEtablissement(request.codeClientEtablissement());
         client.setTelephone(request.telephone());
         appliquerAffaireIndividuelle(client, request.affaireIndividuelle());

@@ -57,7 +57,7 @@
 
 <table>
   <tr>
-    <td style="width:55%"><div class="marque">CECAM <span>— Bureau d'Information sur le Crédit</span></div></td>
+    <td style="width:55%"><div class="marque">CECAM <span>— Agence de credit</span></div></td>
     <td style="width:45%">
       <div class="bandeau-etab">
         <strong>CECAM — Service Crédit</strong><br/>
@@ -111,7 +111,8 @@
   <tr>
     <td><div class="lib">Nationalité</div><div class="val" th:text="${r.client.nationalite}">-</div></td>
     <td><div class="lib">Etat civil</div><div class="val" th:text="${r.client.etatCivil}">-</div></td>
-    <td></td>
+    <td><div class="lib">Membre depuis le</div>
+        <div class="val" th:text="${r.client.dateAdhesion != null ? #temporals.format(r.client.dateAdhesion,'dd/MM/yyyy') : '-'}">-</div></td>
     <td></td>
   </tr>
 </table>
@@ -292,8 +293,8 @@
           <div class="val" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantTotalDemandeInteret)}">-</div></td>
       <td><div class="lib">Ratio Couverture Garantie</div>
           <div class="val" style="font-weight:bold" th:text="${r.detailDemande.ratioCouvertureGarantie != null ? r.detailDemande.ratioCouvertureGarantie + ' %' : '-'}">-</div></td>
-      <td><div class="lib">Taux d'Intérêt Mensuel</div>
-          <div class="val" th:text="${r.detailDemande.tauxInteretMensuel != null ? r.detailDemande.tauxInteretMensuel + ' %' : '3 %'}">-</div></td>
+      <td><div class="lib">Type de Crédit &amp; Taux</div>
+          <div class="val" th:text="${(r.detailDemande.typeCredit != null and r.detailDemande.typeCredit != '-' ? r.detailDemande.typeCredit + ' (' + (r.detailDemande.tauxInteretMensuel != null ? r.detailDemande.tauxInteretMensuel : 3) + ' %)' : (r.detailDemande.tauxInteretMensuel != null ? r.detailDemande.tauxInteretMensuel + ' %' : '3 %'))}">-</div></td>
     </tr>
   </table>
 </th:block>

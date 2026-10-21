@@ -22,6 +22,7 @@ public record ClientRequest(
         @NotNull Genre genre,
         @NotBlank String nationalite,
         String etatCivil,
+        LocalDate dateAdhesion,
         @Size(max = 40) String codeClientEtablissement,
         String agence,
         String telephone,

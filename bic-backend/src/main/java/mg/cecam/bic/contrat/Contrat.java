@@ -130,6 +130,9 @@ private String codeDemandeEtablissement;
     @Column(name = "montant_total_demande_interet", precision = 19, scale = 2)
     private BigDecimal montantTotalDemandeInteret;
 
+    @Column(name = "type_credit", length = 30)
+    private String typeCredit;
+
     @Column(name = "taux_interet_mensuel", precision = 5, scale = 2)
     private BigDecimal tauxInteretMensuel;
 
