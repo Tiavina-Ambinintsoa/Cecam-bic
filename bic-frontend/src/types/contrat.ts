@@ -4,10 +4,12 @@ export type PhaseDemande = "DEMANDE_EN_COURS" | "ACTIF" | "REFUSE" | "FERME" | "
 export type MotifCloture = "FIN_A_TERME" | "FIN_ANTICIPEE";
 
 export interface DernierContratRequest {
+  typeCredit?: string;
   dateOctroi?: string;
   montant?: number;
   datePrevueRemboursement?: string;
   dateRemboursement?: string;
+  statut?: string;
 }
 
 export interface ContratRequest {
@@ -50,4 +52,6 @@ export type ContratResponse = Omit<ContratRequest, "montantEcheanceMensuelle" | 
   devise?: string | null;
   motifCloture?: MotifCloture | null;
   client?: { prenom: string; nom: string; codeClientCb?: string };
+  scoreValeur?: number | null;
+  scoreCategorie?: string | null;
 };

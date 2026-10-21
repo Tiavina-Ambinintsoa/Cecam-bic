@@ -16,5 +16,6 @@ public record DetailDemandeDTO(
         BigDecimal ratioCouverturePatrimoine, BigDecimal totalDepot,
         BigDecimal totalCreditActif,
         String typeCredit,
-        BigDecimal tauxInteretMensuel
+        BigDecimal tauxInteretMensuel,
+        BigDecimal montantSuggerePour120
 ) {}

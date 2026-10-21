@@ -336,6 +336,7 @@
   <table class="liste">
     <thead>
       <tr>
+        <th>Type de Crédit</th>
         <th>Date d'Octroi</th>
         <th>Somme Demandée</th>
         <th>Date Prévue Remboursement</th>
@@ -346,6 +347,7 @@
     </thead>
     <tbody>
       <tr th:each="dc : ${r.derniersContrats}">
+        <td><strong th:text="${dc.typeCredit} ?: 'RFR'">RFR</strong></td>
         <td th:text="${dc.dateOctroi != null ? #temporals.format(dc.dateOctroi,'dd/MM/yyyy') : '-'}">-</td>
         <td th:text="${dc.montant != null ? T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(dc.montant) : '-'}">-</td>
         <td th:text="${dc.datePrevueRemboursement != null ? #temporals.format(dc.datePrevueRemboursement,'dd/MM/yyyy') : '-'}">-</td>
@@ -358,7 +360,7 @@
           <span th:if="${dc.statut == 'EN_COURS'}" class="badge-bleu">En cours (non échu)</span>
         </td>
         <td>
-          <span th:if="${dc.statut == 'ANTICIPATION'}" style="color:#059669; font-weight:bold;">+15 pts (Bonus)</span>
+          <span th:if="${dc.statut == 'ANTICIPATION'}" style="color:#059669; font-weight:bold;">+20 pts (Bonus)</span>
           <span th:if="${dc.statut == 'A_TEMPS'}" style="color:#10b981; font-weight:600;">Régulier (Normal)</span>
           <span th:if="${dc.statut == 'EN_RETARD'}" style="color:#d97706; font-weight:bold;">Malus de retard</span>
           <span th:if="${dc.statut == 'NON_REMBOURSE'}" style="color:#dc2626; font-weight:bold;">Risque Élevé / Plafond</span>
@@ -371,6 +373,17 @@
 
 <div class="section">SCORE CB</div>
 <div class="score-note" th:text="${r.score.avertissement}">Score expérimental réservé à l'analyse interne.</div>
+
+<th:block th:if="${r.detailDemande.montantSuggerePour120 != null}">
+  <div style="background-color:#fef2f2; border:1px solid #f87171; border-radius:4px; padding:8px 12px; margin:8px 0;">
+    <div style="color:#b91c1c; font-weight:bold; font-size:8.5pt;">⚠ Recommandation d'ajustement du montant (Garantie &lt; 100%) :</div>
+    <div style="color:#7f1d1d; font-size:8pt; margin-top:3px;">
+      La garantie actuelle de <strong th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.valeurGarantie)}">-</strong> couvre seulement <strong th:text="${r.detailDemande.ratioCouvertureGarantie != null ? #numbers.formatDecimal(r.detailDemande.ratioCouvertureGarantie,1,1) + '%' : '-'}">-</strong> du montant total avec intérêts.
+      <br/>Pour que cette garantie atteigne le ratio cible recommandé de <strong>120 %</strong>, il est suggéré de réviser le montant financé à maximum <strong style="color:#b91c1c;" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantSuggerePour120)}">-</strong> (ou d'apporter une garantie complémentaire).
+    </div>
+  </div>
+</th:block>
+
 <div th:unless="${r.score.calculable}" class="encadre">
   <div class="bloc-titre">Le score n'est pas calculé :</div>
   <div class="val" th:text="${r.score.message}">-</div>
@@ -398,6 +411,88 @@
     </td>
   </tr>
 </table>
+
+<div th:if="${r.score.calculable and r.score.composantes != null and !r.score.composantes.isEmpty()}" style="margin-top:10px;">
+  <div class="sous-section">Détail et Barème du Calcul du Score</div>
+  <table class="liste" style="width:100%; font-size:7.5pt; margin-top:4px;">
+    <thead>
+      <tr style="background-color:#f8fafc;">
+        <th>Pilier d'évaluation</th>
+        <th style="text-align:right;">Points Obtenus</th>
+        <th style="text-align:right;">Max</th>
+        <th>Appréciation / Détail</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Score de base initial</strong></td>
+        <td style="text-align:right; font-weight:bold;">300 pts</td>
+        <td style="text-align:right;">300</td>
+        <td>Socle universel de départ de l'évaluation</td>
+      </tr>
+      <tr th:if="${r.score.composantes.containsKey('paiement')}">
+        <td><strong>Comportement de remboursement</strong></td>
+        <td style="text-align:right; font-weight:bold;" th:text="${r.score.composantes.get('paiement')} + ' pts'">-</td>
+        <td style="text-align:right;">290</td>
+        <td>Régularité des échéances observées ou antécédents des 3 derniers crédits déclarés</td>
+      </tr>
+      <tr th:if="${r.score.composantes.containsKey('budget')}">
+        <td><strong>Capacité budgétaire (Revenus / Dépenses)</strong></td>
+        <td style="text-align:right; font-weight:bold;" th:text="${r.score.composantes.get('budget')} + ' pts'">-</td>
+        <td style="text-align:right;">30</td>
+        <td>Reste à vivre mensuel et capacité d'absorption de la mensualité</td>
+      </tr>
+      <tr th:if="${r.score.composantes.containsKey('garantie')}">
+        <td><strong>Garantie de l'octroi</strong></td>
+        <td style="text-align:right; font-weight:bold;" th:text="${r.score.composantes.get('garantie')} + ' pts'">-</td>
+        <td style="text-align:right;">30</td>
+        <td>Taux de couverture du prêt et de ses intérêts par les sûretés</td>
+      </tr>
+      <tr th:if="${r.score.composantes.containsKey('patrimoine')}">
+        <td><strong>Patrimoine du sociétaire</strong></td>
+        <td style="text-align:right; font-weight:bold;" th:text="${r.score.composantes.get('patrimoine')} + ' pts'">-</td>
+        <td style="text-align:right;">30</td>
+        <td>Solidité patrimoniale et marge de sécurité</td>
+      </tr>
+      <tr th:if="${r.score.composantes.containsKey('anciennete')}">
+        <td><strong>Ancienneté d'adhésion CECAM</strong></td>
+        <td style="text-align:right; font-weight:bold;" th:text="${r.score.composantes.get('anciennete')} + ' pts'">-</td>
+        <td style="text-align:right;">40</td>
+        <td>Fidélité et stabilité en tant que membre sociétaire</td>
+      </tr>
+      <tr th:if="${r.score.composantes.containsKey('profil_age')}">
+        <td><strong>Profil sociétaire (Âge)</strong></td>
+        <td style="text-align:right; font-weight:bold;" th:text="${r.score.composantes.get('profil_age')} + ' pts'">-</td>
+        <td style="text-align:right;">25</td>
+        <td>Maturité économique et stabilité professionnelle</td>
+      </tr>
+      <tr th:if="${r.score.composantes.containsKey('bonus_anticipation')}">
+        <td><strong style="color:#059669;">Bonus d'anticipation</strong></td>
+        <td style="text-align:right; font-weight:bold; color:#059669;" th:text="'+' + ${r.score.composantes.get('bonus_anticipation')} + ' pts'">-</td>
+        <td style="text-align:right;">+30</td>
+        <td>Remboursement(s) antérieur(s) effectué(s) avant terme</td>
+      </tr>
+      <tr th:if="${r.score.composantes.containsKey('malus_retard_historique')}">
+        <td><strong style="color:#dc2626;">Malus de retard</strong></td>
+        <td style="text-align:right; font-weight:bold; color:#dc2626;" th:text="${r.score.composantes.get('malus_retard_historique')} + ' pts'">-</td>
+        <td style="text-align:right;">-40</td>
+        <td>Pénalité pour retards de paiement constatés</td>
+      </tr>
+      <tr th:if="${r.score.plafonds != null and !r.score.plafonds.isEmpty()}">
+        <td colspan="4" style="background-color:#fffbeb; color:#92400e; font-size:7pt; padding:3px 6px;">
+          <strong>Plafond(s) appliqué(s) :</strong>
+          <span th:each="pl, iter : ${r.score.plafonds}" th:text="${pl} + (iter.last ? '' : ' | ')">Plafond</span>
+        </td>
+      </tr>
+      <tr style="background-color:#f1f5f9; border-top:1px solid #0f172a;">
+        <td><strong>SCORE GLOBAL CALCULÉ</strong></td>
+        <td style="text-align:right; font-size:9.5pt; font-weight:bold;" th:text="${r.score.valeur} + ' pts'">-</td>
+        <td style="text-align:right; font-weight:bold;">850</td>
+        <td><strong th:text="'Catégorie ' + ${r.score.categorieRisque} + ' (' + ${r.score.intervalle} + ')'">-</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 <div class="section">SYNTHÈSE RAPPORT DE SOLVABILITÉ</div>
 <div class="sous-section">Chiffres Clés</div>

@@ -6,10 +6,12 @@ const montantOptionnel = z.preprocess(
 );
 
 const dernierContratSchema = z.object({
+  typeCredit: z.string().optional(),
   dateOctroi: z.string().optional(),
   montant: montantOptionnel,
   datePrevueRemboursement: z.string().optional(),
   dateRemboursement: z.string().optional(),
+  statut: z.string().optional(),
 });
 
 export const contratSchema = z.object({

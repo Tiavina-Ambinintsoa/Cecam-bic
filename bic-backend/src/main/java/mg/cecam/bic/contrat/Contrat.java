@@ -259,6 +259,12 @@ private String codeDemandeEtablissement;
     @Column(name = "date_derniere_modification")
     private LocalDateTime dateDerniereModification;
 
+    @Column(name = "score_valeur")
+    private Integer scoreValeur;
+
+    @Column(name = "score_categorie", length = 30)
+    private String scoreCategorie;
+
     @PrePersist
     @PreUpdate
     void onSave() {

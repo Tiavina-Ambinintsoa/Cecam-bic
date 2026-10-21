@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm, useFieldArray, Controller, useWatch } from "react-hook-form";
+import { useForm, useFieldArray, Controller, useWatch, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,29 @@ import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note
 import { DateInput } from "@/components/ui/date-input";
 import { MontantInput } from "@/components/ui/montant-input";
 import { Plus, Trash2 } from "lucide-react";
+
+// Fonctions de formatage automatique
+function capitalizeWords(str: string): string {
+  if (!str) return "";
+  return str.replace(/\b\p{L}+/gu, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+function formatTelephone(val: string): string {
+  const digits = val.replace(/\D/g, "");
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5)}`;
+  return `${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8, 10)}`;
+}
+
+function formatCIN(val: string): string {
+  const digits = val.replace(/\D/g, "");
+  const parts: string[] = [];
+  for (let i = 0; i < digits.length && i < 12; i += 3) {
+    parts.push(digits.slice(i, i + 3));
+  }
+  return parts.join(" ");
+}
 
 // Hauteur stricte et monotone pour un alignement parfait de tous les champs
 const FIELD_H = "h-10 py-2";
@@ -102,6 +125,11 @@ export function ClientForm() {
   const [titreLabel, setTitreLabel] = useState<string>("M.");
   const [categorieLabel, setCategorieLabel] = useState<string>("0215 - I M F");
   const [etatCivilLabel, setEtatCivilLabel] = useState<string>();
+
+  // Démarrer tout en haut au chargement de la page
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
 
   const form = useForm<ClientFormInput, unknown, ClientFormValues>({
     resolver: zodResolver(clientSchema),
@@ -204,8 +232,31 @@ export function ClientForm() {
     }
   }
 
+  // Scroll automatique vers le premier champ non rempli ou erroné avec mise en avant visuelle
+  function onFormError(errors: FieldErrors<ClientFormValues>) {
+    const errorKeys = Object.keys(errors);
+    if (!errorKeys.length) return;
+    const firstKey = errorKeys[0];
+
+    setTimeout(() => {
+      const el = document.querySelector(`[name="${firstKey}"]`) ||
+                 document.querySelector(`[name^="${firstKey}."]`) ||
+                 document.querySelector(`#${firstKey}`) ||
+                 document.querySelector(".border-red-500");
+
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        (el as HTMLElement).focus?.();
+        el.classList.add("ring-4", "ring-red-400", "animate-pulse");
+        setTimeout(() => {
+          el.classList.remove("ring-4", "ring-red-400", "animate-pulse");
+        }, 2200);
+      }
+    }, 50);
+  }
+
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-6xl w-full min-w-0 space-y-6 p-4 sm:p-6 overflow-hidden">
+    <form onSubmit={form.handleSubmit(onSubmit, onFormError)} className="mx-auto max-w-6xl w-full min-w-0 space-y-6 p-4 sm:p-6 overflow-hidden">
       {erreurSoumission && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{erreurSoumission}</div>}
       <ChampsObligatoiresNote />
 
@@ -305,13 +356,20 @@ export function ClientForm() {
               <Label className="font-semibold text-slate-800">
                 Prénom(s) <span className="text-red-500">*</span>
               </Label>
-              <Input
-                className={`${FIELD_H} ${getFieldBorderClass(
-                  !!form.formState.errors.prenom,
-                  !!formValues.prenom
-                )}`}
-                placeholder="Prénom(s)"
-                {...form.register("prenom")}
+              <Controller
+                control={form.control}
+                name="prenom"
+                render={({ field }) => (
+                  <Input
+                    className={`${FIELD_H} ${getFieldBorderClass(
+                      !!form.formState.errors.prenom,
+                      !!field.value
+                    )}`}
+                    placeholder="Prénom(s)"
+                    value={field.value || ""}
+                    onChange={(e) => field.onChange(capitalizeWords(e.target.value))}
+                  />
+                )}
               />
               {form.formState.errors.prenom && (
                 <p className="text-sm text-red-500">{form.formState.errors.prenom.message}</p>
@@ -440,11 +498,11 @@ export function ClientForm() {
             </div>
           </div>
 
-          {/* Ligne 5 : Membre depuis le (Date d'adhésion du sociétaire) */}
+          {/* Ligne 5 : Membre depuis le et Numéro membre CECAM */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5 min-w-0">
               <Label className="font-normal text-slate-700">
-                Membre depuis le <span className="text-xs text-slate-400 font-normal">(jj/mm/aaaa)</span>
+                Membre depuis le
               </Label>
               <Controller
                 control={form.control}
@@ -464,6 +522,21 @@ export function ClientForm() {
                 <p className="text-sm text-red-500">{form.formState.errors.dateAdhesion.message}</p>
               )}
               <p className="text-xs text-slate-400">Date d'adhésion du sociétaire à la CECAM.</p>
+            </div>
+
+            <div className="space-y-1.5 min-w-0">
+              <Label className="font-semibold text-slate-800">
+                Numéro membre CECAM
+              </Label>
+              <Input
+                className={`${FIELD_H} ${getFieldBorderClass(
+                  !!form.formState.errors.codeClientEtablissement,
+                  !!formValues.codeClientEtablissement
+                )}`}
+                placeholder="Ex. 3752"
+                {...form.register("codeClientEtablissement")}
+              />
+              <p className="text-xs text-slate-400">Identifiant sociétaire / livret CECAM.</p>
             </div>
           </div>
         </CardContent>
@@ -541,10 +614,17 @@ export function ClientForm() {
                     <Label className="font-semibold text-slate-800">
                       Adresse complète <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.adresseComplete, !!currentItem?.adresseComplete)}`}
-                      {...form.register(`adresses.${index}.adresseComplete` as const)}
-                      placeholder="Ex: Lot II M 45 Tsianolondroa, 301 Fianarantsoa, Madagascar"
+                    <Controller
+                      control={form.control}
+                      name={`adresses.${index}.adresseComplete`}
+                      render={({ field: addrField }) => (
+                        <Input
+                          className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.adresseComplete, !!currentItem?.adresseComplete)}`}
+                          value={addrField.value || ""}
+                          onChange={(e) => addrField.onChange(capitalizeWords(e.target.value))}
+                          placeholder="Ex: Lot II M 45 Tsianolondroa, 301 Fianarantsoa, Madagascar"
+                        />
+                      )}
                     />
                     {itemErrors?.adresseComplete && (
                       <p className="text-sm text-red-500">{itemErrors.adresseComplete.message}</p>
@@ -625,10 +705,23 @@ export function ClientForm() {
                     <Label className="font-semibold text-slate-800">
                       Numéro <span className="text-red-500">*</span>
                     </Label>
-                    <Input
-                      className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.numero, !!currentItem?.numero)}`}
-                      {...form.register(`identifiants.${index}.numero` as const)}
-                      placeholder="Ex: 101234567890"
+                    <Controller
+                      control={form.control}
+                      name={`identifiants.${index}.numero` as const}
+                      render={({ field: numField }) => {
+                        const isCIN = (currentItem?.typeIdentifiant || "CIN") === "CIN";
+                        return (
+                          <Input
+                            className={`${FIELD_H} ${getFieldBorderClass(!!itemErrors?.numero, !!numField.value)}`}
+                            value={numField.value || ""}
+                            onChange={(e) => {
+                              const val = isCIN ? formatCIN(e.target.value) : e.target.value;
+                              numField.onChange(val);
+                            }}
+                            placeholder={isCIN ? "Ex: 108 111 089 921" : "Ex: 101234567890"}
+                          />
+                        );
+                      }}
                     />
                     {itemErrors?.numero && (
                       <p className="text-sm text-red-500">{itemErrors.numero.message}</p>
@@ -837,10 +930,24 @@ export function ClientForm() {
                   {/* Champ 2 : Valeur contact */}
                   <div className="space-y-1.5 min-w-0">
                     <Label className="font-normal text-slate-600">Valeur contact</Label>
-                    <Input
-                      className={`${FIELD_H} ${getFieldBorderClass(false, !!currentItem?.valeurContact)}`}
-                      {...form.register(`contacts.${index}.valeurContact` as const)}
-                      placeholder="Ex: +261 34 12 345 67 ou client@email.com"
+                    <Controller
+                      control={form.control}
+                      name={`contacts.${index}.valeurContact` as const}
+                      render={({ field: contactField }) => {
+                        const typeContact = currentItem?.typeContact || "Téléphone principal";
+                        const isTel = !typeContact || typeContact.toLowerCase().includes("téléphone") || typeContact.toLowerCase().includes("tel");
+                        return (
+                          <Input
+                            className={`${FIELD_H} ${getFieldBorderClass(false, !!contactField.value)}`}
+                            value={contactField.value || ""}
+                            onChange={(e) => {
+                              const val = isTel ? formatTelephone(e.target.value) : e.target.value;
+                              contactField.onChange(val);
+                            }}
+                            placeholder={isTel ? "Ex: 034 14 329 43" : "Ex: client@email.com"}
+                          />
+                        );
+                      }}
                     />
                   </div>
                 </div>
@@ -1028,10 +1135,17 @@ export function ClientForm() {
                           Adresse complète <span className="text-red-500">*</span>
                         </Label>
                         <div className="flex items-center gap-2 w-full min-w-0">
-                          <Input
-                            className={`${FIELD_H} flex-1 min-w-0 ${getFieldBorderClass(!!itemErrors?.adresseComplete, !!currentVal?.adresseComplete)}`}
-                            {...form.register(`affaireIndividuelle.adresses.${idx}.adresseComplete` as const)}
-                            placeholder="Ex: Lot IV B 12, Antananarivo"
+                          <Controller
+                            control={form.control}
+                            name={`affaireIndividuelle.adresses.${idx}.adresseComplete` as const}
+                            render={({ field: addrField }) => (
+                              <Input
+                                className={`${FIELD_H} flex-1 min-w-0 ${getFieldBorderClass(!!itemErrors?.adresseComplete, !!addrField.value)}`}
+                                value={addrField.value || ""}
+                                onChange={(e) => addrField.onChange(capitalizeWords(e.target.value))}
+                                placeholder="Ex: Lot IV B 12, Antananarivo"
+                              />
+                            )}
                           />
                           {affaireAdressesArray.fields.length > 1 && (
                             <Button
@@ -1208,10 +1322,24 @@ export function ClientForm() {
                           Valeur contact <span className="text-red-500">*</span>
                         </Label>
                         <div className="flex items-center gap-2 w-full min-w-0">
-                          <Input
-                            className={`${FIELD_H} flex-1 min-w-0 ${getFieldBorderClass(!!itemErrors?.valeurContact, !!currentVal?.valeurContact)}`}
-                            {...form.register(`affaireIndividuelle.contacts.${idx}.valeurContact` as const)}
-                            placeholder="Ex: +261 20 22 123 45"
+                          <Controller
+                            control={form.control}
+                            name={`affaireIndividuelle.contacts.${idx}.valeurContact` as const}
+                            render={({ field: contactField }) => {
+                              const typeContact = currentVal?.typeContact || "Téléphone professionnel";
+                              const isTel = !typeContact || typeContact.toLowerCase().includes("téléphone") || typeContact.toLowerCase().includes("tel");
+                              return (
+                                <Input
+                                  className={`${FIELD_H} flex-1 min-w-0 ${getFieldBorderClass(!!itemErrors?.valeurContact, !!contactField.value)}`}
+                                  value={contactField.value || ""}
+                                  onChange={(e) => {
+                                    const val = isTel ? formatTelephone(e.target.value) : e.target.value;
+                                    contactField.onChange(val);
+                                  }}
+                                  placeholder={isTel ? "Ex: 034 14 329 43" : "Ex: contact@entreprise.mg"}
+                                />
+                              );
+                            }}
                           />
                           {affaireContactsArray.fields.length > 1 && (
                             <Button

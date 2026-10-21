@@ -103,6 +103,12 @@ public class RapportService {
         boolean clientTrouve = clientPreexistant(client, contrat, historique);
         ScoreResult scoreResult = scoreService.calculer(client, contrat, clientTrouve);
 
+        if (scoreResult.calculable()) {
+            contrat.setScoreValeur(scoreResult.valeur());
+            contrat.setScoreCategorie(scoreResult.categorieRisque());
+            contratRepository.save(contrat);
+        }
+
         List<ConsultationDTO> historiqueConsultations = journalAuditRepository
                 .findByEntiteAndEntiteIdOrderByDateEvenementDesc("CLIENT", client.getId()).stream()
                 .filter(a -> a.getAction().equals("CREATION") || a.getAction().equals("CONSULTATION"))
@@ -124,6 +130,7 @@ public class RapportService {
                         libelleAvance = (mois > 0 ? (mois + " mois d'avance") : (jours + " jours d'avance"));
                     }
                     return new DernierContratDTO(
+                            dc.getTypeCredit(),
                             dc.getDateOctroi(),
                             dc.getMontant(),
                             dc.getDatePrevueRemboursement(),
@@ -791,6 +798,16 @@ public class RapportService {
     }
 
     private DetailDemandeDTO toDetailDemande(Contrat c) {
+        BigDecimal montantSuggere = null;
+        if (c.getValeurGarantie() != null && c.getValeurGarantie().signum() > 0 && c.getRatioCouvertureGarantie() != null
+                && c.getRatioCouvertureGarantie().compareTo(BigDecimal.valueOf(100)) < 0) {
+            BigDecimal tauxMensuel = c.getTauxInteretMensuel() != null ? c.getTauxInteretMensuel() : BigDecimal.valueOf(3.0);
+            int duree = c.getNombreTotalEcheances() != null && c.getNombreTotalEcheances() > 0 ? c.getNombreTotalEcheances() : 1;
+            double facteur = 1.0 + (tauxMensuel.doubleValue() / 100.0) * duree;
+            double montantMax = c.getValeurGarantie().doubleValue() / (1.20 * facteur);
+            montantSuggere = BigDecimal.valueOf(Math.round(montantMax / 10000.0) * 10000L);
+        }
+
         return new DetailDemandeDTO(
                 c.getCodeContratCb(), LabelMapper.role(c.getRoleClient()),
                 tiret(c.getTypeRelationEntreprise()), c.getTypeContrat(),
@@ -806,17 +823,19 @@ public class RapportService {
                 c.getRatioCouverturePatrimoine(), c.getTotalDepot(),
                 c.getTotalCreditActif(),
                 tiret(c.getTypeCredit()),
-                c.getTauxInteretMensuel());
+                c.getTauxInteretMensuel(),
+                montantSuggere);
     }
 
     private ScoreDTO toScoreDto(ScoreResult r) {
-        String avertissement = "Score expérimental, non calibré sur des historiques de remboursement CECAM réels. "
-                + "Indicateur d'analyse interne uniquement : il ne constitue pas une décision de crédit.";
+        String avertissement = "Score expérimental, calibré sur la capacité de remboursement, l'antériorité et les garanties CECAM. "
+                + "Indicateur d'analyse d'aide à la décision : il synthétise le risque de solvabilité du sociétaire.";
         if (!r.calculable()) {
-            return new ScoreDTO(false, null, null, null, null, null, r.message(), avertissement);
+            return new ScoreDTO(false, null, null, null, null, null, r.message(), avertissement, Map.of(), List.of());
         }
         return new ScoreDTO(true, r.valeur(), r.intervalle(), r.categorieRisque(),
-                r.couleur(), ScoreColorMapper.toHex(r.couleur()), r.message(), avertissement);
+                r.couleur(), ScoreColorMapper.toHex(r.couleur()), r.message(), avertissement,
+                r.composantes(), r.plafonds());
     }
 
     private List<GrilleScoreDTO> grille() {

@@ -23,6 +23,9 @@ public class DernierContrat {
     @JoinColumn(name = "contrat_id", nullable = false)
     private Contrat contrat;
 
+    @Column(name = "type_credit", length = 30)
+    private String typeCredit;
+
     @Column(name = "date_octroi")
     private LocalDate dateOctroi;
 

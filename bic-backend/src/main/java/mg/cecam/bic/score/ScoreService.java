@@ -107,23 +107,39 @@ public class ScoreService {
         int bonusAnticipation = 0;
         int malusRetardHistorique = 0;
         boolean creditNonRembourse = false;
+        boolean aHistoriqueReel = !empruntsDecaisses.isEmpty();
 
-        for (DernierContrat dc : derniersContrats) {
-            if (dc.getDateRemboursement() != null) {
+        // Si le client a déjà un historique réel en base, on ne double-compte pas les 3 derniers contrats.
+        // Mais si c'est un NOUVEAU client, les 3 derniers contrats tiennent lieu d'historique de remboursement complet !
+        if (!aHistoriqueReel && !derniersContrats.isEmpty()) {
+            for (DernierContrat dc : derniersContrats) {
+                String statut = dc.getStatut() != null ? dc.getStatut().toUpperCase() : "A_TEMPS";
+                if ("NORMAL".equals(statut)) statut = "A_TEMPS";
+
+                LocalDate dateRefObs = dc.getDateRemboursement() != null ? dc.getDateRemboursement()
+                        : (dc.getDatePrevueRemboursement() != null ? dc.getDatePrevueRemboursement() : ref.minusMonths(6));
+
                 int retard = dc.getJoursRetard() != null ? dc.getJoursRetard() : 0;
-                observations.add(new Observation(dc.getDateRemboursement(), Math.max(0, retard), 1));
-                if ("ANTICIPATION".equals(dc.getStatut()) || retard < -20) {
-                    bonusAnticipation += 15;
-                } else if (retard > 0) {
-                    if (retard < 30) malusRetardHistorique += 10;
-                    else if (retard < 60) malusRetardHistorique += 25;
-                    else malusRetardHistorique += 40;
+                if ("ANTICIPATION".equals(statut)) {
+                    retard = -30;
+                    bonusAnticipation += 20;
+                    observations.add(new Observation(dateRefObs, 0, 1));
+                } else if ("EN_RETARD".equals(statut)) {
+                    retard = Math.max(30, retard);
+                    malusRetardHistorique += 25;
+                    observations.add(new Observation(dateRefObs, retard, 1));
+                } else if ("NON_REMBOURSE".equals(statut)) {
+                    retardCourant = Math.max(retardCourant, 90);
+                    creditNonRembourse = true;
+                    observations.add(new Observation(dateRefObs, 90, 1));
+                } else {
+                    observations.add(new Observation(dateRefObs, 0, 1));
                 }
-            } else if (dc.getDatePrevueRemboursement() != null && dc.getDatePrevueRemboursement().isBefore(ref)) {
-                int retard = (int) ChronoUnit.DAYS.between(dc.getDatePrevueRemboursement(), ref);
-                observations.add(new Observation(dc.getDatePrevueRemboursement(), Math.max(0, retard), 1));
-                retardCourant = Math.max(retardCourant, retard);
-                creditNonRembourse = true;
+            }
+        } else if (aHistoriqueReel) {
+            for (DernierContrat dc : derniersContrats) {
+                if ("ANTICIPATION".equalsIgnoreCase(dc.getStatut())) bonusAnticipation += 10;
+                else if ("EN_RETARD".equalsIgnoreCase(dc.getStatut())) malusRetardHistorique += 15;
             }
         }
 
@@ -144,12 +160,20 @@ public class ScoreService {
                 long mois = ChronoUnit.MONTHS.between(o.date(), ref);
                 if (mois >= 0 && mois < p.getFenetreConfianceMois()) nbRecentes += o.nombre();
             }
-            double confiance = Math.min(1.0, (double) nbRecentes / Math.max(1, p.getObservationsPleineConfiance()));
-            double facteur = p.getPlancherConfiance() + (1 - p.getPlancherConfiance()) * confiance;
-            gagne.put("paiement", p.getPoidsPaiement() * (poidsPondere / poidsTotal) * facteur);
+
+            double facteur;
+            if (!aHistoriqueReel && !derniersContrats.isEmpty()) {
+                // Pleine confiance accordée aux antécédents saisis pour le nouveau client
+                facteur = 0.90 + 0.05 * Math.min(2, derniersContrats.size());
+            } else {
+                double confiance = Math.min(1.0, (double) nbRecentes / Math.max(1, p.getObservationsPleineConfiance()));
+                facteur = p.getPlancherConfiance() + (1 - p.getPlancherConfiance()) * confiance;
+                if (confiance < 1.0) avertissements.add("Historique de remboursement court (" + nbRecentes
+                        + " échéance(s) observée(s) sur " + p.getFenetreConfianceMois() + " mois) : score à interpréter avec prudence.");
+            }
+
+            gagne.put("paiement", p.getPoidsPaiement() * (poidsPondere / poidsTotal) * Math.min(1.0, facteur));
             dispo.put("paiement", p.getPoidsPaiement());
-            if (confiance < 1.0) avertissements.add("Historique de remboursement court (" + nbRecentes
-                    + " échéance(s) observée(s) sur " + p.getFenetreConfianceMois() + " mois) : score à interpréter avec prudence.");
 
             // ---- B. Arriérés en cours
             double ratioArr = retardCourant <= 0 ? 1.0 : retardCourant < 30 ? p.getRatioArrieres1a29()
@@ -243,12 +267,30 @@ public class ScoreService {
         }
         if (!preuveCapacite) plafonds.add(plafond(p.getPlafondSansCapacite(), "capacité de remboursement non vérifiable (ni revenu, ni budget)"));
 
-        // ---- E/F/G. Ancienneté, nouveaux crédits, mixité
+        // ---- E/F/G. Ancienneté d'adhésion, profil âge, type de crédit, nouveaux crédits, mixité
         LocalDate debut = client.getDateAdhesion();
-        if (debut != null) {
-            long mois = Math.max(0, ChronoUnit.MONTHS.between(debut, ref));
-            gagne.put("anciennete", p.getPoidsAnciennete() * Math.min(1.0, (double) mois / Math.max(1, p.getAncienneteMoisPlein())));
-            dispo.put("anciennete", p.getPoidsAnciennete());
+        long moisAdhesion = debut != null ? Math.max(0, ChronoUnit.MONTHS.between(debut, ref)) : 12;
+        double ratioAnciennete = Math.min(1.0, (double) moisAdhesion / 48.0);
+        gagne.put("anciennete", p.getPoidsAnciennete() * Math.max(0.20, ratioAnciennete));
+        dispo.put("anciennete", p.getPoidsAnciennete());
+
+        if (client.getDateNaissance() != null) {
+            int age = (int) ChronoUnit.YEARS.between(client.getDateNaissance(), ref);
+            double ptsAge;
+            if (age >= 26 && age <= 58) ptsAge = 25.0;
+            else if (age >= 21 && age <= 25) ptsAge = 18.0;
+            else if (age >= 59 && age <= 68) ptsAge = 18.0;
+            else if (age >= 18) ptsAge = 12.0;
+            else ptsAge = 8.0;
+            gagne.put("profil_age", ptsAge);
+            dispo.put("profil_age", 25.0);
+        }
+
+        if (contratEnCours != null && contratEnCours.getTypeCredit() != null) {
+            String tc = contratEnCours.getTypeCredit().toUpperCase();
+            double ptsType = tc.contains("RFR") || tc.contains("GCV") ? 15.0 : 12.0;
+            gagne.put("type_credit", ptsType);
+            dispo.put("type_credit", 15.0);
         }
         long recents = empruntsDecaisses.stream().filter(c -> c.getDateDemande() != null).filter(c -> {
             long m = ChronoUnit.MONTHS.between(c.getDateDemande(), ref);

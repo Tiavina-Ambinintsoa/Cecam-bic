@@ -48,10 +48,12 @@ public record ContratRequest(
     ) {}
 
     public record DernierContratRequest(
+            String typeCredit,
             LocalDate dateOctroi,
             BigDecimal montant,
             LocalDate datePrevueRemboursement,
-            LocalDate dateRemboursement
+            LocalDate dateRemboursement,
+            String statut
     ) {}
 
     @AssertTrue(message = "Le rattachement à une entreprise ne fait pas partie du périmètre Individu.")

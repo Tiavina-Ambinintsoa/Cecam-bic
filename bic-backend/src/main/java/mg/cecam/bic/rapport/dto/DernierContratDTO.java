@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record DernierContratDTO(
+        String typeCredit,
         LocalDate dateOctroi,
         BigDecimal montant,
         LocalDate datePrevueRemboursement,

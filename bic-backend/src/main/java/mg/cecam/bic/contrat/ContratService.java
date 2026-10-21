@@ -229,10 +229,22 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
         List<DernierContrat> list = new ArrayList<>();
         LocalDate ref = LocalDate.now();
         for (ContratRequest.DernierContratRequest d : request.derniersContrats()) {
-            if (d == null || (d.montant() == null && d.dateOctroi() == null)) continue;
+            if (d == null || (d.montant() == null && d.dateOctroi() == null && d.statut() == null)) continue;
             int joursRetard = 0;
-            String statut = "A_TEMPS";
-            if (d.datePrevueRemboursement() != null) {
+            String statut = d.statut() != null && !d.statut().isBlank() ? d.statut().toUpperCase() : "A_TEMPS";
+            if (statut.equals("NORMAL")) statut = "A_TEMPS";
+
+            if (d.statut() != null && !d.statut().isBlank()) {
+                if ("ANTICIPATION".equalsIgnoreCase(statut)) {
+                    joursRetard = -30;
+                } else if ("EN_RETARD".equalsIgnoreCase(statut)) {
+                    joursRetard = 30;
+                } else if ("NON_REMBOURSE".equalsIgnoreCase(statut)) {
+                    joursRetard = 90;
+                } else {
+                    joursRetard = 0;
+                }
+            } else if (d.datePrevueRemboursement() != null) {
                 if (d.dateRemboursement() != null) {
                     if (d.dateRemboursement().isAfter(d.datePrevueRemboursement())) {
                         joursRetard = (int) ChronoUnit.DAYS.between(d.datePrevueRemboursement(), d.dateRemboursement());
@@ -256,6 +268,7 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
             }
             list.add(DernierContrat.builder()
                     .contrat(contrat)
+                    .typeCredit(d.typeCredit() != null ? d.typeCredit() : "RFR")
                     .dateOctroi(d.dateOctroi())
                     .montant(d.montant())
                     .datePrevueRemboursement(d.datePrevueRemboursement())

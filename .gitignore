@@ -5,6 +5,10 @@ graphify-out/*
 !graphify-out/graph.html
 !graphify-out/manifest.json
 docs/*
+!docs/CODE_GRAPH.md
+!docs/DEPLOIEMENT_CECAM.md
+!docs/SCORING_AND_DATA_LIMITS.md
+!docs/CALCUL_SCORE_ET_HISTORIQUE.md
 .kilo/*
 
 # Local secrets and generated app artefacts

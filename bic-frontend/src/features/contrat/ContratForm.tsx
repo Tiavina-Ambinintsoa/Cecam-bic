@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useForm, useWatch, Controller, useFieldArray } from "react-hook-form";
+import { useForm, useWatch, Controller, useFieldArray, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,10 @@ import { ChampsObligatoiresNote } from "@/components/ui/champs-obligatoires-note
 import { MontantInput } from "@/components/ui/montant-input";
 import { DateInput } from "@/components/ui/date-input";
 import { Plus, Trash2 } from "lucide-react";
+import { TYPES_CREDIT_INTERET } from "./typescredit";
+
+// Type d'un élément de l'historique des contrats (déduit du schéma, sans any)
+type DernierContrat = NonNullable<ContratFormInput["derniersContrats"]>[number];
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -27,7 +31,36 @@ const getFieldBorderClass = (hasError?: boolean, hasValue?: boolean) => {
   return "";
 };
 
-function getStatutContrat(prevueStr?: string, reelleStr?: string) {
+function getStatutContrat(statutChoisi?: string, prevueStr?: string, reelleStr?: string) {
+  if (statutChoisi) {
+    if (statutChoisi === "ANTICIPATION") {
+      return {
+        badge: "Anticipation (remboursé en avance)",
+        impact: "Bonus de points (+)",
+        color: "text-emerald-800 bg-emerald-50 border-emerald-300",
+      };
+    }
+    if (statutChoisi === "EN_RETARD") {
+      return {
+        badge: "En retard",
+        impact: "Malus de points (-)",
+        color: "text-amber-800 bg-amber-50 border-amber-300",
+      };
+    }
+    if (statutChoisi === "NON_REMBOURSE") {
+      return {
+        badge: "Non remboursé (défaut)",
+        impact: "Risque très élevé / Plafond",
+        color: "text-red-800 bg-red-50 border-red-300",
+      };
+    }
+    return {
+      badge: "À temps / Normal",
+      impact: "Remboursement régulier (Normal)",
+      color: "text-green-800 bg-green-50 border-green-300",
+    };
+  }
+
   if (!prevueStr) return null;
   const prevue = new Date(prevueStr);
   const todayDate = new Date();
@@ -75,14 +108,6 @@ function getStatutContrat(prevueStr?: string, reelleStr?: string) {
   }
 }
 
-export const TYPES_CREDIT_INTERET = [
-  { code: "RFR", label: "RFR (2.75%)", taux: 2.75 },
-  { code: "PRO", label: "PRO (3.5%)", taux: 3.5 },
-  { code: "LVM", label: "LVM (2.75%)", taux: 2.75 },
-  { code: "CIM", label: "CIM (2.75%)", taux: 2.75 },
-  { code: "GCV", label: "GCV (3%)", taux: 3.0 },
-] as const;
-
 export function ContratForm() {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
@@ -90,17 +115,23 @@ export function ContratForm() {
   const [submitting, setSubmitting] = useState(false);
   const [erreurSoumission, setErreurSoumission] = useState<string | null>(null);
 
+  // Commencer tout en haut au chargement de la page
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
+
   const form = useForm<ContratFormInput, unknown, ContratFormValues>({
     resolver: zodResolver(contratSchema),
     defaultValues: {
       modeRattachement: "NOUVELLE_DEMANDE",
       typeContrat: "Prêt personnel",
-      typeCredit: "GCV",
+      roleClient: "TITULAIRE",
+      typeCredit: "RFR",
       dateDemande: today,
       devise: "Ariary malgache",
       periodiciteBudget: "Mensuelle",
       typeGarantie: "Garantie réelle",
-      tauxInteretMensuel: 3,
+      tauxInteretMensuel: 2.75,
       derniersContrats: [],
       revenusComplementaires: [],
     },
@@ -131,11 +162,11 @@ export function ContratForm() {
   // Calculs garantie (+X% du montant demandé par mois selon tauxInteretMensuel / typeCredit)
   const montantFinance = Number(formValues.montantFinance) || 0;
   const dureeMois = Number(formValues.nombreTotalEcheances) || 1;
-  const selectedTypeCredit = formValues.typeCredit || "GCV";
+  const selectedTypeCredit = formValues.typeCredit || "RFR";
   const typeCreditObj = TYPES_CREDIT_INTERET.find((t) => t.code === selectedTypeCredit);
   const tauxMensuel = formValues.tauxInteretMensuel !== undefined && Number(formValues.tauxInteretMensuel) >= 0
     ? Number(formValues.tauxInteretMensuel)
-    : (typeCreditObj?.taux ?? 3.0);
+    : (typeCreditObj?.taux ?? 2.75);
   const tauxInteretTotal = (tauxMensuel / 100) * dureeMois;
   const montantInteret = montantFinance * tauxInteretTotal;
   const totalDemandeInteret = montantFinance + montantInteret;
@@ -171,6 +202,29 @@ export function ContratForm() {
   };
   const evaluationPatrimoine = getEvaluationPatrimoine();
 
+  // Scroll automatique vers le premier champ non rempli ou en erreur avec animation
+  function onFormError(errors: FieldErrors<ContratFormInput>) {
+    const errorKeys = Object.keys(errors);
+    if (!errorKeys.length) return;
+    const firstKey = errorKeys[0];
+
+    setTimeout(() => {
+      const el = document.querySelector(`[name="${firstKey}"]`) ||
+                 document.querySelector(`[name^="${firstKey}."]`) ||
+                 document.querySelector(`#${firstKey}`) ||
+                 document.querySelector(".border-red-500");
+
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        (el as HTMLElement).focus?.();
+        el.classList.add("ring-4", "ring-red-400", "animate-pulse");
+        setTimeout(() => {
+          el.classList.remove("ring-4", "ring-red-400", "animate-pulse");
+        }, 2200);
+      }
+    }, 50);
+  }
+
   async function onSubmit(values: ContratFormValues) {
     if (!clientId) return;
     setSubmitting(true);
@@ -189,10 +243,11 @@ export function ContratForm() {
         }];
       });
       const derniersContrats = values.derniersContrats?.filter(
-        (dc) => dc && (dc.montant || dc.dateOctroi || dc.datePrevueRemboursement)
+        (dc) => dc && (dc.montant || dc.dateOctroi || dc.datePrevueRemboursement || dc.statut)
       );
       const contrat = await contratApi.creer({
         ...values,
+        periodiciteBudget: "Mensuelle",
         typeGarantie: "Garantie réelle",
         derniersContrats,
         revenusComplementaires,
@@ -208,11 +263,11 @@ export function ContratForm() {
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-5xl space-y-6 p-6">
+    <form onSubmit={form.handleSubmit(onSubmit, onFormError)} className="mx-auto max-w-5xl space-y-6 p-6">
       {erreurSoumission && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{erreurSoumission}</div>}
       <ChampsObligatoiresNote />
 
-      {/* CARTE 1 : Données sur la demande */}
+      {/* 1. DONNÉES SUR LA DEMANDE */}
       <Card>
         <CardHeader><CardTitle>Données sur la demande</CardTitle></CardHeader>
         <CardContent className="space-y-6">
@@ -263,7 +318,11 @@ export function ContratForm() {
 
             <div className="space-y-1.5">
               <Label className="font-semibold text-slate-800">Rôle Client <span className="text-red-500">*</span></Label>
-              <Select onValueChange={(v) => form.setValue("roleClient", v as RoleClient, { shouldValidate: true })}>
+              <Select
+                defaultValue="TITULAIRE"
+                value={formValues.roleClient || "TITULAIRE"}
+                onValueChange={(v) => form.setValue("roleClient", v as RoleClient, { shouldValidate: true })}
+              >
                 <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(!!form.formState.errors.roleClient, !!formValues.roleClient)}`}>
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
@@ -294,7 +353,7 @@ export function ContratForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-semibold text-slate-800">Montant Financé <span className="text-red-500">*</span></Label>
+              <Label className="font-semibold text-slate-800">Montant Financé (Ar) <span className="text-red-500">*</span></Label>
               <Controller
                 control={form.control}
                 name="montantFinance"
@@ -365,7 +424,7 @@ export function ContratForm() {
                 Type de crédit <span className="text-red-500">*</span>
               </Label>
               <Select
-                value={formValues.typeCredit || "GCV"}
+                value={formValues.typeCredit || "RFR"}
                 onValueChange={(v) => {
                   form.setValue("typeCredit", v as string, { shouldValidate: true, shouldDirty: true });
                   const found = TYPES_CREDIT_INTERET.find((t) => t.code === v);
@@ -393,143 +452,69 @@ export function ContratForm() {
         </CardContent>
       </Card>
 
-      {/* CARTE : Historique des 3 derniers contrats */}
+      {/* 2. PATRIMOINE TOTAL DU CLIENT */}
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>Historique des 3 derniers contrats du client</CardTitle>
+              <CardTitle>Patrimoine total du client</CardTitle>
               <p className="mt-1 text-sm text-slate-500">
-                Saisissez les 3 derniers crédits du client pour évaluer son antériorité (bonus d'anticipation, régularité ou malus de retard).
+                Facultatif — comparez le patrimoine à la demande et à ses intérêts, comme pour la garantie.
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={derniersContratsArray.fields.length >= 3}
-              onClick={() => {
-                if (derniersContratsArray.fields.length < 3) {
-                  derniersContratsArray.append({
-                    dateOctroi: "",
-                    montant: undefined,
-                    datePrevueRemboursement: "",
-                    dateRemboursement: "",
-                  });
-                }
-              }}
-            >
-              <Plus className="mr-1.5 h-4 w-4" /> Ajouter un crédit ({derniersContratsArray.fields.length}/3)
-            </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {derniersContratsArray.fields.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-              Aucun crédit antérieur renseigné. Si le client a déjà eu des prêts contractés, cliquez sur « Ajouter un crédit » pour valoriser son score.
-            </div>
-          ) : (
-            derniersContratsArray.fields.map((field, index) => {
-              const currentItem = formValues.derniersContrats?.[index];
-              const statutEval = getStatutContrat(currentItem?.datePrevueRemboursement, currentItem?.dateRemboursement);
+        <CardContent className="space-y-5">
+          <div className="space-y-1.5">
+            <Label>Patrimoine total du client (Ar)</Label>
+            <Controller
+              control={form.control}
+              name="valeurPatrimoine"
+              render={({ field }) => (
+                <MontantInput
+                  className={FIELD_H}
+                  value={String(field.value ?? "")}
+                  onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
+                  placeholder="Ex. 5 000 000"
+                />
+              )}
+            />
+          </div>
 
-              return (
-                <div key={field.id} className="rounded-lg border border-slate-200 bg-slate-50/60 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-800">
-                      Crédit précédent #{index + 1}
+          {aPatrimoine && (
+            <div className="rounded-lg border bg-slate-50 p-4">
+              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
+                <div>
+                  <span className="block text-slate-500">Demande + intérêts</span>
+                  <span className="font-semibold text-slate-900">
+                    {Math.round(totalDemandeInteret).toLocaleString("fr-FR")} Ar
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-slate-500">Marge patrimoine</span>
+                  <span className={`font-semibold ${margePatrimoine !== null && margePatrimoine < 0 ? "text-red-600" : "text-slate-900"}`}>
+                    {margePatrimoine?.toLocaleString("fr-FR")} Ar
+                  </span>
+                  <span className="block text-xs text-slate-400">Patrimoine vs demande et intérêts</span>
+                </div>
+                <div>
+                  <span className="block text-slate-500">Couverture / évaluation</span>
+                  <span className="font-semibold text-slate-900">
+                    {ratioPatrimoine !== null ? `${ratioPatrimoine.toFixed(2)} %` : "—"}
+                  </span>
+                  {evaluationPatrimoine && (
+                    <span className={`mt-1 inline-block rounded-md border px-2 py-1 text-xs font-semibold ${evaluationPatrimoine.color}`}>
+                      {evaluationPatrimoine.label}
                     </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => derniersContratsArray.remove(index)}
-                    >
-                      <Trash2 className="mr-1 h-4 w-4 text-red-500" /> Supprimer
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-slate-600">Date d'octroi</Label>
-                      <Controller
-                        control={form.control}
-                        name={`derniersContrats.${index}.dateOctroi`}
-                        render={({ field: dateField }) => (
-                          <DateInput
-                            className={FIELD_H}
-                            value={dateField.value}
-                            onValueChange={dateField.onChange}
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-slate-600">Somme demandée (Ar)</Label>
-                      <Controller
-                        control={form.control}
-                        name={`derniersContrats.${index}.montant`}
-                        render={({ field: montantField }) => (
-                          <MontantInput
-                            className={FIELD_H}
-                            value={String(montantField.value ?? "")}
-                            onValueChange={(v) => montantField.onChange(v ? Number(v) : undefined)}
-                            placeholder="Ex. 1 000 000"
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-slate-600">Date prévue de remboursement</Label>
-                      <Controller
-                        control={form.control}
-                        name={`derniersContrats.${index}.datePrevueRemboursement`}
-                        render={({ field: dateField }) => (
-                          <DateInput
-                            className={FIELD_H}
-                            value={dateField.value}
-                            onValueChange={dateField.onChange}
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-slate-600">Date effective de remboursement</Label>
-                      <Controller
-                        control={form.control}
-                        name={`derniersContrats.${index}.dateRemboursement`}
-                        render={({ field: dateField }) => (
-                          <DateInput
-                            className={FIELD_H}
-                            value={dateField.value}
-                            onValueChange={dateField.onChange}
-                          />
-                        )}
-                      />
-                      <p className="text-[10px] text-slate-400">Vide si non encore remboursé.</p>
-                    </div>
-                  </div>
-
-                  {statutEval && (
-                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200">
-                      <span className="text-xs text-slate-500 font-medium">Situation observée :</span>
-                      <span className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-md border ${statutEval.color}`}>
-                        {statutEval.badge}
-                      </span>
-                      <span className="text-xs text-slate-500">— Impact score :</span>
-                      <span className="text-xs font-bold text-slate-800">{statutEval.impact}</span>
-                    </div>
                   )}
                 </div>
-              );
-            })
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* CARTE 2 : Revenus et Dépenses (Capacité budgétaire) - OBLIGATOIRE */}
+      {/* 3. CAPACITÉ BUDGÉTAIRE (REVENUS ET DÉPENSES) */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -542,23 +527,7 @@ export function ContratForm() {
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label className="font-normal text-slate-600">Périodicité</Label>
-              <Select
-                defaultValue="Mensuelle"
-                onValueChange={(v) => form.setValue("periodiciteBudget", v as string)}
-              >
-                <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(false, !!formValues.periodiciteBudget)}`}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Mensuelle">Mensuelle</SelectItem>
-                  <SelectItem value="Annuelle">Annuelle</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="font-semibold text-slate-800">
                 Revenus / Recettes (Ar) <span className="text-red-500">*</span>
@@ -582,7 +551,7 @@ export function ContratForm() {
 
             <div className="space-y-1.5">
               <Label className="font-semibold text-slate-800">
-                Dépenses (Ar) <span className="text-red-500">*</span>
+                Dépenses mensuelles (Ar) <span className="text-red-500">*</span>
               </Label>
               <Controller
                 control={form.control}
@@ -633,7 +602,7 @@ export function ContratForm() {
               {ratioBudget !== null && (
                 <div className="text-xs text-slate-500 border-t pt-2">
                   <p>
-                    <strong>Barème budgétaire :</strong> Reste ≤ 0% (Risque Très Élevé - E) | Reste ≤ 25% (Risque Élevé - D) | Reste ~ 50% (Risque Moyen - C) | Reste &lt; 100% (Risque Faible - B) | Recette ≥ 2× Dépenses (Risque Très Faible - A).
+                    <strong>Barème budgétaire :</strong> Reste ≤ 0% (Risque Très Élevé - E) | Reste ≤ 25% (Risque Élevé - D) | Reste ~ 50% (Risque Moyen - C) | Reste &lt; 100% (Risque Faible - B) | Recette ≥ 2 × Dépenses (Risque Très Faible - A).
                   </p>
                 </div>
               )}
@@ -642,6 +611,182 @@ export function ContratForm() {
         </CardContent>
       </Card>
 
+      {/* 4. HISTORIQUE DES 3 DERNIERS CONTRATS DU CLIENT */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Historique des 3 derniers contrats du client</CardTitle>
+              <p className="mt-1 text-sm text-slate-500">
+                Saisissez les 3 derniers crédits du client pour évaluer son antériorité (bonus d&apos;anticipation, régularité ou malus de retard).
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={derniersContratsArray.fields.length >= 3}
+              onClick={() => {
+                if (derniersContratsArray.fields.length < 3) {
+                  derniersContratsArray.append({
+                    typeCredit: "RFR",
+                    dateOctroi: "",
+                    montant: undefined,
+                    datePrevueRemboursement: "",
+                    statut: "A_TEMPS",
+                  });
+                }
+              }}
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Ajouter un crédit ({derniersContratsArray.fields.length}/3)
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {derniersContratsArray.fields.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
+              Aucun crédit antérieur renseigné. Si le client a déjà eu des prêts contractés, cliquez sur « Ajouter un crédit » pour valoriser son score.
+            </div>
+          ) : (
+            derniersContratsArray.fields.map((field, index) => {
+              const currentItem = formValues.derniersContrats?.[index];
+              const statutEval = getStatutContrat(currentItem?.statut, currentItem?.datePrevueRemboursement, currentItem?.dateRemboursement);
+
+              return (
+                <div key={field.id} className="rounded-lg border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-800">
+                      Crédit précédent #{index + 1}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => derniersContratsArray.remove(index)}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4 text-red-500" /> Supprimer
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    {/* 1. Choix du type de crédit avant date d'octroi */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Type de crédit</Label>
+                      <Select
+                        value={currentItem?.typeCredit || "RFR"}
+                        onValueChange={(v) =>
+                          form.setValue(
+                            `derniersContrats.${index}.typeCredit`,
+                            (v ?? undefined) as DernierContrat["typeCredit"]
+                          )
+                        }
+                      >
+                        <SelectTrigger className={FIELD_H}>
+                          <SelectValue placeholder="Type de crédit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="RFR">RFR (2.75%)</SelectItem>
+                          <SelectItem value="PRO">PRO (3.5%)</SelectItem>
+                          <SelectItem value="LVM">LVM (2.75%)</SelectItem>
+                          <SelectItem value="CIM">CIM (2.75%)</SelectItem>
+                          <SelectItem value="GCV">GCV (3%)</SelectItem>
+                          <SelectItem value="AUTRE">Autre crédit</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* 2. Date d'octroi */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Date d&apos;octroi</Label>
+                      <Controller
+                        control={form.control}
+                        name={`derniersContrats.${index}.dateOctroi`}
+                        render={({ field: dateField }) => (
+                          <DateInput
+                            className={FIELD_H}
+                            value={dateField.value}
+                            onValueChange={dateField.onChange}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    {/* 3. Somme demandée */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Somme demandée (Ar)</Label>
+                      <Controller
+                        control={form.control}
+                        name={`derniersContrats.${index}.montant`}
+                        render={({ field: montantField }) => (
+                          <MontantInput
+                            className={FIELD_H}
+                            value={String(montantField.value ?? "")}
+                            onValueChange={(v) => montantField.onChange(v ? Number(v) : undefined)}
+                            placeholder="Ex. 1 000 000"
+                          />
+                        )}
+                      />
+                    </div>
+
+                    {/* 4. Date prévue de remboursement */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Date prévue remb.</Label>
+                      <Controller
+                        control={form.control}
+                        name={`derniersContrats.${index}.datePrevueRemboursement`}
+                        render={({ field: dateField }) => (
+                          <DateInput
+                            className={FIELD_H}
+                            value={dateField.value}
+                            onValueChange={dateField.onChange}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    {/* 5. Situation de remboursement (dropdown au lieu du champ date) */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-600">Situation de remboursement</Label>
+                      <Select
+                        value={currentItem?.statut || "A_TEMPS"}
+                        onValueChange={(v) =>
+                          form.setValue(
+                            `derniersContrats.${index}.statut`,
+                            (v ?? undefined) as DernierContrat["statut"]
+                          )
+                        }
+                      >
+                        <SelectTrigger className={FIELD_H}>
+                          <SelectValue placeholder="Sélectionner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="A_TEMPS">À temps</SelectItem>
+                          <SelectItem value="ANTICIPATION">Anticipation</SelectItem>
+                          <SelectItem value="EN_RETARD">En retard</SelectItem>
+                          <SelectItem value="NORMAL">Normal</SelectItem>
+                          <SelectItem value="NON_REMBOURSE">Non remboursé</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {statutEval && (
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200">
+                      <span className="text-xs text-slate-500 font-medium">Situation observée :</span>
+                      <span className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-md border ${statutEval.color}`}>
+                        {statutEval.badge}
+                      </span>
+                      <span className="text-xs text-slate-500">• Impact score :</span>
+                      <span className="text-xs font-bold text-slate-800">{statutEval.impact}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 5. PROFESSIONS ET AUTRES REVENUS */}
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -714,7 +859,7 @@ export function ContratForm() {
         </CardContent>
       </Card>
 
-      {/* CARTE 3 : Garantie - Optionnel mais valorisant */}
+      {/* 6. GARANTIE DE LA DEMANDE */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -785,109 +930,6 @@ export function ContratForm() {
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Patrimoine total du client</CardTitle>
-              <p className="mt-1 text-sm text-slate-500">
-                Facultatif — comparez le patrimoine à la demande et à ses intérêts, comme pour la garantie.
-              </p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="space-y-1.5">
-            <Label>Patrimoine total du client (Ar)</Label>
-            <Controller
-              control={form.control}
-              name="valeurPatrimoine"
-              render={({ field }) => (
-                <MontantInput
-                  className={FIELD_H}
-                  value={String(field.value ?? "")}
-                  onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
-                  placeholder="Ex. 5 000 000"
-                />
-              )}
-            />
-          </div>
-
-          {aPatrimoine && (
-            <div className="rounded-lg border bg-slate-50 p-4">
-              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
-                <div>
-                  <span className="block text-slate-500">Demande + intérêts</span>
-                  <span className="font-semibold text-slate-900">
-                    {Math.round(totalDemandeInteret).toLocaleString("fr-FR")} Ar
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-slate-500">Marge patrimoine</span>
-                  <span className={`font-semibold ${margePatrimoine !== null && margePatrimoine < 0 ? "text-red-600" : "text-slate-900"}`}>
-                    {margePatrimoine?.toLocaleString("fr-FR")} Ar
-                  </span>
-                  <span className="block text-xs text-slate-400">Patrimoine − demande et intérêts</span>
-                </div>
-                <div>
-                  <span className="block text-slate-500">Couverture / évaluation</span>
-                  <span className="font-semibold text-slate-900">
-                    {ratioPatrimoine !== null ? `${ratioPatrimoine.toFixed(2)} %` : "—"}
-                  </span>
-                  {evaluationPatrimoine && (
-                    <span className={`mt-1 inline-block rounded-md border px-2 py-1 text-xs font-semibold ${evaluationPatrimoine.color}`}>
-                      {evaluationPatrimoine.label}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Dépôts et crédits actifs</CardTitle>
-          <p className="text-sm text-slate-500">
-            Montants totaux déclarés pour le demandeur, le garant et les autres membres concernés.
-          </p>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Total des dépôts (Ar)</Label>
-            <Controller
-              control={form.control}
-              name="totalDepot"
-              render={({ field }) => (
-                <MontantInput
-                  className={FIELD_H}
-                  value={String(field.value ?? "")}
-                  onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
-                  placeholder="Somme des dépôts"
-                />
-              )}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Total des crédits actifs (Ar)</Label>
-            <Controller
-              control={form.control}
-              name="totalCreditActif"
-              render={({ field }) => (
-                <MontantInput
-                  className={FIELD_H}
-                  value={String(field.value ?? "")}
-                  onValueChange={(value) => field.onChange(value ? Number(value) : undefined)}
-                  placeholder="Somme des crédits actifs"
-                />
-              )}
-            />
-            
-          </div>
         </CardContent>
       </Card>
 
