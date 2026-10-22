@@ -41,7 +41,9 @@ public enum BucketRetard {
         // A generic "impayé" source does not reveal the actual number of overdue days.
         if (s.contains("30-59") || s.contains("30+")) return JOURS_30_59;
         if (s.contains("1-29") || s.contains("1A29") || s.contains("RETARDCOURT")) return JOURS_1_29;
-        if (s.equals("OK") || s.contains("PAYEATEMPS") || s.contains("AJOUR")) return A_JOUR;
+        if (s.equals("OK") || s.contains("PAYEATEMPS") || s.contains("PAYE_A_TEMPS")
+                || s.contains("A_TEMPS") || s.contains("ATEMPS")
+                || s.contains("NORMAL") || s.contains("AJOUR")) return A_JOUR;
         return null;
     }
 }

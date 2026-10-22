@@ -2,8 +2,10 @@ package mg.cecam.bic.rapport;
 
 import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.audit.AuditService;
+import mg.cecam.bic.audit.JournalAudit;
 import mg.cecam.bic.audit.JournalAuditRepository;
 import mg.cecam.bic.client.Client;
+import mg.cecam.bic.client.ClientService;
 import mg.cecam.bic.client.AffaireIndividuelle;
 import mg.cecam.bic.client.Emploi;
 import mg.cecam.bic.client.EmploiRepository;
@@ -29,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -72,7 +75,7 @@ public class RapportService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Contrat introuvable : " + contratId));
         Client client = contrat.getClient();
-        LocalDate reference = LocalDate.now();
+        LocalDate reference = LocalDate.now(ZoneId.of("Indian/Antananarivo"));
 
         auditService.enregistrer("CLIENT", client.getId(), "CONSULTATION", "Consultation du rapport de solvabilité");
 
@@ -100,8 +103,11 @@ public class RapportService {
         Emploi emploi = emploiRepository.findByClient_Id(client.getId()).orElse(null);
         if (emploi != null && !emploi.estRenseigne()) emploi = null;
 
-        boolean clientTrouve = clientPreexistant(client, contrat, historique);
-        ScoreResult scoreResult = scoreService.calculer(client, contrat, clientTrouve);
+        List<JournalAudit> journalClient = journalAuditRepository
+                .findByEntiteAndEntiteIdOrderByDateEvenementDesc("CLIENT", client.getId());
+        boolean clientTrouve = clientPreexistant(client, contrat, historique, journalClient);
+        ScoreResult scoreResult = scoreService.calculer(client, contrat, clientTrouve, reference);
+        ScoreDTO scoreDto = toScoreDto(scoreResult);
 
         if (scoreResult.calculable()) {
             contrat.setScoreValeur(scoreResult.valeur());
@@ -109,8 +115,7 @@ public class RapportService {
             contratRepository.save(contrat);
         }
 
-        List<ConsultationDTO> historiqueConsultations = journalAuditRepository
-                .findByEntiteAndEntiteIdOrderByDateEvenementDesc("CLIENT", client.getId()).stream()
+        List<ConsultationDTO> historiqueConsultations = journalClient.stream()
                 .filter(a -> a.getAction().equals("CREATION") || a.getAction().equals("CONSULTATION"))
                 .map(a -> new ConsultationDTO("001", a.getDateEvenement().toLocalDate(),
                         a.getAction().equals("CREATION") ? "Nouvelle Demande" : "Suivi Client"))
@@ -160,7 +165,9 @@ public class RapportService {
                 tousLesLiens(historique, liensParContrat, garanties, client),
                 alerteService.listerParClient(client.getId(), reference),
                 
-                toScoreDto(scoreResult),
+                scoreDto,
+                observationsScore(clientTrouve, historique, scoreDto),
+                suggestionsScore(clientTrouve, historique, derniersContratsDto, scoreResult),
                 grille(),
                 synthese(contratsSynthese, historique, echeances, garanties, reference),
                 syntheseParCategorie(contratsSynthese, echeances, reference),
@@ -734,14 +741,59 @@ public class RapportService {
     // [AJOUTÉ] factorise la règle déjà présente avant (comparaison dateAdhesion/historique) pour
     // qu'elle serve à la fois au libellé affiché (statutClient) et au message de score
     // (ScoreService.calculer reçoit maintenant ce booléen).
-    private boolean clientPreexistant(Client client, Contrat saisi, List<Contrat> historique) {
+    static boolean clientPreexistant(Client client, Contrat saisi, List<Contrat> historique,
+                                     List<JournalAudit> journalClient) {
         return !historique.isEmpty()
+                || journalClient.stream().anyMatch(a ->
+                        "CONSULTATION".equals(a.getAction())
+                                && ClientService.DETAIL_NOUVELLE_DEMANDE_CLIENT_EXISTANT.equals(a.getDetail()))
                 || client.getDateAdhesion() == null
-                || client.getDateAdhesion().isBefore(saisi.getDateDemande());
+                || saisi.getDateDemande() != null
+                        && client.getDateAdhesion().isBefore(saisi.getDateDemande());
     }
 
     private String statutClient(boolean clientTrouve) {
-        return clientTrouve ? "Client Trouvé" : "Client Introuvable, Client Nouvellement Créé";
+        return clientTrouve ? "Client trouvé / préexistant" : "Statut préexistant du client non confirmé";
+    }
+
+    private List<String> observationsScore(boolean clientTrouve, List<Contrat> historique, ScoreDTO score) {
+        List<String> observations = new ArrayList<>();
+        observations.add(clientTrouve
+                ? "La fiche client est reconnue comme préexistante."
+                : "Aucun élément disponible ne confirme que la fiche client existait avant cette demande.");
+        observations.add(historique.isEmpty()
+                ? "Aucun ancien contrat interne n'a été retrouvé pour cette fiche."
+                : historique.size() + " ancien(s) contrat(s) interne(s) retrouvé(s).");
+        if (!score.calculable() && score.message() != null && !score.message().isBlank()) {
+            observations.add(score.message());
+        }
+        if (score.avertissement() != null && !score.avertissement().isBlank()) {
+            observations.add(score.avertissement());
+        }
+        for (String plafond : score.plafonds()) {
+            observations.add("Plafond appliqué : " + plafond);
+        }
+        return List.copyOf(observations);
+    }
+
+    private List<String> suggestionsScore(boolean clientTrouve, List<Contrat> historique,
+                                          List<DernierContratDTO> derniersContrats, ScoreResult score) {
+        List<String> suggestions = new ArrayList<>();
+        if (!clientTrouve) {
+            suggestions.add("Vérifier le CIN et son format dans la base avant de conclure qu'il s'agit d'un nouveau client.");
+        }
+        if (historique.isEmpty() && derniersContrats.isEmpty()) {
+            suggestions.add("Si le client a déjà eu des crédits, renseigner les antécédents vérifiables.");
+        }
+        if (!score.calculable() || score.calculPartiel()) {
+            suggestions.add("Compléter ou vérifier les données manquantes signalées avant d'interpréter le score.");
+        }
+        if (!score.plafonds().isEmpty()) {
+            suggestions.add("Examiner les motifs de plafonnement et les justificatifs du dossier avant toute décision.");
+        }
+        suggestions.add("Évaluer garanties et patrimoine séparément du risque de remboursement.");
+        suggestions.add("Utiliser le score comme aide à la décision : il n'est pas calibré sur les défauts historiques du portefeuille.");
+        return List.copyOf(suggestions);
     }
 
     private ClientInfoDTO toClientInfo(Client c) {
@@ -828,14 +880,23 @@ public class RapportService {
     }
 
     private ScoreDTO toScoreDto(ScoreResult r) {
-        String avertissement = "Score expérimental, calibré sur la capacité de remboursement, l'antériorité et les garanties CECAM. "
-                + "Indicateur d'analyse d'aide à la décision : il synthétise le risque de solvabilité du sociétaire.";
+        String avertissement = "Score expérimental non calibré sur les défauts historiques du portefeuille. "
+                + "Il mesure les observations de remboursement et la capacité renseignée ; garanties et patrimoine "
+                + "sont à évaluer séparément. Indicateur d'aide à la décision, pas une décision automatique.";
         if (!r.calculable()) {
             return new ScoreDTO(false, null, null, null, null, null, r.message(), avertissement, Map.of(), List.of());
         }
+        if (r.calculPartiel()) {
+            avertissement = joindre(avertissement, "Calcul partiel : certaines données ou composantes sont indisponibles.");
+        }
+        avertissement = joindre(avertissement, r.message());
         return new ScoreDTO(true, r.valeur(), r.intervalle(), r.categorieRisque(),
                 r.couleur(), ScoreColorMapper.toHex(r.couleur()), r.message(), avertissement,
                 r.composantes(), r.plafonds());
+    }
+
+    private String joindre(String premier, String second) {
+        return second == null || second.isBlank() ? premier : premier + " " + second;
     }
 
     private List<GrilleScoreDTO> grille() {

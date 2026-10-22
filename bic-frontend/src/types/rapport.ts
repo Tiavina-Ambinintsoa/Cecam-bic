@@ -295,6 +295,8 @@ export interface RapportSolvabilite {
   liens: LienClient[];
   alertes: Alerte[];
   score: Score;
+  observationsScore: string[];
+  suggestionsScore: string[];
   grille: GrilleScoreItem[];
   synthese: Synthese;
   syntheseParCategorie: SyntheseCategorie[];

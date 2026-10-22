@@ -278,11 +278,18 @@ private String codeDemandeEtablissement;
 
     @Transient
     public int pasEnMois() {
-        if (periodicitePaiement == null) return 1;
-        String p = periodicitePaiement.trim().toUpperCase();
+        int mois = moisEntreEcheances(periodicitePaiement);
+        return mois == 0 ? 1 : mois;
+    }
+
+    public static int moisEntreEcheances(String periodicite) {
+        if (periodicite == null || periodicite.isBlank()) return 0;
+        String p = java.text.Normalizer.normalize(periodicite, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").trim().toUpperCase(java.util.Locale.ROOT);
+        if (p.startsWith("MENS")) return 1;
         if (p.startsWith("TRIM")) return 3;
         if (p.startsWith("SEM")) return 6;
         if (p.startsWith("AN")) return 12;
-        return 1;
+        return 0;
     }
 }

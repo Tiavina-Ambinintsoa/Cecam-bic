@@ -34,19 +34,13 @@ app:
   score:
     score-base: 300
     score-max: 850
-    echelle-points: 550       # score effectif = 300 + 550 = 850 (couvre toute la grille A-E)
 
-    # Poids relatifs des blocs (total par défaut = 550, aligné sur echellePoints)
+    # Poids relatifs des facteurs réellement évalués
     poids-paiement: 290
     poids-arrieres-en-cours: 60
     poids-endettement: 35
     poids-exposition: 25
     poids-budget: 30
-    poids-garantie: 30
-    poids-patrimoine: 30      # poids séparé de la garantie
-    poids-anciennete: 40
-    poids-nouveaux: 30
-    poids-mixite: 10          # Somme = 580 ; composantes absentes exclues du dénominateur
 
     # Comportement de paiement
     observations-pleine-confiance: 12
@@ -69,21 +63,11 @@ app:
     endettement-seuil-rouge: 0.80
     exposition-seuil-vert: 0.15
     exposition-seuil-rouge: 0.60
-    interet-mensuel-demande: 0.03
-
-    # Ancienneté / nouveaux crédits / mixité
-    anciennete-mois-plein: 84
-    malus-par-contrat-recent: 6
-    malus-contrats-recents-max: 18
-    malus-par-demande-en-attente: 10
-    fenetre-contrat-recent-mois: 12
-    seuil-demande-en-attente-jours: 60
-    mixite-ratio-deux-types: 0.60
-    mixite-ratio-un-type: 0.20
 
     # Plafonds de décision
     plafond-sans-capacite: 529
     plafond-sans-historique: 499
+    plafond-credit-non-rembourse: 399
     plafond-bande-tres-eleve: 399
     plafond-charge12-mois-sup100: 459
     plafond-charge12-mois-sup80: 499
@@ -94,8 +78,6 @@ app:
     plafond-arrieres90: 399
     plafond-budget-critique: 399
     plafond-budget-faible: 459
-    plafond-garantie-insuffisante: 459
-    plafond-garantie-juste: 499
 
     # Risque de groupe
     malus-par-co-oblige-a-risque: 20

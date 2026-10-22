@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -124,13 +125,18 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
             }
         }
 
-        // Calcul demande + intérêt (taux mensuel paramétrable, défaut +3%/mois sur la durée)
-        int moisDuree = request.nombreTotalEcheances() != null && request.nombreTotalEcheances() > 0
+        // Le taux est mensuel : convertir les échéances en durée réelle selon leur périodicité.
+        String typeCredit = request.typeCredit() != null ? request.typeCredit() : "GCV";
+        int nombreEcheances = request.nombreTotalEcheances() != null && request.nombreTotalEcheances() > 0
                 ? request.nombreTotalEcheances() : 1;
+        int moisEntreEcheances = Contrat.moisEntreEcheances(request.periodicitePaiement());
+        if (moisEntreEcheances == 0) moisEntreEcheances = 1;
+        BigDecimal moisDuree = BigDecimal.valueOf(nombreEcheances)
+                .multiply(BigDecimal.valueOf(moisEntreEcheances));
         BigDecimal tauxMensuelPct = request.tauxInteretMensuel() != null && request.tauxInteretMensuel().signum() >= 0
-                ? request.tauxInteretMensuel() : BigDecimal.valueOf(3.0);
-        BigDecimal tauxInteretGlobal = tauxMensuelPct.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(moisDuree));
+                ? request.tauxInteretMensuel() : tauxMensuelParType(typeCredit);
+        BigDecimal tauxInteretGlobal = tauxMensuelPct.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP)
+                .multiply(moisDuree);
         BigDecimal montantInteret = request.montantFinance().multiply(tauxInteretGlobal);
         BigDecimal totalDemandeInteret = request.montantFinance().add(montantInteret);
 
@@ -169,7 +175,7 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                 .ratioRestePourcentage(ratio)
                 .typeGarantie(request.typeGarantie() != null && !request.typeGarantie().isBlank() ? request.typeGarantie() : "Garantie réelle")
                 .valeurGarantie(request.valeurGarantie())
-                .typeCredit(request.typeCredit() != null ? request.typeCredit() : "GCV")
+                .typeCredit(typeCredit)
                 .tauxInteretMensuel(tauxMensuelPct)
                 .montantTotalDemandeInteret(totalDemandeInteret)
                 .ratioCouvertureGarantie(ratioGarantie)
@@ -200,6 +206,15 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
 
         auditService.enregistrer("CONTRAT", contrat.getId(), "CREATION", "Nouvelle demande créée");
         return contrat;
+    }
+
+    private BigDecimal tauxMensuelParType(String typeCredit) {
+        return switch (typeCredit.trim().toUpperCase(Locale.ROOT)) {
+            case "RFR", "LVM", "CIM" -> BigDecimal.valueOf(2.75);
+            case "PRO" -> BigDecimal.valueOf(3.5);
+            case "GCV" -> BigDecimal.valueOf(3.0);
+            default -> BigDecimal.valueOf(3.0);
+        };
     }
 
     private void enregistrerRevenusComplementaires(Contrat contrat, ContratRequest request) {

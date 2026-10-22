@@ -19,6 +19,8 @@ public record RapportSolvabiliteResponse(
         List<LienClientDTO> liens,
         List<AlerteDTO> alertes,
         ScoreDTO score,
+        List<String> observationsScore,
+        List<String> suggestionsScore,
         List<GrilleScoreDTO> grille,
         SyntheseDTO synthese,
         List<SyntheseCategorieDTO> syntheseParCategorie,

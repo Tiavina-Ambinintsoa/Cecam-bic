@@ -17,6 +17,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ClientService {
 
+    public static final String DETAIL_NOUVELLE_DEMANDE_CLIENT_EXISTANT =
+            "Nouvelle demande sur client existant";
+
     private final ClientRepository clientRepository;
     private final EmploiRepository emploiRepository;
     private final AuditService auditService;
@@ -26,11 +29,17 @@ public class ClientService {
         String cin = request.identifiants().stream()
                 .filter(i -> "CIN".equalsIgnoreCase(i.typeIdentifiant()))
                 .map(ClientRequest.IdentifiantRequest::numero)
+                .map(ClientService::normaliserCin)
+                .filter(numero -> !numero.isBlank())
                 .findFirst()
                 .orElse(null);
 
         if (cin != null) {
-            List<Client> existants = clientRepository.findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(cin, "CIN");
+            List<Client> existants = clientRepository.findAllByCinNormalise(cin);
+            if (existants.size() > 1) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Plusieurs clients correspondent au CIN fourni. Corrigez les doublons avant de poursuivre.");
+            }
             if (!existants.isEmpty()) {
                 Client existant = existants.get(0);
                 if (request.affaireIndividuelle() != null) {
@@ -39,7 +48,8 @@ public class ClientService {
                     auditService.enregistrer("CLIENT", existant.getId(), "MODIFICATION_AFFAIRE_INDIVIDUELLE",
                             "Affaire individuelle mise à jour depuis une nouvelle demande");
                 }
-                auditService.enregistrer("CLIENT", existant.getId(), "CONSULTATION", "Nouvelle demande sur client existant");
+                auditService.enregistrer("CLIENT", existant.getId(), "CONSULTATION",
+                        DETAIL_NOUVELLE_DEMANDE_CLIENT_EXISTANT);
                 return new ClientEnregistrementResponse(existant, true);
             }
         }
@@ -103,14 +113,22 @@ public class ClientService {
     }
 
     public Client rechercherParIdentifiant(String typeIdentifiant, String numero) {
-        List<Client> trouves = clientRepository
-                .findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(numero, typeIdentifiant);
+        String cinNormalise = normaliserCin(numero);
+        if ("CIN".equalsIgnoreCase(typeIdentifiant) && cinNormalise.isBlank()) return null;
+        List<Client> trouves = "CIN".equalsIgnoreCase(typeIdentifiant)
+                ? clientRepository.findAllByCinNormalise(cinNormalise)
+                : clientRepository.findAllByIdentifiants_NumeroAndIdentifiants_TypeIdentifiant(
+                        numero == null ? null : numero.trim(), typeIdentifiant);
         if (trouves.size() > 1) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Doublon détecté : " + trouves.size() + " clients portent le " + typeIdentifiant
                   + " " + numero + ". Corrigez la base avant de poursuivre.");
         }
         return trouves.isEmpty() ? null : trouves.get(0);
+    }
+
+    static String normaliserCin(String numero) {
+        return numero == null ? "" : numero.replaceAll("[^0-9]", "");
     }
 
     @Transactional

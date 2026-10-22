@@ -21,8 +21,6 @@ import { TYPES_CREDIT_INTERET } from "./typesCredit";
 // Type d'un élément de l'historique des contrats (déduit du schéma, sans any)
 type DernierContrat = NonNullable<ContratFormInput["derniersContrats"]>[number];
 
-const today = new Date().toISOString().slice(0, 10);
-
 const FIELD_H = "min-h-10 h-auto py-2";
 
 const getFieldBorderClass = (hasError?: boolean, hasValue?: boolean) => {
@@ -114,6 +112,12 @@ export function ContratForm() {
   const { setContratId } = useDemandeEnCours();
   const [submitting, setSubmitting] = useState(false);
   const [erreurSoumission, setErreurSoumission] = useState<string | null>(null);
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Indian/Antananarivo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   // Commencer tout en haut au chargement de la page
   useEffect(() => {
@@ -129,6 +133,7 @@ export function ContratForm() {
       typeCredit: "RFR",
       dateDemande: today,
       devise: "Ariary malgache",
+      periodicitePaiement: "Mensuelle",
       periodiciteBudget: "Mensuelle",
       typeGarantie: "Garantie réelle",
       tauxInteretMensuel: 2.75,
@@ -147,21 +152,24 @@ export function ContratForm() {
   const depense = Number(formValues.montantDepense) || 0;
   const aBudget = Boolean(formValues.montantRecette || formValues.montantDepense);
   const reste = recette - depense;
-  const ratioBudget = depense > 0 ? ((reste / depense) * 100) : null;
+  const ratioBudget = depense > 0 ? ((reste / depense) * 100) : recette > 0 ? 100 : null;
 
   const getEvaluationBudget = () => {
     if (!aBudget || ratioBudget === null) return null;
-    if (ratioBudget <= 0) return { label: "Risque Très Élevé (Catégorie E, score 300 - 399)", color: "text-red-700 bg-red-50 border-red-300" };
-    if (ratioBudget <= 25) return { label: "Risque Élevé (Catégorie D, score 400 - 459)", color: "text-orange-700 bg-orange-50 border-orange-300" };
-    if (ratioBudget <= 50) return { label: "Risque Moyen (Catégorie C, score 460 - 499)", color: "text-yellow-800 bg-yellow-50 border-yellow-300" };
-    if (ratioBudget < 100) return { label: "Risque Faible (Catégorie B, score 500 - 529)", color: "text-lime-800 bg-lime-50 border-lime-300" };
-    return { label: "Risque Très Faible (Catégorie A, score 530 - 850)", color: "text-emerald-800 bg-emerald-50 border-emerald-300" };
+    if (ratioBudget <= 0) return { label: "Marge budgétaire nulle ou négative", color: "text-red-700 bg-red-50 border-red-300" };
+    if (ratioBudget <= 25) return { label: "Marge faible", color: "text-orange-700 bg-orange-50 border-orange-300" };
+    if (ratioBudget <= 50) return { label: "Marge modérée", color: "text-yellow-800 bg-yellow-50 border-yellow-300" };
+    if (ratioBudget < 100) return { label: "Marge confortable", color: "text-lime-800 bg-lime-50 border-lime-300" };
+    return { label: "Marge élevée", color: "text-emerald-800 bg-emerald-50 border-emerald-300" };
   };
   const evaluationBudget = getEvaluationBudget();
 
-  // Calculs garantie (+X% du montant demandé par mois selon tauxInteretMensuel / typeCredit)
+  // Calculs de couverture selon la durée réelle du crédit et le taux mensuel du produit.
   const montantFinance = Number(formValues.montantFinance) || 0;
-  const dureeMois = Number(formValues.nombreTotalEcheances) || 1;
+  const moisParEcheance = formValues.periodicitePaiement === "Trimestrielle" ? 3
+    : formValues.periodicitePaiement === "Semestrielle" ? 6
+      : formValues.periodicitePaiement === "Annuelle" ? 12 : 1;
+  const dureeMois = (Number(formValues.nombreTotalEcheances) || 1) * moisParEcheance;
   const selectedTypeCredit = formValues.typeCredit || "RFR";
   const typeCreditObj = TYPES_CREDIT_INTERET.find((t) => t.code === selectedTypeCredit);
   const tauxMensuel = formValues.tauxInteretMensuel !== undefined && Number(formValues.tauxInteretMensuel) >= 0
@@ -226,7 +234,11 @@ export function ContratForm() {
   }
 
   async function onSubmit(values: ContratFormValues) {
-    if (!clientId) return;
+    const idClient = Number(clientId);
+    if (!clientId || !Number.isInteger(idClient) || idClient <= 0) {
+      setErreurSoumission("Identifiant client invalide. Reprenez la demande depuis la fiche du client.");
+      return;
+    }
     setSubmitting(true);
     setErreurSoumission(null);
     try {
@@ -251,7 +263,7 @@ export function ContratForm() {
         typeGarantie: "Garantie réelle",
         derniersContrats,
         revenusComplementaires,
-        clientId: Number(clientId),
+        clientId: idClient,
       });
       setContratId(contrat.id);
       navigate(`/demande/rapport/${contrat.id}`);
@@ -371,7 +383,7 @@ export function ContratForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-semibold text-slate-800">Nombre total échéances (mois) <span className="text-red-500">*</span></Label>
+              <Label className="font-semibold text-slate-800">Nombre total d'échéances <span className="text-red-500">*</span></Label>
               <Input
                 type="number"
                 {...form.register("nombreTotalEcheances")}
@@ -383,7 +395,7 @@ export function ContratForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="font-normal text-slate-600">Montant échéance mensuelle</Label>
+              <Label className="font-normal text-slate-600">Montant d'une échéance</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -406,7 +418,12 @@ export function ContratForm() {
 
             <div className="space-y-1.5">
               <Label className="font-normal text-slate-600">Périodicité de paiement</Label>
-              <Select onValueChange={(v) => form.setValue("periodicitePaiement", v as string)}>
+              <Select
+                value={formValues.periodicitePaiement || "Mensuelle"}
+                onValueChange={(v) => {
+                  if (v !== null) form.setValue("periodicitePaiement", v);
+                }}
+              >
                 <SelectTrigger className={`${FIELD_H} ${getFieldBorderClass(false, !!formValues.periodicitePaiement)}`}>
                   <SelectValue placeholder="Sélectionner" />
                 </SelectTrigger>
@@ -602,7 +619,7 @@ export function ContratForm() {
               {ratioBudget !== null && (
                 <div className="text-xs text-slate-500 border-t pt-2">
                   <p>
-                    <strong>Barème budgétaire :</strong> Reste ≤ 0% (Risque Très Élevé - E) | Reste ≤ 25% (Risque Élevé - D) | Reste ~ 50% (Risque Moyen - C) | Reste &lt; 100% (Risque Faible - B) | Recette ≥ 2 × Dépenses (Risque Très Faible - A).
+                    <strong>Repères indicatifs :</strong> comparaison du reste aux dépenses. Cette estimation ne constitue pas une catégorie ni un score de crédit.
                   </p>
                 </div>
               )}
