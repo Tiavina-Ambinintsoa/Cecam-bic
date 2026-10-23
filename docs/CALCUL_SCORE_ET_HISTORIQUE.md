@@ -58,7 +58,8 @@ Saisi par l'agent de crédit lors de la création d'une nouvelle demande (sectio
   - **`A_TEMPS`** / **`NORMAL`** : remboursé sans aucun retard.
   - **`EN_RETARD`** : retard de paiement constaté.
   - **`NON_REMBOURSE`** : crédit en défaut ou impayé.
-- `joursRetard` & `dateRemboursement`.
+- L'historique résumé saisi dans le formulaire provient du dossier CECAM : l'interface ne demande pas de justificatif ni de niveau de preuve manuel. Il reste un résumé de contrat, pas un échéancier mensuel détaillé.
+- `joursRetard` & `dateRemboursement` : calculés à partir des dates réelles (aucun jour arbitraire inventé).
 
 ---
 
@@ -68,11 +69,30 @@ Le score est étalonné sur une plage de **300 à 850 points**, alignée sur les
 
 | Classe | Intervalle Score | Catégorie de Risque | Couleur indicative | Décision recommandée |
 |:---:|:---:|---|:---:|---|
-| **A** | **530 – 850** | **Risque très faible** | Vert pistache | Octroi très favorable, conditions optimales |
-| **B** | **500 – 529** | **Risque faible** | Jaune moutarde | Octroi standard favorable |
-| **C** | **460 – 499** | **Risque moyen** | Jaune Or | Octroi sous conditions de garantie ou d'apport |
+| **A** | **530 – 850** | **Risque très faible** | Vert pistache | Octroi très favorable, conditions optimales (≥ 12 échéances vérifiées) |
+| **B** | **500 – 529** | **Risque faible** | Jaune moutarde | Octroi standard favorable (≥ 6 échéances vérifiées, arriéré en cours plafonné ici) |
+| **C** | **460 – 499** | **Risque moyen** | Jaune Or | Octroi sous conditions (< 6 échéances vérifiées ou déclaratif seul) |
 | **D** | **400 – 459** | **Risque élevé** | Orange citrouille | Vigilance accrue, garantie renforcée requise |
-| **E** | **300 – 399** | **Risque très élevé** | Rouge Vif | Refus recommandé ou restructuration nécessaire |
+| **E** | **300 – 399** | **Risque très élevé** | Rouge Vif | Refus recommandé ou restructuration nécessaire (défaut ou contentieux) |
+
+---
+
+## 3. Plafonds de Décision et Maturité de l'Historique (P0/P1)
+
+Le moteur applique des **plafonds de sécurité** selon les observations de paiement réelles, la capacité disponible et les incidents recensés. Un historique résumé du dossier CECAM n'est pas pénalisé par un plafond de preuve, mais sa faible quantité d'observations limite la confiance.
+
+| Règle de preuve | Plafond maximal | Classe résultante | Justification métier |
+|---|:---:|:---:|---|
+| **Moins de 6 observations détaillées récentes** | **499** | **C** | Recul insuffisant pour juger de la régularité sur la durée |
+| **De 6 à 11 observations détaillées récentes** | **529** | **B** | Historique intermédiaire, classe A réservée aux historiques matures |
+| **Historique résumé du dossier CECAM** | Aucun plafond fondé sur la preuve seule | Selon le score calculé | Un résumé ne compte pas comme plusieurs échéances ; la confiance est réduite selon le nombre d'observations disponibles |
+| **Pire retard sur 24 mois $\ge$ 90 jours** | **499** | **C** | Incident significatif récent excluant les notes favorables |
+| **Pire retard sur 24 mois $\ge$ 60 jours** | **529** | **B** | Retard sérieux limitant la notation à la classe B |
+| **Arriéré en cours $\ge$ 1 jour (hors grâce)** | **529** | **B** | Aucun emprunteur en retard actif ne peut être noté en classe A |
+| **Moins de 50 % des facteurs renseignés** | **499** | **C** | Manque de visibilité budgétaire ou patrimoniale |
+| **Événement négatif formel (contentieux actif)** | **399** | **E** | Risque avéré de défaut bancaire (levé après prescription de 3 à 5 ans) |
+| **Charge sur 12 mois > 80 % du revenu annuel** | **499** | **C** | Surendettement avéré |
+| **Charge sur 12 mois > 100 % du revenu annuel** | **459** | **D** | Insolvabilité financière structurelle |
 
 ---
 
@@ -105,11 +125,12 @@ Une mensualité récente a plus de valeur prédictive qu'une mensualité ancienn
 - Mois $13$ à $36$ mois : **poids 0.60**
 - Mois $> 36$ mois : **poids 0.30**
 
-#### 2. Qualité du paiement $Q(\text{retard})$
-- **0 jour de retard** : $Q = 1.00$ ($100\%$ des points).
-- **1 à 29 jours** (retard court) : $Q = 0.55$.
-- **30 à 180 jours** : décroissance linéaire de $0.15$ à $0.00$.
-- **$> 180$ jours** (défaut) : $Q = 0.00$.
+#### 2. Qualité du paiement $Q(\text{retard})$ avec tolérance de grâce
+Le moteur applique une **période de grâce de 5 jours** pour éviter de pénaliser des décalages techniques (week-ends, virements en cours) et une **décote graduelle continue** :
+- **$\le 5$ jours de retard** (période de grâce) : $Q = 1.00$ ($100\%$ des points).
+- **$6$ à $29$ jours** (retard court) : décroissance graduelle continue de $1.00$ à $0.72$.
+- **$30$ à $179$ jours** (retard long) : décroissance linéaire de $0.15$ à $0.00$.
+- **$\ge 180$ jours** (défaut avéré) : $Q = 0.00$.
 
 #### 3. Facteur de confiance
 Si le client a moins de 12 échéances sur les 36 derniers mois, un facteur de confiance modère la note :
@@ -117,19 +138,19 @@ $$\text{Confiance} = 0.50 + 0.50 \times \min\left(1.0, \; \frac{\text{Nb Échéa
 
 $$\text{Points Paiement} = 290 \times \left(\frac{\sum W_i \cdot Q_i}{\sum W_i}\right) \times \text{Confiance}$$
 
-### B. Arriérés en cours (60 points)
-Évalue si le client a un retard non régularisé sur un crédit actuellement actif :
-- Retard actuel $= 0$ jour : **60 points** (100%).
-- Retard de $1$ à $29$ jours : **15 points** (25%).
-- Retard de $30$ à $59$ jours : **12 points** (20%) + plafond à **499 pts**.
-- Retard $\ge 60$ jours : **0 point** + plafond à **459 pts**.
+### B. Arriérés en cours (60 points) — *Uniquement si crédits actifs en cours*
+Le pilier n'est activé **que si le client possède au moins un crédit actif** en cours de remboursement (`!actifs.isEmpty()`). S'il n'a aucun crédit actif, ce pilier n'est pas évalué et ne pénalise pas le score.
+- Retard actuel $\le 5$ jours : **60 points** (100%).
+- Retard de $6$ à $29$ jours : part décroissante de $35\%$ à $20\%$ + **Plafond classe B (529 pts)**.
+- Retard de $30$ à $59$ jours : part de $20\%$ + plafond à **499 pts** (Classe C).
+- Retard de $60$ à $89$ jours : **0 point** + plafond à **459 pts** (Classe D).
 - Retard $\ge 90$ jours : **0 point** + plafond à **399 pts** (Catégorie E).
 
 ### C. Prise en compte des 3 derniers contrats saisis
 Afin d'**éviter le double comptage** avec l'historique déjà en base :
-- Anticipation déclarée : bonus léger de **+10 points**.
-- Retard déclaré : malus de **-15 points**.
-- Les contrats ne sont pas réinjectés comme des observations mensuelles afin de ne pas fausser les pondérations d'échéances réelles.
+- Anticipation déclarée : bonus léger de **+10 points** (plafonné à +20 pts dans `ScoreProperties`).
+- Retard déclaré : malus de **-10 points** (si historique réel existant) ou **-15 points** (sans historique).
+- Les contrats résumés issus du dossier CECAM ne sont pas considérés comme des échéances détaillées et ne lèvent pas les plafonds fondés sur le nombre d'observations mensuelles réelles.
 
 ---
 
@@ -138,22 +159,17 @@ Afin d'**éviter le double comptage** avec l'historique déjà en base :
 Quand un client n'a aucun emprunt antérieur dans la base de données (`empruntsDecaisses.isEmpty()`), deux situations sont gérées :
 
 ### Cas 5.A : Le nouveau client a renseigné ses 3 derniers contrats
-Ces 3 contrats **tiennent lieu d'historique de remboursement complet** :
+Ces 3 contrats **tiennent lieu d'historique de remboursement de substitution** :
 
 1. **Substitution dans le pilier Paiement (290 points)** :
    Chaque contrat déclaré devient une observation officielle :
-   - **`ANTICIPATION`** : observation sans retard (qualité 1.00) + **Bonus immédiat de +20 pts** (plafonné à +30 pts au total).
+   - **`ANTICIPATION`** : observation sans retard (qualité 1.00) + bonus d'anticipation (+10 pts par contrat, max +20 pts).
    - **`A_TEMPS` / `NORMAL`** : observation sans retard (qualité 1.00, 100% des points).
-   - **`EN_RETARD`** : observation avec retard $\ge 30$ jours + **Malus immédiat de -25 pts**.
-   - **`NON_REMBOURSE`** : observation de retard critique (90 jours), retard courant fixé à 90 jours $\rightarrow$ **Plafond strict à 399 pts** (Catégorie E).
+   - **`EN_RETARD`** : observation avec retard réel calculé + malus de retard (-15 pts).
+   - **`NON_REMBOURSE`** : observation de retard critique $\rightarrow$ **Plafond strict à 399 pts** (Catégorie E).
 
-2. **Facteur de confiance maximal accordé** :
-   Le moteur accorde une pleine valeur probante aux contrats saisis :
-   $$\text{Facteur} = 0.90 + 0.05 \times \min(2, \; \text{Nb Contrats Saisis}) \quad \longrightarrow \quad \mathbf{0.95 \text{ à } 1.00}$$
-   Un nouveau client ayant toujours remboursé ses prêts précédents peut ainsi capter **l'intégralité des 290 points de paiement**.
-
-3. **Accès aux meilleures classes de score** :
-   Le nouveau client peut être classé en catégorie **A (Risque très faible)** ou **B (Risque faible)** si ses revenus, son budget et sa garantie sont solides.
+2. **Confiance et maturité** :
+   Les contrats résumés contribuent comme observations de substitution, mais un contrat résumé ne vaut pas plusieurs échéances. Le score applique un facteur de confiance selon le nombre d'observations récentes ; les plafonds de classe C/B selon le nombre d'observations portent sur l'historique détaillé réel, pas sur le nombre de lignes de résumé.
 
 ---
 
@@ -161,43 +177,40 @@ Ces 3 contrats **tiennent lieu d'historique de remboursement complet** :
 Le client n'a ni historique en base, ni contrat déclaré dans la demande :
 
 1. **Activation du Plafond sans historique** :
-   Le score est borné à un **maximum de 499 points** (Catégorie C - Risque moyen au mieux). Un emprunteur sans aucun antécédent ne peut pas être classé en risque très faible sans preuve de remboursement.
+   Le score est borné à un **maximum de 499 points** (Catégorie C - Risque moyen au mieux). Un emprunteur sans antécédent ne peut pas être classé en risque très faible sans preuve de remboursement.
 
 2. **Renormalisation proportionnelle sans pénalité** :
-   Le pilier Paiement (290 pts) est retiré des *Points Disponibles*. Le score est calculé sur le ratio des autres piliers déclarés :
-   - Reste budgétaire (Revenus - Dépenses) : jusqu'à 30 pts.
-   - Revenu annuel (Taux d'endettement & d'exposition) : jusqu'à 35 + 25 pts.
-   - Couverture de la garantie : jusqu'à 30 pts.
-   - Couverture du patrimoine : jusqu'à 30 pts.
-   - Ancienneté sociétaire CECAM : jusqu'à 40 pts.
-   - Profil âge sociétaire : jusqu'à 25 pts.
-   - Type de crédit demandé : jusqu'à 15 pts.
-
-3. **Condition de calculabilité** :
-   Si le client ne fournit **aucun remboursement, aucun revenu, aucun budget, aucune garantie et aucun patrimoine**, le score renvoie :
-   > *« Ce client vient d'être créé et ne possède ni historique de remboursement ni données de capacité. »*
+   Le pilier Paiement (290 pts) est retiré des *Points Disponibles*. Le score est calculé sur le ratio des autres piliers déclarés (Revenu, Budget, Garantie, etc.).
 
 ---
 
 ## 6. Détail des Piliers Complémentaires
 
-### A. Capacité Budgétaire Mensuelle (30 points)
-Évaluée d'après le ratio de reste à vivre sur les dépenses :
-$$R = \frac{\text{Recettes Totales} - \text{Dépenses Totales}}{\text{Dépenses Totales}} \times 100$$
-- $R \le 0\%$ : 0 point + **Plafond critique à 399 pts** (recettes inférieures aux charges).
-- $0\% < R \le 25\%$ : 0 à 5 points + **Plafond à 459 pts**.
-- $25\% < R \le 50\%$ : 5 à 15 points.
-- $50\% < R < 100\%$ : 15 à 22 points.
-- $R \ge 100\%$ : **30 points pleins**.
+### A. Capacité Budgétaire Mensuelle (30 points) — *Taux d'effort normalisé*
+Plutôt qu'un simple ratio statique, le moteur calcule le **taux d'effort budgétaire mensuel** :
+$$\text{Surplus Mensuel} = \text{Recettes Mensuelles} - \text{Dépenses Mensuelles}$$
+$$\text{Charge Mensuelle Totale} = \text{Mensualité Demandée} + \sum \text{Mensualités Prêts Actifs}$$
+$$\text{Taux d'Effort} = \frac{\text{Charge Mensuelle Totale}}{\text{Surplus Mensuel}}$$
 
-### B. Couverture de la Garantie (30 points)
-Ratio de couverture par rapport au capital et intérêts dus :
-$$G = \frac{\text{Valeur Garantie Totale}}{\text{Montant Financé} \times (1 + \text{Taux Intérêt} \times \text{Durée})} \times 100$$
-- $G < 100\%$ : 0 point + **Plafond à 420 pts** + **Alerte avec suggestion automatique d'un montant réduit pour atteindre 120%**.
-- $100\% \le G \le 120\%$ : 0 à 8 points + plafond à 499 pts.
-- $120\% < G \le 150\%$ : 8 à 16 points.
-- $150\% < G \le 200\%$ : 16 à 24 points.
-- $G > 200\%$ : **30 points pleins**.
+- **Taux d'effort $\le 40\%$** : **30 points** (capacité optimale).
+- **Taux d'effort entre $40\%$ et $80\%$** : décroissance linéaire de 30 à 10.5 points.
+- **Taux d'effort entre $80\%$ et $100\%$** : décroissance de 10.5 à 0 point.
+- **Taux d'effort $> 100\%$ ou surplus $\le 0$** : **0 point** et plafond budget critique à **399 pts** (Catégorie E).
+- **Alerte de plausibilité** : si les recettes déclarées dépassent 15 000 000 Ar par mois pour un profil individuel, une alerte invite l'agent à vérifier s'il s'agit d'un chiffre d'affaires ou revenu annuel plutôt que mensuel.
+- Lorsque seul le ratio budgétaire est disponible : $R \le 0\%$ déclenche le plafond critique à 399 pts ; $0\% < R \le 25\%$ déclenche le plafond à 459 pts ; au-delà, les points progressent jusqu'au maximum pour $R \ge 100\%$.
+
+### B. Bloc Couverture de la Demande
+Présenté directement à côté du score dans le rapport :
+- **Niveau Forte ($\ge 150\%$)** : Couverture sécurisée.
+- **Niveau Correcte ($120\% - 150\%$)** : Conforme aux normes prudentielles CECAM.
+- **Niveau Juste ($100\% - 120\%$)** : Couverture acceptable, calcul du complément requis pour atteindre $120\%$.
+- **Niveau Insuffisante ($< 100\%$)** : Non conforme, dérogation motivée requise, affichage automatique du manque de garantie pour $120\%$ et du capital maximal conseillé.
+
+Le niveau de couverture et le manque pour atteindre la cible sont affichés séparément du score CB. La garantie contribue surtout à limiter la perte en cas de défaut, tandis que le score CB vise le risque de remboursement. Le rapport calcule donc un **risque global distinct** sans modifier ni persister un autre score CB :
+- Couverture **< 50 %** : la classe globale ne peut pas être meilleure que **D** (risque élevé).
+- Couverture de **50 % à < 100 %** : la classe globale ne peut pas être meilleure que **C** (risque moyen) ; le niveau le plus risqué entre cette borne et le Score CB est retenu.
+- Couverture **≥ 100 %** : aucun relèvement automatique ; la classe globale suit le Score CB.
+- Garantie ou ratio absent : la classe globale suit le Score CB et indique que la couverture n'est pas renseignée.
 
 ### C. Ancienneté Sociétaire CECAM (40 points)
 Calculée à partir du champ *« Membre depuis le »* (`dateAdhesion`) :

@@ -43,4 +43,11 @@ public class DernierContrat {
 
     @Column(name = "statut", length = 50)
     private String statut;
+
+    @Column(name = "verifie")
+    @Builder.Default
+    private Boolean verifie = false;
+
+    @Column(name = "source_verification", length = 50)
+    private String sourceVerification;
 }

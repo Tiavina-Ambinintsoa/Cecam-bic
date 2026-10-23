@@ -50,13 +50,19 @@ app:
     poids-moyen: 0.60
     poids-ancien: 0.30
     qualite-paye-a-temps: 1.00
-    qualite-retard-court: 0.55
-    qualite-retard-long: 0.15
+    qualite-retard-court: 0.72       # décote graduelle 1-29j via la méthode qualite()
+    qualite-retard-long: 0.15        # à 30j ; décroît linéairement jusqu'à 0 à 180j
     qualite-impaye: 0.00
+    tolerance-retard-jours: 5        # tolérance avant de considérer un retard (0 = pas de grâce)
 
-    # Arriérés en cours
-    ratio-arrieres1a29: 0.25
+    # Arriérés en cours (part des points conservée)
+    ratio-arrieres1a29: 0.35         # graduel : voir ScoreService.qualiteArriere()
     ratio-arrieres30a59: 0.20
+    # Bonus/malus déclarés (limités à des petits ajustements)
+    bonus-anticipation-par-contrat: 10
+    bonus-anticipation-max: 20
+    malus-retard-declare-par-contrat: 15
+    malus-retard-declare-avec-historique: 10
 
     # Capacité de remboursement
     endettement-seuil-vert: 0.30
@@ -67,6 +73,8 @@ app:
     # Plafonds de décision
     plafond-sans-capacite: 529
     plafond-sans-historique: 499
+    plafond-classe-b: 529
+    plafond-classe-c: 499
     plafond-credit-non-rembourse: 399
     plafond-bande-tres-eleve: 399
     plafond-charge12-mois-sup100: 459

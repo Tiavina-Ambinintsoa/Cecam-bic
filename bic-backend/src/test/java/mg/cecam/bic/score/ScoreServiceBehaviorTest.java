@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -100,7 +101,8 @@ class ScoreServiceBehaviorTest {
     @Test
     void observationMensuelleEtEcheanceDuMemeMoisNeComptentQuUneFois() {
         Contrat rembourse = contratHistorique(2L);
-        LocalDate echeanceDate = LocalDate.now().minusDays(10);
+        LocalDate reference = LocalDate.now(ZoneId.of("Indian/Antananarivo"));
+        LocalDate echeanceDate = reference.minusDays(10);
         when(contratRepository.findPourClient(client.getId())).thenReturn(List.of(rembourse));
         when(echeanceRepository.findByContrat_IdOrderByNumeroEcheance(rembourse.getId()))
                 .thenReturn(List.of(Echeance.builder()
@@ -117,12 +119,33 @@ class ScoreServiceBehaviorTest {
                         .statut("À jour")
                         .build()));
 
+        ScoreResult result = service.calculer(client, demande, true, reference);
+
+        double ratioRetard = (10.0 - properties.getToleranceRetardJours())
+                / (30.0 - properties.getToleranceRetardJours());
+        double qualiteRetard = properties.getQualitePayeATemps()
+                - (properties.getQualitePayeATemps() - properties.getQualiteRetardCourt()) * ratioRetard;
+        double facteurConfiance = properties.getPlancherConfiance()
+                + (1 - properties.getPlancherConfiance()) / properties.getObservationsPleineConfiance();
+        double attendu = properties.getPoidsPaiement() * qualiteRetard * facteurConfiance;
+        assertEquals(attendu, result.composantes().get("paiement"), 0.1);
+    }
+
+    @Test
+    void historiqueResumeDuDossierInterneNestPasPlafonneEnClasseCParDefaut() {
+        LocalDate dateRemboursement = LocalDate.now().minusMonths(1);
+        when(dernierContratRepository.findByContrat_IdOrderByDateOctroiAsc(demande.getId()))
+                .thenReturn(List.of(
+                        contratDeclare(dateRemboursement),
+                        contratDeclare(dateRemboursement.minusMonths(2)),
+                        contratDeclare(dateRemboursement.minusMonths(4))));
+
         ScoreResult result = service.calculer(client, demande, true);
 
-        double attendu = properties.getPoidsPaiement() * properties.getQualiteRetardCourt()
-                * (properties.getPlancherConfiance()
-                + (1 - properties.getPlancherConfiance()) / properties.getObservationsPleineConfiance());
-        assertEquals(attendu, result.composantes().get("paiement"), 0.1);
+        assertTrue(result.calculable());
+        assertTrue(result.valeur() > properties.getPlafondClasseC());
+        assertFalse(result.plafonds().stream().anyMatch(p -> p.contains("historique uniquement déclaré")));
+        assertFalse(result.message().contains("Justificatif recommandé"));
     }
 
     private Contrat contratHistorique(Long id) {
@@ -131,6 +154,13 @@ class ScoreServiceBehaviorTest {
                 .client(client)
                 .roleClient(RoleClient.TITULAIRE)
                 .phaseDemande(PhaseDemande.FERME)
+                .build();
+    }
+
+    private DernierContrat contratDeclare(LocalDate dateRemboursement) {
+        return DernierContrat.builder()
+                .statut("A_TEMPS")
+                .dateRemboursement(dateRemboursement)
                 .build();
     }
 

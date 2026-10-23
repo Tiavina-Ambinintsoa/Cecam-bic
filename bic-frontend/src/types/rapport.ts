@@ -77,6 +77,9 @@ export interface DetailDemande {
   totalDepot?: number | null;
   totalCreditActif?: number | null;
   tauxInteretMensuel?: number | null;
+  montantSuggerePour120?: number | null;
+  niveauCouverture?: string | null;
+  manqueGarantie?: number | null;
 }
 
 export interface Score {
@@ -88,6 +91,13 @@ export interface Score {
   couleurHex?: string;
   message?: string;
   avertissement?: string;
+}
+
+export interface RisqueGlobal {
+  intervalle: string;
+  categorieRisque: string;
+  couleurHex: string;
+  justification: string;
 }
 
 export interface GrilleScoreItem {
@@ -295,6 +305,7 @@ export interface RapportSolvabilite {
   liens: LienClient[];
   alertes: Alerte[];
   score: Score;
+  risqueGlobal?: RisqueGlobal | null;
   observationsScore: string[];
   suggestionsScore: string[];
   grille: GrilleScoreItem[];

@@ -6,7 +6,6 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
-import jakarta.validation.constraints.Positive;
 import mg.cecam.bic.common.enums.ModeRattachement;
 import mg.cecam.bic.common.enums.RoleClient;
 

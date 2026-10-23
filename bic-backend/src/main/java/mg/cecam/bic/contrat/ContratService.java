@@ -11,6 +11,7 @@ import mg.cecam.bic.common.enums.PhaseDemande;
 import mg.cecam.bic.common.enums.StatutEcheance;
 import mg.cecam.bic.contrat.dto.ContratRequest;
 import mg.cecam.bic.contrat.dto.HistoriqueContratRequest;
+import mg.cecam.bic.score.ScoreService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -153,6 +154,14 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                 ? null
                 : request.valeurPatrimoine().multiply(BigDecimal.valueOf(100))
                         .divide(totalDemandeInteret, 2, RoundingMode.HALF_UP);
+
+        BigDecimal echeanceCalc = request.montantEcheanceMensuelle();
+        if (echeanceCalc == null || echeanceCalc.signum() <= 0) {
+            echeanceCalc = totalDemandeInteret.divide(BigDecimal.valueOf(nombreEcheances), 0, RoundingMode.HALF_UP);
+        }
+        String periodicite = request.periodicitePaiement() != null && !request.periodicitePaiement().isBlank()
+                ? request.periodicitePaiement() : "Mensuelle";
+
         Contrat contrat = Contrat.builder()
                 .codeContratCb(genererCodeContratCb())
                 .codeContratEtablissement(request.codeContratEtablissement())
@@ -163,13 +172,13 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                 .roleClient(request.roleClient())
                 .dateDemande(request.dateDemande())
                 .montantFinance(request.montantFinance())
-                .montantTotalDu(totalDu)
-                .montantEcheanceMensuelle(request.montantEcheanceMensuelle())
+                .montantTotalDu(totalDemandeInteret)
+                .montantEcheanceMensuelle(echeanceCalc)
                 .nombreTotalEcheances(request.nombreTotalEcheances())
                 .devise(request.devise())
                 .origineDonnee(OrigineDonnee.NON_RENSEIGNEE)
-                .periodicitePaiement(request.periodicitePaiement())
-                .periodiciteBudget(request.periodiciteBudget())
+                .periodicitePaiement(periodicite)
+                .periodiciteBudget(request.periodiciteBudget() != null ? request.periodiciteBudget() : "Mensuelle")
                 .montantRecette(request.montantRecette())
                 .montantDepense(request.montantDepense())
                 .ratioRestePourcentage(ratio)
@@ -245,40 +254,31 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
         LocalDate ref = LocalDate.now();
         for (ContratRequest.DernierContratRequest d : request.derniersContrats()) {
             if (d == null || (d.montant() == null && d.dateOctroi() == null && d.statut() == null)) continue;
-            int joursRetard = 0;
-            String statut = d.statut() != null && !d.statut().isBlank() ? d.statut().toUpperCase() : "A_TEMPS";
-            if (statut.equals("NORMAL")) statut = "A_TEMPS";
+            // Normaliser le statut via ScoreService (même logique que le moteur de score)
+            String statut = ScoreService.normaliserStatutDernierContrat(d.statut());
+            // Pas de défaut "A_TEMPS" : si le statut est inconnu, on laisse null pour que ScoreService l'exclue
+            if (statut == null && d.statut() != null && !d.statut().isBlank()) {
+                // statut non reconnu, mais non vide : on le conserve tel quel pour traçabilité
+                statut = d.statut().toUpperCase(java.util.Locale.ROOT).trim();
+            }
 
-            if (d.statut() != null && !d.statut().isBlank()) {
-                if ("ANTICIPATION".equalsIgnoreCase(statut)) {
-                    joursRetard = -30;
-                } else if ("EN_RETARD".equalsIgnoreCase(statut)) {
-                    joursRetard = 30;
-                } else if ("NON_REMBOURSE".equalsIgnoreCase(statut)) {
-                    joursRetard = 90;
-                } else {
-                    joursRetard = 0;
+            // Calcul des jours de retard réels (à partir des dates fournies) — pas de valeurs inventées
+            int joursRetard = 0;
+            if (d.datePrevueRemboursement() != null && d.dateRemboursement() != null) {
+                long delta = ChronoUnit.DAYS.between(d.datePrevueRemboursement(), d.dateRemboursement());
+                joursRetard = (int) delta; // négatif si anticipation, positif si retard
+                // Recalcul du statut à partir des dates si non fourni explicitement
+                if (d.statut() == null || d.statut().isBlank()) {
+                    if (delta > 5) statut = "EN_RETARD";
+                    else if (delta < -25) statut = "ANTICIPATION";
+                    else statut = "A_TEMPS";
                 }
-            } else if (d.datePrevueRemboursement() != null) {
-                if (d.dateRemboursement() != null) {
-                    if (d.dateRemboursement().isAfter(d.datePrevueRemboursement())) {
-                        joursRetard = (int) ChronoUnit.DAYS.between(d.datePrevueRemboursement(), d.dateRemboursement());
-                        statut = "EN_RETARD";
-                    } else if (d.dateRemboursement().isBefore(d.datePrevueRemboursement())) {
-                        long moisAvance = ChronoUnit.MONTHS.between(d.dateRemboursement(), d.datePrevueRemboursement());
-                        long joursAvance = ChronoUnit.DAYS.between(d.dateRemboursement(), d.datePrevueRemboursement());
-                        joursRetard = (int) -joursAvance;
-                        statut = (moisAvance >= 1 || joursAvance >= 25) ? "ANTICIPATION" : "A_TEMPS";
-                    } else {
-                        statut = "A_TEMPS";
-                    }
+            } else if (d.datePrevueRemboursement() != null && d.dateRemboursement() == null) {
+                if (d.datePrevueRemboursement().isBefore(ref)) {
+                    joursRetard = (int) ChronoUnit.DAYS.between(d.datePrevueRemboursement(), ref);
+                    if (d.statut() == null || d.statut().isBlank()) statut = "NON_REMBOURSE";
                 } else {
-                    if (d.datePrevueRemboursement().isBefore(ref)) {
-                        joursRetard = (int) ChronoUnit.DAYS.between(d.datePrevueRemboursement(), ref);
-                        statut = "NON_REMBOURSE";
-                    } else {
-                        statut = "EN_COURS";
-                    }
+                    if (d.statut() == null || d.statut().isBlank()) statut = "EN_COURS";
                 }
             }
             list.add(DernierContrat.builder()
@@ -290,6 +290,8 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                     .dateRemboursement(d.dateRemboursement())
                     .joursRetard(joursRetard)
                     .statut(statut)
+                    .verifie(true)
+                    .sourceVerification("DOSSIER_CECAM")
                     .build());
         }
         if (!list.isEmpty()) {

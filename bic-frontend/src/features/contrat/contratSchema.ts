@@ -24,7 +24,7 @@ export const contratSchema = z.object({
   montantEcheanceMensuelle: z.coerce.number().optional(),
   nombreTotalEcheances: z.coerce.number().int().positive(),
   devise: z.string().min(1),
-  periodicitePaiement: z.string().optional(),
+  periodicitePaiement: z.string().min(1, "La périodicité de paiement est requise"),
   periodiciteBudget: z.string().optional(),
   montantRecette: z.coerce.number({ message: "Le montant des revenus/recettes est requis" }).positive("Le montant des recettes doit être supérieur à 0"),
   montantDepense: z.coerce.number({ message: "Le montant des dépenses est requis" }).nonnegative("Le montant des dépenses doit être positif"),

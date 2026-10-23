@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -146,6 +147,9 @@ public class RapportService {
                     );
                 }).toList();
 
+        DetailDemandeDTO detailDemande = toDetailDemande(contrat);
+        RisqueGlobalDTO risqueGlobal = calculerRisqueGlobal(
+                scoreDto, detailDemande.ratioCouvertureGarantie(), grilleScoreRepository.findAll());
         return new RapportSolvabiliteResponse(
                 UUID.randomUUID().toString(),
                 LocalDateTime.now(),
@@ -158,7 +162,7 @@ public class RapportService {
                 toAffaireIndividuelleDTO(client.getAffaireIndividuelle()),
                 client.getIdentifiants().stream()
                         .map(i -> new IdentifiantDTO(i.getTypeIdentifiant(), i.getNumero())).toList(),
-                toDetailDemande(contrat),
+                detailDemande,
                 emploi == null ? null : new EmploiDTO(emploi.getStatutEmploi(), emploi.getNomEmployeur(),
                         emploi.getProfession(), emploi.getDateEmbauche(),
                         emploi.getRevenuAnnuelTotal(), emploi.getDevise()),
@@ -166,8 +170,9 @@ public class RapportService {
                 alerteService.listerParClient(client.getId(), reference),
                 
                 scoreDto,
-                observationsScore(clientTrouve, historique, scoreDto),
-                suggestionsScore(clientTrouve, historique, derniersContratsDto, scoreResult),
+                risqueGlobal,
+                observationsScore(clientTrouve, historique, scoreDto, scoreResult, detailDemande, risqueGlobal),
+                suggestionsScore(clientTrouve, historique, derniersContratsDto, scoreResult, detailDemande),
                 grille(),
                 synthese(contratsSynthese, historique, echeances, garanties, reference),
                 syntheseParCategorie(contratsSynthese, echeances, reference),
@@ -756,7 +761,9 @@ public class RapportService {
         return clientTrouve ? "Client trouvé / préexistant" : "Statut préexistant du client non confirmé";
     }
 
-    private List<String> observationsScore(boolean clientTrouve, List<Contrat> historique, ScoreDTO score) {
+    private List<String> observationsScore(boolean clientTrouve, List<Contrat> historique,
+                                          ScoreDTO score, ScoreResult resultat, DetailDemandeDTO demande,
+                                          RisqueGlobalDTO risqueGlobal) {
         List<String> observations = new ArrayList<>();
         observations.add(clientTrouve
                 ? "La fiche client est reconnue comme préexistante."
@@ -767,8 +774,17 @@ public class RapportService {
         if (!score.calculable() && score.message() != null && !score.message().isBlank()) {
             observations.add(score.message());
         }
-        if (score.avertissement() != null && !score.avertissement().isBlank()) {
-            observations.add(score.avertissement());
+        if (resultat.calculable() && resultat.calculPartiel()) {
+            observations.add("Calcul partiel : certaines données n'étaient pas disponibles.");
+        }
+        if (demande.niveauCouverture() != null) {
+            observations.add("Couverture de la garantie : " + demande.niveauCouverture()
+                    + (demande.ratioCouvertureGarantie() == null ? ""
+                    : " (" + demande.ratioCouvertureGarantie().stripTrailingZeros().toPlainString() + " %)."));
+        }
+        if (risqueGlobal != null) {
+            observations.add("Risque global : classe " + risqueGlobal.intervalle() + " ("
+                    + risqueGlobal.categorieRisque() + "). " + risqueGlobal.justification());
         }
         for (String plafond : score.plafonds()) {
             observations.add("Plafond appliqué : " + plafond);
@@ -777,7 +793,8 @@ public class RapportService {
     }
 
     private List<String> suggestionsScore(boolean clientTrouve, List<Contrat> historique,
-                                          List<DernierContratDTO> derniersContrats, ScoreResult score) {
+                                          List<DernierContratDTO> derniersContrats, ScoreResult score,
+                                          DetailDemandeDTO demande) {
         List<String> suggestions = new ArrayList<>();
         if (!clientTrouve) {
             suggestions.add("Vérifier le CIN et son format dans la base avant de conclure qu'il s'agit d'un nouveau client.");
@@ -789,11 +806,58 @@ public class RapportService {
             suggestions.add("Compléter ou vérifier les données manquantes signalées avant d'interpréter le score.");
         }
         if (!score.plafonds().isEmpty()) {
-            suggestions.add("Examiner les motifs de plafonnement et les justificatifs du dossier avant toute décision.");
+            suggestions.add("Examiner les motifs de plafonnement et les informations du dossier avant toute décision.");
         }
-        suggestions.add("Évaluer garanties et patrimoine séparément du risque de remboursement.");
-        suggestions.add("Utiliser le score comme aide à la décision : il n'est pas calibré sur les défauts historiques du portefeuille.");
+        if (demande.niveauCouverture() != null && demande.manqueGarantie() != null
+                && demande.manqueGarantie().signum() > 0) {
+            suggestions.add("Réexaminer le montant demandé ou compléter la garantie pour atteindre la couverture cible de 120 %.");
+        }
+        suggestions.add("Le Score CB mesure le remboursement ; le risque global combine cette classe avec la couverture de garantie.");
+        suggestions.add("Utiliser le score comme aide à la décision et le confronter à l'analyse du dossier.");
         return List.copyOf(suggestions);
+    }
+
+    static RisqueGlobalDTO calculerRisqueGlobal(ScoreDTO score, BigDecimal ratioCouverture,
+                                                List<GrilleScore> grille) {
+        if (score == null || !score.calculable()) return null;
+        if (score.intervalle() == null) {
+            throw new IllegalStateException("Un score calculable doit avoir un intervalle.");
+        }
+
+        GrilleScore bandeScore = grille.stream()
+                .filter(bande -> bande.getIntervalle().equals(score.intervalle()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Intervalle absent de la grille de score : " + score.intervalle()));
+
+        String classePlancher = ratioCouverture == null ? null
+                : ratioCouverture.compareTo(BigDecimal.valueOf(50)) < 0 ? "D"
+                : ratioCouverture.compareTo(BigDecimal.valueOf(100)) < 0 ? "C" : null;
+        String justification;
+        if (ratioCouverture == null) {
+            justification = "Garantie non renseignée : le niveau global reflète uniquement le Score CB.";
+        } else if (ratioCouverture.compareTo(BigDecimal.valueOf(50)) < 0) {
+            justification = "Couverture inférieure à 50 % : niveau de risque global plancher D.";
+        } else if (ratioCouverture.compareTo(BigDecimal.valueOf(100)) < 0) {
+            justification = "Couverture de 50 % à moins de 100 % : niveau de risque global plancher C.";
+        } else {
+            justification = "Couverture d'au moins 100 % : aucun relèvement automatique du risque.";
+        }
+
+        GrilleScore bandeGlobale = bandeScore;
+        if (classePlancher != null) {
+            GrilleScore bandePlancher = grille.stream()
+                    .filter(bande -> classePlancher.equals(bande.getIntervalle()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "La grille de score doit contenir la classe " + classePlancher));
+            if (bandePlancher.getScoreMin() < bandeScore.getScoreMin()) {
+                bandeGlobale = bandePlancher;
+            }
+        }
+
+        return new RisqueGlobalDTO(bandeGlobale.getIntervalle(), bandeGlobale.getCategorieRisque(),
+                ScoreColorMapper.toHex(bandeGlobale.getCouleur()), justification);
     }
 
     private ClientInfoDTO toClientInfo(Client c) {
@@ -851,13 +915,39 @@ public class RapportService {
 
     private DetailDemandeDTO toDetailDemande(Contrat c) {
         BigDecimal montantSuggere = null;
-        if (c.getValeurGarantie() != null && c.getValeurGarantie().signum() > 0 && c.getRatioCouvertureGarantie() != null
-                && c.getRatioCouvertureGarantie().compareTo(BigDecimal.valueOf(100)) < 0) {
+        BigDecimal manqueGarantie = null;
+        String niveauCouverture = null;
+        BigDecimal ratioCouverture = c.getRatioCouvertureGarantie();
+        BigDecimal totalDemande = c.getMontantTotalDemandeInteret() != null ? c.getMontantTotalDemandeInteret() : c.totalDu();
+
+        if (c.getValeurGarantie() != null && c.getValeurGarantie().signum() > 0 && totalDemande != null && totalDemande.signum() > 0) {
+            if (ratioCouverture == null) {
+                ratioCouverture = c.getValeurGarantie().multiply(BigDecimal.valueOf(100))
+                        .divide(totalDemande, 2, RoundingMode.HALF_UP);
+            }
             BigDecimal tauxMensuel = c.getTauxInteretMensuel() != null ? c.getTauxInteretMensuel() : BigDecimal.valueOf(3.0);
             int duree = c.getNombreTotalEcheances() != null && c.getNombreTotalEcheances() > 0 ? c.getNombreTotalEcheances() : 1;
-            double facteur = 1.0 + (tauxMensuel.doubleValue() / 100.0) * duree;
+            int pasMois = Contrat.moisEntreEcheances(c.getPeriodicitePaiement());
+            if (pasMois == 0) pasMois = 1;
+            double facteur = 1.0 + (tauxMensuel.doubleValue() / 100.0) * duree * pasMois;
             double montantMax = c.getValeurGarantie().doubleValue() / (1.20 * facteur);
             montantSuggere = BigDecimal.valueOf(Math.round(montantMax / 10000.0) * 10000L);
+
+            double ratio = ratioCouverture.doubleValue();
+
+            if (ratio >= 150) {
+                niveauCouverture = "Forte (≥ 150 %)";
+            } else if (ratio >= 120) {
+                niveauCouverture = "Correcte (120–150 %)";
+            } else if (ratio >= 100) {
+                niveauCouverture = "Juste (100–120 %)";
+                double cible120 = totalDemande.doubleValue() * 1.20;
+                manqueGarantie = BigDecimal.valueOf(Math.max(0, Math.round(cible120 - c.getValeurGarantie().doubleValue())));
+            } else {
+                niveauCouverture = "Insuffisante (< 100 %) — Non conforme, dérogation requise";
+                double cible120 = totalDemande.doubleValue() * 1.20;
+                manqueGarantie = BigDecimal.valueOf(Math.max(0, Math.round(cible120 - c.getValeurGarantie().doubleValue())));
+            }
         }
 
         return new DetailDemandeDTO(
@@ -870,26 +960,25 @@ public class RapportService {
                 tiret(c.getPeriodiciteBudget()), c.getMontantRecette(), c.getMontantDepense(),
                 c.getRatioRestePourcentage(),
                 tiret(c.getTypeGarantie()), c.getValeurGarantie(),
-                c.getMontantTotalDemandeInteret(), c.getRatioCouvertureGarantie(),
+                c.getMontantTotalDemandeInteret(), ratioCouverture,
                 c.getValeurPatrimoine(), c.getMargePatrimoine(),
                 c.getRatioCouverturePatrimoine(), c.getTotalDepot(),
                 c.getTotalCreditActif(),
                 tiret(c.getTypeCredit()),
                 c.getTauxInteretMensuel(),
-                montantSuggere);
+                montantSuggere,
+                niveauCouverture,
+                manqueGarantie);
     }
 
     private ScoreDTO toScoreDto(ScoreResult r) {
-        String avertissement = "Score expérimental non calibré sur les défauts historiques du portefeuille. "
-                + "Il mesure les observations de remboursement et la capacité renseignée ; garanties et patrimoine "
-                + "sont à évaluer séparément. Indicateur d'aide à la décision, pas une décision automatique.";
+        String avertissement = "Score indicatif calculé à partir des données disponibles.";
         if (!r.calculable()) {
             return new ScoreDTO(false, null, null, null, null, null, r.message(), avertissement, Map.of(), List.of());
         }
         if (r.calculPartiel()) {
-            avertissement = joindre(avertissement, "Calcul partiel : certaines données ou composantes sont indisponibles.");
+            avertissement = joindre(avertissement, "Certaines données sont indisponibles.");
         }
-        avertissement = joindre(avertissement, r.message());
         return new ScoreDTO(true, r.valeur(), r.intervalle(), r.categorieRisque(),
                 r.couleur(), ScoreColorMapper.toHex(r.couleur()), r.message(), avertissement,
                 r.composantes(), r.plafonds());

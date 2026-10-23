@@ -39,7 +39,6 @@
     .liste td.num { text-align: right; }
 
     .encadre { border: 1px solid #e3e1da; padding: 6px 8px; margin-bottom: 8px; }
-    .score-note { color: #64748b; font-size: 7.5pt; margin: 2px 0 8px; }
     .score-conseils { margin: 4px 0 8px; padding-left: 18px; }
     .score-conseils li { margin: 3px 0; }
     .eviter-coupure { page-break-inside: avoid; }
@@ -371,21 +370,25 @@
 </th:block>
 
 <div class="section">SCORE CB</div>
-<div class="score-note" th:text="${r.score.avertissement}">Score expérimental réservé à l'analyse interne.</div>
 <div th:unless="${r.score.calculable}" class="encadre">
   <div class="bloc-titre">Le score n'est pas calculé :</div>
   <div class="val" th:text="${r.score.message}">-</div>
 </div>
 <table th:if="${r.score.calculable}" class="eviter-coupure">
   <tr>
-    <td style="width:50%">
+    <td style="width:38%; vertical-align:top">
       <table class="grille">
         <tr><td class="lib">Score</td><td class="val" style="font-size:12pt; font-weight:bold" th:text="${r.score.valeur}">-</td></tr>
         <tr><td class="lib">Intervalle de Score</td><td class="val" style="font-weight:bold" th:text="${r.score.intervalle}">-</td></tr>
         <tr><td class="lib">Catégorie de Score</td><td class="val" style="font-weight:bold" th:text="${r.score.categorieRisque}">-</td></tr>
+        <tr th:if="${r.risqueGlobal != null}">
+          <td class="lib">Risque global (score + garantie)</td>
+          <td class="val" th:style="'font-weight:bold;color:' + ${r.risqueGlobal.couleurHex}"
+              th:text="${r.risqueGlobal.intervalle} + ' — ' + ${r.risqueGlobal.categorieRisque}">-</td>
+        </tr>
       </table>
     </td>
-    <td style="width:50%">
+    <td style="width:24%; vertical-align:middle">
       <table><tr>
         <td th:each="g : ${r.grille}" style="text-align:center; padding:0 3px">
           <div class="cube"
@@ -396,6 +399,21 @@
                         + (${g.intervalle == r.score.intervalle} ? ';border:2px solid #174a7e' : '')"></div>
         </td>
       </tr></table>
+    </td>
+    <td style="width:38%; vertical-align:top" th:if="${r.detailDemande != null and r.detailDemande.valeurGarantie != null}">
+      <table class="grille" style="margin-top:0">
+        <tr><td colspan="2" style="font-weight:bold; background:#f1f5f9; text-align:center">COUVERTURE DE LA DEMANDE</td></tr>
+        <tr><td class="lib">Ratio couverture</td><td class="val" style="font-weight:bold" th:text="${r.detailDemande.ratioCouvertureGarantie != null ? r.detailDemande.ratioCouvertureGarantie + ' %' : '-'}">-</td></tr>
+        <tr><td class="lib">Niveau</td><td class="val" th:text="${r.detailDemande.niveauCouverture ?: '-'}">-</td></tr>
+        <tr th:if="${r.detailDemande.manqueGarantie != null and r.detailDemande.manqueGarantie.signum() > 0}">
+          <td class="lib">Manque garantie (cible 120%)</td>
+          <td class="val" style="color:#b91c1c; font-weight:bold" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.manqueGarantie)}">-</td>
+        </tr>
+        <tr th:if="${r.detailDemande.montantSuggerePour120 != null}">
+          <td class="lib">Capital max conseillé</td>
+          <td class="val" style="color:#1d4ed8; font-weight:bold" th:text="${T(mg.cecam.bic.common.util.MontantFormatUtil).formatMontant(r.detailDemande.montantSuggerePour120)}">-</td>
+        </tr>
+      </table>
     </td>
   </tr>
 </table>

@@ -784,6 +784,7 @@ export function ContratForm() {
                         </SelectContent>
                       </Select>
                     </div>
+
                   </div>
 
                   {statutEval && (
@@ -792,7 +793,7 @@ export function ContratForm() {
                       <span className={`inline-block px-2.5 py-0.5 text-xs font-semibold rounded-md border ${statutEval.color}`}>
                         {statutEval.badge}
                       </span>
-                      <span className="text-xs text-slate-500">• Impact score :</span>
+                      <span className="text-xs text-slate-500">• Impact score :                      </span>
                       <span className="text-xs font-bold text-slate-800">{statutEval.impact}</span>
                     </div>
                   )}

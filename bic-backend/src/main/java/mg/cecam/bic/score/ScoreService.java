@@ -63,8 +63,12 @@ public class ScoreService {
 
         // ---- Événements négatifs formels (ne bloquent plus le calcul : ils plafonnent le score)
         boolean evenementNegatif = !evenementNegatifRepository.findByClient_IdAndActifTrue(client.getId()).isEmpty()
-                || historique.stream().anyMatch(c -> pireStatutFormel(c.getPireStatut()))
-                || (contratEnCours != null && pireStatutFormel(contratEnCours.getPireStatut()));
+                || historique.stream().anyMatch(c -> pireStatutActif(c, ref))
+                || pireStatutActif(contratEnCours, ref);
+
+        if (historique.stream().anyMatch(c -> pireStatutFormel(c.getPireStatut()) && !pireStatutActif(c, ref))) {
+            avertissements.add("Ancien événement contentieux régularisé ou prescrit (> 36 ou 60 mois) : plafond 399 levé.");
+        }
 
         List<Contrat> empruntsDecaisses = historique.stream().filter(this::estEmprunteur)
                 .filter(c -> c.getPhaseDemande() == PhaseDemande.ACTIF || c.getPhaseDemande() == PhaseDemande.FERME)
@@ -88,6 +92,9 @@ public class ScoreService {
                     if (!statutNonObservable(h.getStatut()))
                         avertissements.add("Une observation mensuelle source n'est pas exploitable et a été ignorée.");
                     continue;
+                }
+                if (statutImprecis(h.getStatut())) {
+                    avertissements.add("Observation mensuelle source imprécise (« IMPAYÉ » ou « 30+ ») évaluée à la borne basse de 30 jours.");
                 }
                 observations.add(new Observation(h.getMois(), jours, nombreEcheances(h)));
                 observationParMois.put(YearMonth.from(h.getMois()), observations.size() - 1);
@@ -124,7 +131,7 @@ public class ScoreService {
         boolean creditNonRembourse = false;
         boolean aHistoriqueReel = !observations.isEmpty();
 
-        // Déclarations vérifiées strictement : une valeur inconnue n'est jamais assimilée à « à temps ».
+        // Une valeur inconnue n'est jamais assimilée à « à temps ».
         for (DernierContrat dc : derniersContrats) {
             StatutDernierContrat statut = statutDernierContrat(dc.getStatut());
             if (statut == null) {
@@ -137,19 +144,26 @@ public class ScoreService {
             }
 
             if (!aHistoriqueReel) {
+                // Nouveau client : les 3 derniers contrats servent d'historique de substitution.
                 LocalDate dateRefObs = dc.getDateRemboursement() != null ? dc.getDateRemboursement()
                         : dc.getDatePrevueRemboursement();
                 if (dateRefObs == null || dateRefObs.isAfter(ref)) {
                     avertissements.add("Un contrat déclaré sans date de remboursement exploitable est exclu de l'historique.");
                     continue;
                 }
-                int retard = Math.max(0, dc.getJoursRetard() == null ? 0 : dc.getJoursRetard());
-                if (statut == StatutDernierContrat.EN_RETARD) retard = Math.max(1, retard);
-                if (statut == StatutDernierContrat.ANTICIPATION) bonusAnticipation += 20;
-                if (statut == StatutDernierContrat.EN_RETARD) malusRetardHistorique += 25;
+                // Tolérance : pas de pénalité si jours_retard <= toleranceRetardJours
+                int joursRaw = dc.getJoursRetard() == null ? 0 : dc.getJoursRetard();
+                int retard = Math.max(0, joursRaw <= p.getToleranceRetardJours() ? 0 : joursRaw);
+                if (statut == StatutDernierContrat.EN_RETARD) retard = Math.max(p.getToleranceRetardJours() + 1, retard);
+                // Bonus anticipation : limité à bonusAnticipationParContrat pts, plafonné à bonusAnticipationMax
+                if (statut == StatutDernierContrat.ANTICIPATION) bonusAnticipation += p.getBonusAnticipationParContrat();
+                // Malus retard uniquement si EN_RETARD réel
+                if (statut == StatutDernierContrat.EN_RETARD) malusRetardHistorique += p.getMalusRetardDeclareParContrat();
                 observations.add(new Observation(dateRefObs, retard, 1));
-            } else if (statut == StatutDernierContrat.EN_RETARD) {
-                malusRetardHistorique += 15;
+            } else {
+                // Client avec historique réel : les 3 derniers contrats donnent seulement un léger malus
+                if (statut == StatutDernierContrat.EN_RETARD)
+                    malusRetardHistorique += p.getMalusRetardDeclareAvecHistorique();
             }
         }
 
@@ -171,12 +185,34 @@ public class ScoreService {
                 if (mois >= 0 && mois < p.getFenetreConfianceMois()) nbRecentes += o.nombre();
             }
 
+            // Le résumé d'un prêt antérieur du dossier CECAM n'est pas un échéancier détaillé.
+            if (aHistoriqueReel && nbRecentes < 6) {
+                plafonds.add(plafond(p.getPlafondClasseC(), "moins de 6 observations de paiement réelles récentes (classe C max)"));
+                avertissements.add("Historique détaillé récent limité (< 6 observations) : score plafonné en classe C.");
+            } else if (aHistoriqueReel && nbRecentes < 12) {
+                plafonds.add(plafond(p.getPlafondClasseB(), "moins de 12 observations de paiement réelles récentes (classe B max)"));
+                avertissements.add("Historique détaillé récent intermédiaire (< 12 observations) : score plafonné en classe B.");
+            }
+
+            // P0.2 — Pire retard sur 24 mois
+            int pireRetard24Mois = observations.stream()
+                    .filter(o -> ChronoUnit.MONTHS.between(o.date(), ref) <= 24)
+                    .mapToInt(Observation::jours)
+                    .max().orElse(0);
+            if (pireRetard24Mois >= 90) {
+                plafonds.add(plafond(p.getPlafondClasseC(), "pire retard sur 24 mois >= 90 jours (classe C max)"));
+                avertissements.add("Pire retard sur 24 mois >= 90 jours : score plafonné en classe C.");
+            } else if (pireRetard24Mois >= 60) {
+                plafonds.add(plafond(p.getPlafondClasseB(), "pire retard sur 24 mois >= 60 jours (classe B max)"));
+                avertissements.add("Pire retard sur 24 mois 60-89 jours : score plafonné en classe B.");
+            }
+
             double facteur;
             if (!aHistoriqueReel && !derniersContrats.isEmpty()) {
                 double confiance = Math.min(1.0,
                         (double) nbRecentes / Math.max(1, p.getObservationsPleineConfiance()));
                 facteur = p.getPlancherConfiance() + (1 - p.getPlancherConfiance()) * confiance;
-                avertissements.add("Historique déclaré uniquement : fiabilité limitée, vérification externe recommandée.");
+                avertissements.add("Historique résumé du dossier CECAM : peu d'observations pour mesurer la régularité de remboursement.");
             } else {
                 double confiance = Math.min(1.0, (double) nbRecentes / Math.max(1, p.getObservationsPleineConfiance()));
                 facteur = p.getPlancherConfiance() + (1 - p.getPlancherConfiance()) * confiance;
@@ -187,15 +223,27 @@ public class ScoreService {
             gagne.put("paiement", p.getPoidsPaiement() * (poidsPondere / poidsTotal) * Math.min(1.0, facteur));
             dispo.put("paiement", p.getPoidsPaiement());
 
-            // ---- B. Arriérés en cours
-            double ratioArr = retardCourant <= 0 ? 1.0 : retardCourant < 30 ? p.getRatioArrieres1a29()
-                    : retardCourant < 60 ? p.getRatioArrieres30a59() : 0.0;
-            gagne.put("arrieres_en_cours", p.getPoidsArrieresEnCours() * ratioArr);
-            dispo.put("arrieres_en_cours", p.getPoidsArrieresEnCours());
-            if (retardCourant >= 90) plafonds.add(plafond(p.getPlafondArrieres90(), "retard en cours >= 90 jours"));
-            else if (retardCourant >= 60) plafonds.add(plafond(p.getPlafondArrieres60(), "retard en cours 60-89 jours"));
-            else if (retardCourant >= 30) plafonds.add(plafond(p.getPlafondArrieres30(), "retard en cours 30-59 jours"));
-            if (retardCourant > 0) avertissements.add("Retard en cours sur un crédit actif (" + retardCourant + " jour(s) ou plus).");
+            // ---- B. Arriérés en cours : uniquement si le client a des crédits actifs suivis
+            if (!actifs.isEmpty()) {
+                double ratioArr = retardCourant <= 0 ? 1.0
+                        : retardCourant <= p.getToleranceRetardJours() ? 1.0
+                        : retardCourant < 30 ? p.getRatioArrieres1a29()
+                                - (p.getRatioArrieres1a29() - p.getRatioArrieres30a59())
+                                * ((double) (retardCourant - p.getToleranceRetardJours()) / (30 - p.getToleranceRetardJours()))
+                        : retardCourant < 60 ? p.getRatioArrieres30a59() : 0.0;
+                gagne.put("arrieres_en_cours", p.getPoidsArrieresEnCours() * ratioArr);
+                dispo.put("arrieres_en_cours", p.getPoidsArrieresEnCours());
+                if (retardCourant >= 90) plafonds.add(plafond(p.getPlafondArrieres90(), "retard en cours >= 90 jours"));
+                else if (retardCourant >= 60) plafonds.add(plafond(p.getPlafondArrieres60(), "retard en cours 60-89 jours"));
+                else if (retardCourant >= 30) plafonds.add(plafond(p.getPlafondArrieres30(), "retard en cours 30-59 jours"));
+                else if (retardCourant > p.getToleranceRetardJours()) {
+                    // P0.2 — Arriéré en cours >= 1j plafonné en classe B
+                    plafonds.add(plafond(p.getPlafondClasseB(), "arriéré en cours >= 1 jour (classe B max)"));
+                }
+                if (retardCourant > p.getToleranceRetardJours())
+                    avertissements.add("Retard en cours sur un crédit actif (" + retardCourant + " jour(s) ou plus).");
+            }
+            // Note : si aucun crédit actif, le pilier arrieres_en_cours n'est pas évalué (pas pénalisé)
         } else {
             plafonds.add(plafond(p.getPlafondSansHistorique(), "aucun remboursement observé"));
         }
@@ -238,9 +286,61 @@ public class ScoreService {
             }
         }
 
-        // ---- D. Budget (recettes/dépenses) et garantie de la demande : absents => exclus
+        // ---- D. Capacité budgétaire (taux d'effort mensuel et reste)
         boolean capaciteBudget = false;
-        if (contratEnCours != null && contratEnCours.getRatioRestePourcentage() != null) {
+        if (contratEnCours != null && contratEnCours.getMontantRecette() != null && contratEnCours.getMontantDepense() != null) {
+            BigDecimal recetteBrute = contratEnCours.getMontantRecette();
+            BigDecimal depenseBrute = contratEnCours.getMontantDepense();
+            String perBudget = contratEnCours.getPeriodiciteBudget();
+            boolean estAnnuel = perBudget != null && (perBudget.toUpperCase().contains("AN") || perBudget.toUpperCase().contains("ANNUEL"));
+            double diviseur = estAnnuel ? 12.0 : 1.0;
+            double recMensuelle = recetteBrute.doubleValue() / diviseur;
+            double depMensuelle = depenseBrute.doubleValue() / diviseur;
+            double surplusMensuel = recMensuelle - depMensuelle;
+
+            if (!estAnnuel && recMensuelle > 15_000_000) {
+                avertissements.add("Plausibilité budgétaire : recettes déclarées très élevées (> 15 M Ar/mois) ; vérifier s'il s'agit d'un montant annuel.");
+            }
+
+            double mensualiteDemande = 0;
+            if (contratEnCours.getMontantEcheanceMensuelle() != null) {
+                mensualiteDemande = contratEnCours.getMontantEcheanceMensuelle().doubleValue();
+            } else if (contratEnCours.getMontantTotalDu() != null && contratEnCours.getNombreTotalEcheances() != null && contratEnCours.getNombreTotalEcheances() > 0) {
+                mensualiteDemande = contratEnCours.getMontantTotalDu().doubleValue() / contratEnCours.getNombreTotalEcheances();
+            }
+
+            double mensualitesActives = actifs.stream()
+                    .filter(c -> !Objects.equals(c.getId(), enCoursId))
+                    .mapToDouble(c -> {
+                        if (c.getMontantEcheanceMensuelle() != null) return c.getMontantEcheanceMensuelle().doubleValue();
+                        if (c.getMontantRestantDu() != null && c.getNombreEcheancesRestantes() != null && c.getNombreEcheancesRestantes() > 0) {
+                            return c.getMontantRestantDu().doubleValue() / c.getNombreEcheancesRestantes();
+                        }
+                        return 0.0;
+                    }).sum();
+
+            double chargeTotaleMensuelle = mensualiteDemande + mensualitesActives;
+            double pts;
+            if (surplusMensuel <= 0) {
+                pts = 0;
+                plafonds.add(plafond(p.getPlafondBudgetCritique(), "surplus budgétaire mensuel nul ou négatif"));
+            } else {
+                double tauxEffort = chargeTotaleMensuelle / surplusMensuel;
+                if (tauxEffort <= 0.40) {
+                    pts = p.getPoidsBudget();
+                } else if (tauxEffort <= 0.80) {
+                    pts = p.getPoidsBudget() * (1.0 - (tauxEffort - 0.40) / 0.40 * 0.65);
+                } else if (tauxEffort <= 1.00) {
+                    pts = p.getPoidsBudget() * 0.35 * (1.0 - (tauxEffort - 0.80) / 0.20);
+                } else {
+                    pts = 0;
+                    plafonds.add(plafond(p.getPlafondBudgetFaible(), "taux d'effort budgétaire supérieur à 100 % du surplus disponible"));
+                }
+            }
+            gagne.put("budget", Math.max(0.0, Math.min(p.getPoidsBudget(), pts)));
+            dispo.put("budget", p.getPoidsBudget());
+            capaciteBudget = true;
+        } else if (contratEnCours != null && contratEnCours.getRatioRestePourcentage() != null) {
             double r = contratEnCours.getRatioRestePourcentage().doubleValue();
             double pts = r <= 0 ? 0 : r <= 25 ? 5 * r / 25 : r <= 50 ? 5 + 10 * (r - 25) / 25
                     : r < 100 ? 15 + 7 * (r - 50) / 50 : 30;
@@ -285,7 +385,7 @@ public class ScoreService {
                 p.getMalusParCoObligeARisque() * coObligesARisque(client, actifs));
         if (malusGroupe > 0) avertissements.add("Co-titulaire(s) d'un crédit de groupe en situation négative.");
 
-        int bonusAnticipationEffectif = Math.min(30, bonusAnticipation);
+        int bonusAnticipationEffectif = Math.min(p.getBonusAnticipationMax(), bonusAnticipation);
         if (bonusAnticipationEffectif > 0) {
             avertissements.add("Bonus d'anticipation : remboursement(s) en avance sur les crédits précédents (+" + bonusAnticipationEffectif + " pts).");
         }
@@ -295,6 +395,22 @@ public class ScoreService {
 
         double brut = p.getScoreBase() + (p.getScoreMax() - p.getScoreBase()) * (possible <= 0 ? 0 : obtenu / possible)
                 + bonusAnticipationEffectif - malusRetardHistorique - malusGroupe;
+
+        // P0.2 — Plafond si moins de 50 % des facteurs renseignés (classe C max)
+        boolean partiel = !dispo.containsKey("endettement") || !dispo.containsKey("exposition")
+                || !dispo.containsKey("paiement") || !capaciteBudget;
+        double pointsPotentiels = p.getPoidsPaiement() + p.getPoidsArrieresEnCours()
+                + p.getPoidsEndettement() + p.getPoidsExposition() + p.getPoidsBudget();
+        if (partiel && pointsPotentiels > 0) {
+            int couvertureFacteurs = (int) Math.round(possible / pointsPotentiels * 100);
+            if (couvertureFacteurs < 50) {
+                plafonds.add(plafond(p.getPlafondClasseC(), "moins de 50 % des facteurs renseignés (classe C max)"));
+                avertissements.add("Moins de 50 % des facteurs renseignés (" + couvertureFacteurs + " %) : score plafonné en classe C.");
+            } else {
+                avertissements.add("Couverture des facteurs de score : " + couvertureFacteurs
+                        + " % des facteurs configurés sont renseignés ; ce taux ne mesure pas leur vérification.");
+            }
+        }
 
         // ---- Plafonds, règle « mauvais »
         boolean mauvais = evenementNegatif || retardCourant >= 180;
@@ -314,15 +430,7 @@ public class ScoreService {
         composantes.put("points_disponibles", Math.round(possible * 10) / 10.0);
         composantes.put("malus_groupe", malusGroupe);
         composantes.put("score_avant_plafonds", Math.round(brut * 10) / 10.0);
-        boolean partiel = !dispo.containsKey("endettement") || !dispo.containsKey("exposition")
-                || !dispo.containsKey("paiement") || !capaciteBudget;
-        double pointsPotentiels = p.getPoidsPaiement() + p.getPoidsArrieresEnCours()
-                + p.getPoidsEndettement() + p.getPoidsExposition() + p.getPoidsBudget();
-        if (partiel && pointsPotentiels > 0) {
-            int couvertureFacteurs = (int) Math.round(possible / pointsPotentiels * 100);
-            avertissements.add("Couverture des facteurs de score : " + couvertureFacteurs
-                    + " % des facteurs configurés sont renseignés ; ce taux ne mesure pas leur vérification.");
-        }
+
         return ScoreResult.calcule(score, grille.getIntervalle(), grille.getCategorieRisque(), grille.getCouleur(),
                 avertissements.isEmpty() ? null : String.join(" ", avertissements), mauvais, partiel,
                 plafonds.stream().map(Plafond::affichage).toList(), composantes);
@@ -341,7 +449,19 @@ public class ScoreService {
         return s.contains("CONTENTIEUX") || s.contains("FAILLITE") || s.contains("DECHEANCE");
     }
 
-    static String normaliserStatutDernierContrat(String statut) {
+    private boolean pireStatutActif(Contrat c, LocalDate ref) {
+        if (c == null || !pireStatutFormel(c.getPireStatut())) return false;
+        if (c.getDatePireStatut() != null) {
+            long mois = ChronoUnit.MONTHS.between(c.getDatePireStatut(), ref);
+            if (c.getPhaseDemande() == PhaseDemande.FERME && (c.getMontantRestantDu() == null || c.getMontantRestantDu().signum() <= 0)) {
+                if (mois > 36) return false; // prescription après 3 ans si régularisé et fermé
+            }
+            if (mois > 60) return false; // prescription légale de 5 ans
+        }
+        return true;
+    }
+
+    public static String normaliserStatutDernierContrat(String statut) {
         if (statut == null || statut.isBlank()) return null;
         String normalise = Normalizer.normalize(statut, Normalizer.Form.NFD).replaceAll("\\p{M}+", "")
                 .toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_").replaceAll("^_+|_+$", "");
@@ -432,7 +552,8 @@ public class ScoreService {
                 if (demande.getCreditActifGarant() != null) creditsActifs = creditsActifs.add(demande.getCreditActifGarant());
                 if (demande.getCreditActifFiance() != null) creditsActifs = creditsActifs.add(demande.getCreditActifFiance());
             }
-            expo = Math.max(expo, creditsActifs.doubleValue());
+            // P1.1 fix : l'exposition finale = max(encours interne, crédits actifs déclarés) + montant demandé
+            expo = Math.max(encoursInterne, creditsActifs.doubleValue()) + total.doubleValue();
             if (creditsActifs.doubleValue() > encoursInterne) {
                 avertissements.add("Des crédits actifs déclarés augmentent l'exposition, mais leurs échéances externes ne sont pas vérifiées.");
             }
@@ -441,11 +562,12 @@ public class ScoreService {
     }
 
     private RevenuEvaluation evaluerRevenus(Emploi emploi, Contrat demande, List<String> avertissements) {
-        BigDecimal total = emploi == null ? null : emploi.getRevenuAnnuelTotal();
+        BigDecimal total = (emploi != null && emploi.getRevenuAnnuelTotal() != null && emploi.getRevenuAnnuelTotal().signum() > 0)
+                ? emploi.getRevenuAnnuelTotal() : null;
         String devise = emploi == null ? null : normaliserDevise(emploi.getDevise());
         List<RevenuDemande> revenus = demande == null
                 ? List.of() : revenuDemandeRepository.findByContrat_Id(demande.getId());
-        if ((total == null || total.signum() <= 0) && !revenus.isEmpty()) {
+        if (total == null && !revenus.isEmpty()) {
             RevenuDemande premier = revenus.stream()
                     .filter(r -> r.getMontantAnnuel() != null && r.getMontantAnnuel().signum() > 0)
                     .filter(r -> normaliserDevise(r.getDevise()) != null)
@@ -465,10 +587,18 @@ public class ScoreService {
                 avertissements.add("Un revenu complémentaire est exclu : devise absente ou différente (aucune conversion inventée).");
                 continue;
             }
+            // Règle anti-doublon : si le client a déjà un revenu d'emploi principal et que ce revenu complémentaire y correspond
+            if (emploi != null && emploi.getRevenuAnnuelTotal() != null && emploi.getRevenuAnnuelTotal().signum() > 0) {
+                String desc = (revenu.getDescription() != null ? revenu.getDescription() : "") + " "
+                        + (revenu.getTypeRevenu() != null ? revenu.getTypeRevenu() : "");
+                String normDesc = Normalizer.normalize(desc, Normalizer.Form.NFD).replaceAll("\\p{M}+", "").toUpperCase(Locale.ROOT);
+                if (normDesc.contains("SALAIRE PRINCIPAL") || normDesc.contains("EMPLOI PRINCIPAL")
+                        || (normDesc.contains("SALAIRE") && emploi.getRevenuAnnuelTotal().compareTo(revenu.getMontantAnnuel()) == 0)) {
+                    avertissements.add("Revenu complémentaire assimilé au salaire principal ignoré pour éviter un double comptage.");
+                    continue;
+                }
+            }
             total = (total == null ? BigDecimal.ZERO : total).add(revenu.getMontantAnnuel());
-        }
-        if (total != null && emploi != null && emploi.getRevenuAnnuelTotal() == null && revenus.isEmpty()) {
-            total = null;
         }
         return new RevenuEvaluation(total, devise);
     }
@@ -530,6 +660,12 @@ public class ScoreService {
         return risque.size();
     }
 
+    static boolean statutImprecis(String statut) {
+        if (statut == null || statut.isBlank()) return false;
+        String s = Normalizer.normalize(statut, Normalizer.Form.NFD).replaceAll("\\p{M}+", "").toUpperCase(Locale.ROOT);
+        return (s.contains("IMPAYE") || s.contains("30+")) && BucketRetard.depuisStatut(statut) == null;
+    }
+
     /** Jours de retard d'une observation mensuelle ; null si non exploitable (pas d'invention de bucket). */
     static Integer joursObserves(HistoriquePaiementMensuel h) {
         BucketRetard b = BucketRetard.depuisStatut(h.getStatut());
@@ -541,8 +677,9 @@ public class ScoreService {
                     && !StatutDernierContrat.ANTICIPATION.name().equals(statut)) return null;
             return jours;
         }
-        if (b == null) return null;
-        return borneBasse(b);
+        if (b != null) return borneBasse(b);
+        if (statutImprecis(h.getStatut())) return 30; // Seuil impayé par défaut pour statut vague
+        return null;
     }
 
     private static int borneBasse(BucketRetard bucket) {
@@ -564,8 +701,15 @@ public class ScoreService {
     }
 
     private double qualite(int jours) {
-        if (jours <= 0) return p.getQualitePayeATemps();
-        if (jours < 30) return p.getQualiteRetardCourt();
+        // Tolérance de grâce : pas de pénalité en dessous du seuil
+        int tolerance = p.getToleranceRetardJours();
+        if (jours <= tolerance) return p.getQualitePayeATemps();
+        // Décote graduelle de (tolerance+1) à 29 jours : de qualitePayeATemps à qualiteRetardCourt
+        if (jours < 30) {
+            double ratio = (double) (jours - tolerance) / (30 - tolerance);
+            return p.getQualitePayeATemps() - (p.getQualitePayeATemps() - p.getQualiteRetardCourt()) * ratio;
+        }
+        // 30j : qualiteRetardLong, puis décroissance linéaire jusqu'à 0 à 180j
         if (jours >= 180) return p.getQualiteImpaye();
         return p.getQualiteRetardLong() + (p.getQualiteImpaye() - p.getQualiteRetardLong()) * ((jours - 30) / 150.0);
     }

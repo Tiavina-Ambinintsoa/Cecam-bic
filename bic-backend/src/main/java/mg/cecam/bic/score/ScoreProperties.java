@@ -29,13 +29,20 @@ public class ScoreProperties {
     private double poidsMoyen = 0.60;               // 13..36 mois
     private double poidsAncien = 0.30;              // > 36 mois
     private double qualitePayeATemps = 1.00;
-    private double qualiteRetardCourt = 0.55;       // 1..29 jours
+    private double qualiteRetardCourt = 0.72;       // 1..29 jours, décote graduelle dans qualite()
     private double qualiteRetardLong = 0.15;        // 30 jours, décroît linéairement jusqu'à 0 à 180 jours
     private double qualiteImpaye = 0.00;
+    private int toleranceRetardJours = 5;           // jours de grâce avant de pénaliser
 
     // Arriérés en cours (part des points conservée)
-    private double ratioArrieres1a29 = 0.25;
+    private double ratioArrieres1a29 = 0.35;
     private double ratioArrieres30a59 = 0.20;       // appliqué à partir de 30 jours (puis 0 dès 60)
+
+    // Bonus/malus déclarés (petits ajustements, limités)
+    private int bonusAnticipationParContrat = 10;
+    private int bonusAnticipationMax = 20;
+    private int malusRetardDeclareParContrat = 15;
+    private int malusRetardDeclareAvecHistorique = 10;
 
     // Capacité de remboursement (revenu annuel)
     private double endettementSeuilVert = 0.30;
@@ -45,6 +52,8 @@ public class ScoreProperties {
     // Plafonds de décision (le score ne peut pas dépasser ces valeurs)
     private int plafondSansCapacite = 529;          // ni revenu, ni budget : jamais « très faible »
     private int plafondSansHistorique = 499;        // aucun remboursement observé : jamais mieux que « moyen »
+    private int plafondClasseB = 529;               // plafond max classe B
+    private int plafondClasseC = 499;               // plafond max classe C
     private int plafondCreditNonRembourse = 399;
     private int plafondBandeTresEleve = 399;        // client « mauvais »
     private int plafondCharge12MoisSup100 = 459;    // charge sur 12 mois > revenu annuel
