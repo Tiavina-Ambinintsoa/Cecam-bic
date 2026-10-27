@@ -81,7 +81,7 @@ Le score est étalonné sur une plage de **300 à 850 points**, alignée sur les
 
 Le moteur applique des **plafonds de sécurité** selon les observations de paiement réelles, la capacité disponible et les incidents recensés. Un historique résumé du dossier CECAM n'est pas pénalisé par un plafond de preuve, mais sa faible quantité d'observations limite la confiance.
 
-| Règle de preuve | Plafond maximal | Classe résultante | Justification métier |
+| Règle de risque | Plafond maximal | Classe résultante | Justification métier |
 |---|:---:|:---:|---|
 | **Moins de 6 observations détaillées récentes** | **499** | **C** | Recul insuffisant pour juger de la régularité sur la durée |
 | **De 6 à 11 observations détaillées récentes** | **529** | **B** | Historique intermédiaire, classe A réservée aux historiques matures |
@@ -109,6 +109,8 @@ Avec les constantes du moteur :
 
 Le score final est ensuite borné par les **plafonds de sécurité** :
 $$\text{Score Final} = \min\left(850, \; \max(300, \; \min(\text{Score Brut}, \; \text{Plafond Minimal}))\right)$$
+
+Le plafond lié à la couverture de garantie fait partie du calcul du score final : moins de 50 % plafonne à 459, et de 50 % à moins de 100 % plafonne à 499.
 
 ---
 
@@ -199,18 +201,20 @@ $$\text{Taux d'Effort} = \frac{\text{Charge Mensuelle Totale}}{\text{Surplus Men
 - **Alerte de plausibilité** : si les recettes déclarées dépassent 15 000 000 Ar par mois pour un profil individuel, une alerte invite l'agent à vérifier s'il s'agit d'un chiffre d'affaires ou revenu annuel plutôt que mensuel.
 - Lorsque seul le ratio budgétaire est disponible : $R \le 0\%$ déclenche le plafond critique à 399 pts ; $0\% < R \le 25\%$ déclenche le plafond à 459 pts ; au-delà, les points progressent jusqu'au maximum pour $R \ge 100\%$.
 
-### B. Bloc Couverture de la Demande
-Présenté directement à côté du score dans le rapport :
+### B. Couverture de la demande intégrée au score global
+Le score global reprend le score calculé à partir du comportement de remboursement et applique un plafond selon la couverture :
+- Couverture **< 50 %** : plafond du score à **459** (classe D au mieux).
+- Couverture de **50 % à < 100 %** : plafond à **499** (classe C au mieux).
+- Couverture **≥ 100 %** : aucun plafond additionnel lié à la garantie.
+- Couverture absente ou non calculable : aucun plafond fondé sur la garantie ; le rapport signale que ce facteur n'a pas pu être intégré.
+
+Le ratio est calculé par rapport au montant total demandé avec intérêts. Un ratio stocké est privilégié ; à défaut, il est calculé à partir de la valeur de la garantie et du montant total. Le score numérique et sa classe sont ceux du score global, y compris dans la persistance et l'historique.
+
+Le rapport détaille également la couverture pour l'analyse du dossier :
 - **Niveau Forte ($\ge 150\%$)** : Couverture sécurisée.
 - **Niveau Correcte ($120\% - 150\%$)** : Conforme aux normes prudentielles CECAM.
 - **Niveau Juste ($100\% - 120\%$)** : Couverture acceptable, calcul du complément requis pour atteindre $120\%$.
 - **Niveau Insuffisante ($< 100\%$)** : Non conforme, dérogation motivée requise, affichage automatique du manque de garantie pour $120\%$ et du capital maximal conseillé.
-
-Le niveau de couverture et le manque pour atteindre la cible sont affichés séparément du score CB. La garantie contribue surtout à limiter la perte en cas de défaut, tandis que le score CB vise le risque de remboursement. Le rapport calcule donc un **risque global distinct** sans modifier ni persister un autre score CB :
-- Couverture **< 50 %** : la classe globale ne peut pas être meilleure que **D** (risque élevé).
-- Couverture de **50 % à < 100 %** : la classe globale ne peut pas être meilleure que **C** (risque moyen) ; le niveau le plus risqué entre cette borne et le Score CB est retenu.
-- Couverture **≥ 100 %** : aucun relèvement automatique ; la classe globale suit le Score CB.
-- Garantie ou ratio absent : la classe globale suit le Score CB et indique que la couverture n'est pas renseignée.
 
 ### C. Ancienneté Sociétaire CECAM (40 points)
 Calculée à partir du champ *« Membre depuis le »* (`dateAdhesion`) :
@@ -241,18 +245,17 @@ Lorsqu'un risque majeur est détecté, le score est plafonné à la valeur la pl
 | Retard actif en cours $\ge 90$ jours | **399 pts** | **E (Très élevé)** |
 | Crédit antérieur déclaré non remboursé à terme | **399 pts** | **E (Très élevé)** |
 | Recettes budgétaires mensuelles $\le$ dépenses | **399 pts** | **E (Très élevé)** |
-| Garantie inexistante (0 Ar) | **399 pts** | **E (Très élevé)** |
-| Garantie $< 100\%$ du capital avec intérêts | **420 pts** | **D (Élevé)** |
 | Retard actif en cours de 60 à 89 jours | **459 pts** | **D (Élevé)** |
 | Charge annuelle sur 12 mois $>$ Revenu annuel | **459 pts** | **D (Élevé)** |
 | Aucun historique de remboursement observé | **499 pts** | **C (Moyen)** |
 | Retard actif en cours de 30 à 59 jours | **499 pts** | **C (Moyen)** |
-| Garantie juste comprise entre 100% et 120% | **499 pts** | **C (Moyen)** |
+| Couverture de garantie de 50 % à moins de 100 % | **499 pts** | **C (Moyen)** |
+| Couverture de garantie inférieure à 50 % | **459 pts** | **D (Élevé)** |
 | Capacité financière non vérifiable (ni revenu, ni budget) | **529 pts** | **B (Faible)** |
 
 ---
 
 ## 8. Persistance et Exploitation
 
-- Lors de la génération d'un rapport (`/demande/rapport/:contratId`), le score calculé (`scoreValeur`) et sa classe (`scoreCategorie`) sont automatiquement enregistrés sur l'entité `Contrat`.
+- Lors de la génération d'un rapport (`/demande/rapport/:contratId`), le score global calculé (`scoreValeur`) et sa catégorie (`scoreCategorie`) sont enregistrés sur l'entité `Contrat`. Si le recalcul devient impossible, les anciennes valeurs sauvegardées sont effacées afin de ne pas afficher un score périmé.
 - La page [`Historique des rapports`](file:///c:/Users/ambin/Music/BIC/bic-frontend/src/pages/HistoriqueRapportsPage.tsx) permet de filtrer les dossiers par note et niveau de risque (badges colorés), par marge de montant en Ariary (`Ar`), par type de prêt et par période.

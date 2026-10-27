@@ -106,11 +106,6 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Client introuvable : " + request.clientId()));
 
-        BigDecimal totalDu = request.montantEcheanceMensuelle() != null
-                ? request.montantEcheanceMensuelle()
-                        .multiply(BigDecimal.valueOf(request.nombreTotalEcheances()))
-                : request.montantFinance();
-
         BigDecimal ratio = null;
         if (request.montantRecette() != null && request.montantDepense() != null) {
             BigDecimal recette = request.montantRecette();
@@ -290,8 +285,9 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
                     .dateRemboursement(d.dateRemboursement())
                     .joursRetard(joursRetard)
                     .statut(statut)
-                    .verifie(true)
-                    .sourceVerification("DOSSIER_CECAM")
+                    .verifie(d.verifie() != null ? d.verifie() : false)
+                    .sourceVerification(d.sourceVerification() != null && !d.sourceVerification().isBlank()
+                            ? d.sourceVerification() : "NON_VERIFIE")
                     .build());
         }
         if (!list.isEmpty()) {

@@ -52,7 +52,9 @@ public record ContratRequest(
             BigDecimal montant,
             LocalDate datePrevueRemboursement,
             LocalDate dateRemboursement,
-            String statut
+            String statut,
+            Boolean verifie,
+            String sourceVerification
     ) {}
 
     @AssertTrue(message = "Le rattachement à une entreprise ne fait pas partie du périmètre Individu.")

@@ -93,13 +93,6 @@ export interface Score {
   avertissement?: string;
 }
 
-export interface RisqueGlobal {
-  intervalle: string;
-  categorieRisque: string;
-  couleurHex: string;
-  justification: string;
-}
-
 export interface GrilleScoreItem {
   intervalle: string;
   categorieRisque: string;
@@ -305,7 +298,6 @@ export interface RapportSolvabilite {
   liens: LienClient[];
   alertes: Alerte[];
   score: Score;
-  risqueGlobal?: RisqueGlobal | null;
   observationsScore: string[];
   suggestionsScore: string[];
   grille: GrilleScoreItem[];

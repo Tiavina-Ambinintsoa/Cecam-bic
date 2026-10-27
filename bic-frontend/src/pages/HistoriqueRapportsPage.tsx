@@ -559,7 +559,7 @@ export function HistoriqueRapportsPage() {
             {/* 2. Catégorie de Score */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-slate-600">
-                Catégorie de Score
+                Catégorie de Score global
               </label>
               <Select value={scoreFiltre} onValueChange={(val) => setScoreFiltre(val ?? "TOUS")}>
                 <SelectTrigger className="h-9 text-xs">

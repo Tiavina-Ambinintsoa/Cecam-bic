@@ -167,6 +167,18 @@ public class ScoreService {
             }
         }
 
+        // P0.1 — Plafond si l'historique repose uniquement sur des contrats déclarés non vérifiés
+        if (!aHistoriqueReel && !derniersContrats.isEmpty()) {
+            boolean aucunVerifie = derniersContrats.stream()
+                    .noneMatch(dc -> Boolean.TRUE.equals(dc.getVerifie()));
+            if (aucunVerifie) {
+                plafonds.add(plafond(p.getPlafondHistoriqueDeclare(),
+                        "historique uniquement déclaré (non vérifié) : classe C max"));
+                avertissements.add("L'historique de paiement repose uniquement sur des déclarations non vérifiées : score plafonné à "
+                        + p.getPlafondHistoriqueDeclare() + ".");
+            }
+        }
+
         if (creditNonRembourse) {
             plafonds.add(plafond(p.getPlafondCreditNonRembourse(), "crédit antérieur déclaré non remboursé"));
             avertissements.add("Historique : au moins un crédit antérieur déclaré non remboursé à échéance.");
@@ -353,18 +365,17 @@ public class ScoreService {
             avertissements.add("Recettes/dépenses non renseignées : capacité budgétaire exclue du calcul (non pénalisée).");
         }
         if (contratEnCours != null) {
-            BigDecimal valGarantie = contratEnCours.getValeurGarantie();
-            BigDecimal ratioGarantie = contratEnCours.getRatioCouvertureGarantie();
-            if ((valGarantie == null || valGarantie.signum() <= 0) && ratioGarantie == null) {
-                avertissements.add("Garantie non renseignée : la couverture doit être évaluée séparément du score de remboursement.");
+            BigDecimal ratioGarantie = CouvertureGarantie.ratioPour(contratEnCours);
+            if (ratioGarantie == null) {
+                avertissements.add("Garantie non renseignée : le score global ne peut pas intégrer sa couverture.");
             } else if (ratioGarantie != null && ratioGarantie.doubleValue() < 100) {
-                avertissements.add("Garantie insuffisante (" + Math.round(ratioGarantie.doubleValue())
-                        + " %) : couverture à examiner séparément du score de remboursement.");
+                avertissements.add("Garantie insuffisante (" + ratioGarantie.stripTrailingZeros().toPlainString()
+                        + " %) : impact appliqué au score global.");
             }
             BigDecimal ratioPatrimoine = contratEnCours.getRatioCouverturePatrimoine();
             if (ratioPatrimoine != null && ratioPatrimoine.doubleValue() <= 120) {
                 avertissements.add("Couverture patrimoniale limitée (" + Math.round(ratioPatrimoine.doubleValue())
-                        + " %) : à examiner séparément du score de remboursement.");
+                        + " %) : à examiner séparément du score global.");
             }
         }
 
@@ -418,7 +429,23 @@ public class ScoreService {
         double plafondMin = plafonds.stream().mapToInt(Plafond::valeur).min().orElse(p.getScoreMax());
         int score = (int) Math.round(Math.max(p.getScoreBase(), Math.min(p.getScoreMax(), Math.min(brut, plafondMin))));
 
-        GrilleScore grille = grilleScorePour(score);
+        List<GrilleScore> grilleScores = grilleScoreRepository.findAll();
+        BigDecimal ratioCouverture = contratEnCours == null ? null : CouvertureGarantie.ratioPour(contratEnCours);
+        String classePlafondGarantie = ratioCouverture == null ? null
+                : ratioCouverture.compareTo(BigDecimal.valueOf(50)) < 0 ? "D"
+                : ratioCouverture.compareTo(BigDecimal.valueOf(100)) < 0 ? "C" : null;
+        if (classePlafondGarantie != null) {
+            GrilleScore bandePlafondGarantie = grilleScorePour(classePlafondGarantie, grilleScores);
+            if (score > bandePlafondGarantie.getScoreMax()) {
+                score = bandePlafondGarantie.getScoreMax();
+                String motif = "couverture de garantie " + ratioCouverture.stripTrailingZeros().toPlainString()
+                        + " % : score global plafonné en classe " + classePlafondGarantie;
+                plafonds.add(plafond(score, motif));
+                avertissements.add("Couverture de garantie insuffisante : " + motif + ".");
+            }
+        }
+
+        GrilleScore grille = grilleScorePour(score, grilleScores);
         // « Mauvais » seulement dans la bande très élevée (garanti par le plafond ci-dessus ; vérifié par prudence).
         if (mauvais && score > p.getPlafondBandeTresEleve()) mauvais = false;
         if (mauvais) avertissements.add("Risque très élevé : événement négatif formel ou retard >= 180 jours.");
@@ -733,9 +760,15 @@ public class ScoreService {
         return max * (rouge - taux) / (rouge - vert);
     }
 
-    private GrilleScore grilleScorePour(int score) {
-        return grilleScoreRepository.findAll().stream()
+    private GrilleScore grilleScorePour(int score, List<GrilleScore> grilleScores) {
+        return grilleScores.stream()
                 .filter(g -> score >= g.getScoreMin() && score <= g.getScoreMax()).findFirst()
                 .orElseThrow(() -> new IllegalStateException("La grille de score ne couvre pas la valeur " + score));
+    }
+
+    private GrilleScore grilleScorePour(String intervalle, List<GrilleScore> grilleScores) {
+        return grilleScores.stream()
+                .filter(g -> intervalle.equals(g.getIntervalle())).findFirst()
+                .orElseThrow(() -> new IllegalStateException("La grille de score ne contient pas la classe " + intervalle));
     }
 }

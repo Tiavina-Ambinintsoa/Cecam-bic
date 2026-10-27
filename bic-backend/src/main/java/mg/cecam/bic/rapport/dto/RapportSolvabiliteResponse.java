@@ -19,7 +19,6 @@ public record RapportSolvabiliteResponse(
         List<LienClientDTO> liens,
         List<AlerteDTO> alertes,
         ScoreDTO score,
-        RisqueGlobalDTO risqueGlobal,
         List<String> observationsScore,
         List<String> suggestionsScore,
         List<GrilleScoreDTO> grille,

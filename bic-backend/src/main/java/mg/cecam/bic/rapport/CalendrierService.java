@@ -31,9 +31,6 @@ public class CalendrierService {
     private static final String[] MOIS =
             {"JAN", "FÉV", "MARS", "AVR", "MAI", "JUIN", "JUILL", "AOÛT", "SEP", "OCT", "NOV", "DÉC"};
 
-    private static final String VERT   = "#C8E6C9";
-    private static final String ORANGE = "#FFE0B2";
-    private static final String ROUGE  = "#FFCDD2";
     private static final String GRIS   = "#E8E8E4";   
 
     public List<LigneAnneeDTO> grilleStatut(Contrat contrat, List<Echeance> echeances, LocalDate reference) {
@@ -322,12 +319,4 @@ public class CalendrierService {
         };
     }
 
-    private String couleur(StatutEcheance s) {
-        return switch (s) {
-            case PAYE_A_TEMPS -> VERT;
-            case EN_RETARD -> ORANGE;
-            case IMPAYE -> ROUGE;
-            case A_VENIR -> GRIS;
-        };
-    }
 }

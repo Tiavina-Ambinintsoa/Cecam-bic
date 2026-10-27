@@ -54,6 +54,7 @@ public class ScoreProperties {
     private int plafondSansHistorique = 499;        // aucun remboursement observé : jamais mieux que « moyen »
     private int plafondClasseB = 529;               // plafond max classe B
     private int plafondClasseC = 499;               // plafond max classe C
+    private int plafondHistoriqueDeclare = 499;     // historique uniquement déclaré (non vérifié)
     private int plafondCreditNonRembourse = 399;
     private int plafondBandeTresEleve = 399;        // client « mauvais »
     private int plafondCharge12MoisSup100 = 459;    // charge sur 12 mois > revenu annuel

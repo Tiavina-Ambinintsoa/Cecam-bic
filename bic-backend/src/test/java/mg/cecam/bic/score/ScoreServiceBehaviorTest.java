@@ -148,6 +148,53 @@ class ScoreServiceBehaviorTest {
         assertFalse(result.message().contains("Justificatif recommandé"));
     }
 
+    @Test
+    void couvertureInferieureA50PourcentPlafonneLeScoreGlobalEnD() {
+        ScoreResult result = service.calculer(client, demandeAvecCouverture("49.99"), true,
+                LocalDate.of(2026, 10, 23));
+
+        assertEquals(459, result.valeur());
+        assertEquals("D", result.intervalle());
+        assertTrue(result.plafonds().stream().anyMatch(p -> p.contains("couverture de garantie 49.99 %")));
+    }
+
+    @Test
+    void couvertureDe50AmoinsDe100PourcentPlafonneLeScoreGlobalEnC() {
+        LocalDate reference = LocalDate.of(2026, 10, 23);
+        preparerHistoriqueDeclare(reference);
+        ScoreResult result = service.calculer(client, demandeAvecCouverture("83"), true, reference);
+        ScoreResult borneBasse = service.calculer(client, demandeAvecCouverture("50"), true, reference);
+
+        assertEquals(499, result.valeur());
+        assertEquals("C", result.intervalle());
+        assertTrue(result.plafonds().stream().anyMatch(p -> p.contains("couverture de garantie 83 %")));
+        assertEquals(499, borneBasse.valeur());
+        assertEquals("C", borneBasse.intervalle());
+    }
+
+    @Test
+    void couvertureAuMoinsEgaleA100PourcentNePlafonnePasLeScoreDeBase() {
+        LocalDate reference = LocalDate.of(2026, 10, 23);
+        preparerHistoriqueDeclare(reference);
+        ScoreResult sansGarantie = service.calculer(client, demande, true, reference);
+        ScoreResult avecCouverture = service.calculer(client, demandeAvecCouverture("100"), true, reference);
+
+        assertTrue(sansGarantie.valeur() > properties.getPlafondClasseC());
+        assertEquals(sansGarantie.valeur(), avecCouverture.valeur());
+        assertEquals(sansGarantie.intervalle(), avecCouverture.intervalle());
+        assertFalse(avecCouverture.plafonds().stream().anyMatch(p -> p.contains("couverture de garantie")));
+    }
+
+    @Test
+    void ratioDeCouvertureEstCalculeQuandLeChampNEstPasEnregistre() {
+        Contrat contrat = Contrat.builder()
+                .valeurGarantie(BigDecimal.ZERO)
+                .montantTotalDemandeInteret(BigDecimal.valueOf(1000))
+                .build();
+
+        assertEquals(new BigDecimal("0.00"), CouvertureGarantie.ratioPour(contrat));
+    }
+
     private Contrat contratHistorique(Long id) {
         return Contrat.builder()
                 .id(id)
@@ -155,6 +202,26 @@ class ScoreServiceBehaviorTest {
                 .roleClient(RoleClient.TITULAIRE)
                 .phaseDemande(PhaseDemande.FERME)
                 .build();
+    }
+
+    private Contrat demandeAvecCouverture(String ratio) {
+        return Contrat.builder()
+                .id(demande.getId())
+                .client(client)
+                .roleClient(RoleClient.TITULAIRE)
+                .phaseDemande(PhaseDemande.DEMANDE_EN_COURS)
+                .devise("MGA")
+                .ratioRestePourcentage(BigDecimal.valueOf(75))
+                .ratioCouvertureGarantie(new BigDecimal(ratio))
+                .build();
+    }
+
+    private void preparerHistoriqueDeclare(LocalDate reference) {
+        when(dernierContratRepository.findByContrat_IdOrderByDateOctroiAsc(demande.getId()))
+                .thenReturn(List.of(
+                        contratDeclare(reference.minusMonths(1)),
+                        contratDeclare(reference.minusMonths(2)),
+                        contratDeclare(reference.minusMonths(3))));
     }
 
     private DernierContrat contratDeclare(LocalDate dateRemboursement) {
