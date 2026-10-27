@@ -633,9 +633,9 @@ export function ContratForm() {
         <CardHeader>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>Historique des 3 derniers contrats du client</CardTitle>
+              <CardTitle>Historique des crédits antérieurs (facultatif)</CardTitle>
               <p className="mt-1 text-sm text-slate-500">
-                Saisissez les 3 derniers crédits du client pour évaluer son antériorité (bonus d&apos;anticipation, régularité ou malus de retard).
+                Renseignez les crédits passés si le sociétaire a déjà un historique. Pour un nouveau sociétaire (primo-emprunteur), vous pouvez laisser cette section vide : le score sera calculé sur sa capacité budgétaire et ses garanties sans pénalité.
               </p>
             </div>
             <Button
@@ -661,7 +661,7 @@ export function ContratForm() {
         <CardContent className="space-y-4">
           {derniersContratsArray.fields.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-              Aucun crédit antérieur renseigné. Si le client a déjà eu des prêts contractés, cliquez sur « Ajouter un crédit » pour valoriser son score.
+              Aucun crédit antérieur renseigné. S&apos;il s&apos;agit d&apos;un nouveau sociétaire (primo-emprunteur), son score sera calculé normalement selon son budget mensuel, sa capacité de remboursement et ses garanties.
             </div>
           ) : (
             derniersContratsArray.fields.map((field, index) => {
@@ -956,7 +956,7 @@ export function ContratForm() {
           type="submit"
           disabled={submitting}
           size="lg"
-          className="bg-black text-white hover:bg-black/90 font-medium"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
         >
           {submitting ? "Enregistrement..." : "Générer le rapport de solvabilité"}
         </Button>

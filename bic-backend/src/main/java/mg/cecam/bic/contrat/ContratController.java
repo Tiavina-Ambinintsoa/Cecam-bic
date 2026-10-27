@@ -34,6 +34,20 @@ public class ContratController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /** Obtenir un contrat par son ID technique. */
+    @GetMapping("/{id}")
+    public ResponseEntity<Contrat> obtenirParId(@PathVariable Long id) {
+        return ResponseEntity.ok(contratService.obtenirParId(id));
+    }
+
+    /** Supprimer un contrat et son historique lié — réservé à l'administrateur. */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> supprimer(@PathVariable Long id) {
+        contratService.supprimerContrat(id);
+        return ResponseEntity.noContent().build();
+    }
+
     public record EcheanceMensuelleRequest(BigDecimal montantEcheanceMensuelle, String devise) {}
 
     public record CodesEtablissementRequest(String codeContratEtablissement, String codeDemandeEtablissement) {}
@@ -64,6 +78,13 @@ public class ContratController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Contrat> saisirHistorique(@Valid @RequestBody HistoriqueContratRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(contratService.saisirHistorique(req));
+    }
+
+    /** Obtenir le détail complet d'un contrat historique avec ses échéances et mensualités. */
+    @GetMapping("/{id}/historique")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse> obtenirDetailHistorique(@PathVariable Long id) {
+        return ResponseEntity.ok(contratService.obtenirDetailHistorique(id));
     }
 
     @PutMapping("/{id}/historique")

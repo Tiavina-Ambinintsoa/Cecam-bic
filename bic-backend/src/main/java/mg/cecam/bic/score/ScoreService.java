@@ -22,6 +22,47 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+/**
+ * Moteur d'évaluation de la solvabilité (Credit Scoring) pour le BIC CECAM.
+ * <p>
+ * Le modèle calcule une note synthétique sur une échelle de 300 à 850 points
+ * répartie en 5 classes de risque (A à E) selon la grille réglementaire :
+ * <ul>
+ *   <li><b>A (530 - 850)</b> : Risque très faible (Pistache)</li>
+ *   <li><b>B (500 - 529)</b> : Risque faible (Jaune moutarde)</li>
+ *   <li><b>C (460 - 499)</b> : Risque moyen (Jaune Or)</li>
+ *   <li><b>D (400 - 459)</b> : Risque élevé (Orange citrouille)</li>
+ *   <li><b>E (300 - 399)</b> : Risque très élevé (Rouge Vif)</li>
+ * </ul>
+ * </p>
+ * <p>
+ * <b>Architecture en 5 piliers pondérés :</b>
+ * <ol>
+ *   <li><b>Comportement de paiement (290 pts)</b> : Pondération par ancienneté (36 mois)
+ *       avec période de grâce de 5 jours et décote progressive de 6 à 29 jours.</li>
+ *   <li><b>Arriérés en cours (60 pts)</b> : Évalué uniquement si des crédits actifs sont suivis.</li>
+ *   <li><b>Taux d'endettement annuel (35 pts)</b> : Charge sur 12 mois rapportée au revenu annuel.</li>
+ *   <li><b>Exposition globale (25 pts)</b> : Encours total restant dû rapporté au revenu annuel.</li>
+ *   <li><b>Capacité budgétaire mensuelle (30 pts)</b> : Taux d'effort calculé sur le surplus net
+ *       (mensualités existantes + demandée) / (recettes - dépenses mensuelles).</li>
+ * </ol>
+ * </p>
+ * <p>
+ * <b>Sécurités et plafonds prudentiels en cascade :</b>
+ * <ul>
+ *   <li>Plafond historique déclaré non vérifié : 499 (Classe C max).</li>
+ *   <li>Plafond moins de 6 échéances vérifiées : 499 (Classe C max).</li>
+ *   <li>Plafond moins de 12 échéances vérifiées : 529 (Classe B max).</li>
+ *   <li>Plafond pire retard sur 24 mois &ge; 90j : 499 (C max), &ge; 60j : 529 (B max).</li>
+ *   <li>Plafond couverture facteurs &lt; 50% : 499 (Classe C max).</li>
+ *   <li>Plafond événement formel non prescrit (&le; 36/60 mois) ou retard &ge; 180j : 399 (Classe E).</li>
+ *   <li>Ajustement selon la couverture de garantie (déclassement si &lt; 100% ou &lt; 50%).</li>
+ * </ul>
+ * </p>
+ *
+ * @author CECAM / Direction des Risques & Système d'Information
+ * @version 2.1 (Octobre 2026)
+ */
 @Service
 @RequiredArgsConstructor
 public class ScoreService {
@@ -62,11 +103,12 @@ public class ScoreService {
                 .filter(c -> !Objects.equals(c.getId(), enCoursId)).toList();
 
         // ---- Événements négatifs formels (ne bloquent plus le calcul : ils plafonnent le score)
+        // Seuls les engagements en tant qu'emprunteur direct déclenchent le plafond contentieux automatique (399)
         boolean evenementNegatif = !evenementNegatifRepository.findByClient_IdAndActifTrue(client.getId()).isEmpty()
-                || historique.stream().anyMatch(c -> pireStatutActif(c, ref))
+                || historique.stream().filter(this::estEmprunteur).anyMatch(c -> pireStatutActif(c, ref))
                 || pireStatutActif(contratEnCours, ref);
 
-        if (historique.stream().anyMatch(c -> pireStatutFormel(c.getPireStatut()) && !pireStatutActif(c, ref))) {
+        if (historique.stream().filter(this::estEmprunteur).anyMatch(c -> pireStatutFormel(c.getPireStatut()) && !pireStatutActif(c, ref))) {
             avertissements.add("Ancien événement contentieux régularisé ou prescrit (> 36 ou 60 mois) : plafond 399 levé.");
         }
 
@@ -257,7 +299,12 @@ public class ScoreService {
             }
             // Note : si aucun crédit actif, le pilier arrieres_en_cours n'est pas évalué (pas pénalisé)
         } else {
-            plafonds.add(plafond(p.getPlafondSansHistorique(), "aucun remboursement observé"));
+            // Si le client a déclaré des antécédents de prêt mais qu'aucun n'a pu être validé,
+            // on plafonne l'historique non vérifié.
+            // Pour un primo-emprunteur réel (aucun crédit antérieur), l'absence d'historique ne le pénalise pas.
+            if (!derniersContrats.isEmpty()) {
+                plafonds.add(plafond(p.getPlafondSansHistorique(), "aucun remboursement observé"));
+            }
         }
 
         // ---- C. Capacité financière (revenu annuel) : exclue si inconnue/incohérente, jamais « 0 point »
@@ -387,7 +434,11 @@ public class ScoreService {
             if (!avertissements.isEmpty()) message += " " + String.join(" ", avertissements);
             return ScoreResult.nonCalculable(message);
         }
-        if (!preuveCapacite) plafonds.add(plafond(p.getPlafondSansCapacite(), "capacité de remboursement non vérifiable (ni revenu, ni budget)"));
+        if (!preuveCapacite) {
+            plafonds.add(plafond(p.getPlafondSansCapacite(), "capacité de remboursement non vérifiable (ni revenu, ni budget)"));
+        } else if (!aHistorique) {
+            avertissements.add("Nouveau sociétaire (primo-emprunteur) : notation calculée sur la capacité financière, le budget et les garanties.");
+        }
 
         // ---- Score brut renormalisé + ajustements (anticipation, retards déclarés, risque groupe)
         double obtenu = gagne.values().stream().mapToDouble(Double::doubleValue).sum();
@@ -407,19 +458,30 @@ public class ScoreService {
         double brut = p.getScoreBase() + (p.getScoreMax() - p.getScoreBase()) * (possible <= 0 ? 0 : obtenu / possible)
                 + bonusAnticipationEffectif - malusRetardHistorique - malusGroupe;
 
-        // P0.2 — Plafond si moins de 50 % des facteurs renseignés (classe C max)
-        boolean partiel = !dispo.containsKey("endettement") || !dispo.containsKey("exposition")
-                || !dispo.containsKey("paiement") || !capaciteBudget;
-        double pointsPotentiels = p.getPoidsPaiement() + p.getPoidsArrieresEnCours()
-                + p.getPoidsEndettement() + p.getPoidsExposition() + p.getPoidsBudget();
+        // Plafond si moins de 50 % des facteurs applicables renseignés (classe C max)
+        boolean partiel;
+        double pointsPotentiels;
+        if (aHistorique) {
+            partiel = !dispo.containsKey("endettement") || !dispo.containsKey("exposition")
+                    || !dispo.containsKey("paiement") || !capaciteBudget;
+            pointsPotentiels = p.getPoidsPaiement() + (actifs.isEmpty() ? 0 : p.getPoidsArrieresEnCours())
+                    + p.getPoidsEndettement() + p.getPoidsExposition() + p.getPoidsBudget();
+        } else {
+            // Pour un primo-emprunteur, l'absence d'historique de crédit n'est pas un facteur manquant pénalisant.
+            // On évalue la complétude des facteurs de capacité applicables (revenu / budget).
+            partiel = (!dispo.containsKey("endettement") && !capaciteBudget);
+            pointsPotentiels = (capaciteRevenu ? (p.getPoidsEndettement() + p.getPoidsExposition()) : 0)
+                    + (capaciteBudget ? p.getPoidsBudget() : 0);
+            if (pointsPotentiels == 0) pointsPotentiels = p.getPoidsBudget();
+        }
         if (partiel && pointsPotentiels > 0) {
             int couvertureFacteurs = (int) Math.round(possible / pointsPotentiels * 100);
             if (couvertureFacteurs < 50) {
                 plafonds.add(plafond(p.getPlafondClasseC(), "moins de 50 % des facteurs renseignés (classe C max)"));
-                avertissements.add("Moins de 50 % des facteurs renseignés (" + couvertureFacteurs + " %) : score plafonné en classe C.");
+                avertissements.add("Moins de 50 % des facteurs applicables renseignés (" + couvertureFacteurs + " %) : score plafonné en classe C.");
             } else {
                 avertissements.add("Couverture des facteurs de score : " + couvertureFacteurs
-                        + " % des facteurs configurés sont renseignés ; ce taux ne mesure pas leur vérification.");
+                        + " % des facteurs applicables sont renseignés.");
             }
         }
 
@@ -473,7 +535,9 @@ public class ScoreService {
         if (statut == null) return false;
         String s = Normalizer.normalize(statut, Normalizer.Form.NFD).replaceAll("\\p{M}+", "")
                 .toUpperCase(Locale.ROOT);
-        return s.contains("CONTENTIEUX") || s.contains("FAILLITE") || s.contains("DECHEANCE");
+        return s.contains("CONTENTIEUX") || s.contains("FAILLITE") || s.contains("DECHEANCE")
+                || s.contains("PERTE") || s.contains("RADIE") || s.contains("IRRECOUVRABLE")
+                || s.contains("DOUTEUX");
     }
 
     private boolean pireStatutActif(Contrat c, LocalDate ref) {
@@ -571,7 +635,6 @@ public class ScoreService {
                 chargeComplete = false;
             } else charge += chargeAnnuelleDemande.doubleValue();
             double encoursInterne = expo;
-            expo += total.doubleValue();
             BigDecimal creditsActifs = demande.getTotalCreditActif();
             if (creditsActifs == null) {
                 creditsActifs = BigDecimal.ZERO;
@@ -637,8 +700,11 @@ public class ScoreService {
         if (echeances.stream().anyMatch(e -> e.getDateEcheance() != null)) {
             BigDecimal totalDouzeMois = echeances.stream()
                     .filter(e -> e.getDateEcheance() != null && !e.getDateEcheance().isAfter(reference.plusMonths(12)))
-                    .map(e -> e.getMontantDu().subtract(e.getMontantPaye() == null ? BigDecimal.ZERO : e.getMontantPaye())
-                            .max(BigDecimal.ZERO))
+                    .map(e -> {
+                        BigDecimal du = e.getMontantDu() != null ? e.getMontantDu() : BigDecimal.ZERO;
+                        BigDecimal paye = e.getMontantPaye() != null ? e.getMontantPaye() : BigDecimal.ZERO;
+                        return du.subtract(paye).max(BigDecimal.ZERO);
+                    })
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             return totalDouzeMois.min(reste);
         }
@@ -738,7 +804,8 @@ public class ScoreService {
         }
         // 30j : qualiteRetardLong, puis décroissance linéaire jusqu'à 0 à 180j
         if (jours >= 180) return p.getQualiteImpaye();
-        return p.getQualiteRetardLong() + (p.getQualiteImpaye() - p.getQualiteRetardLong()) * ((jours - 30) / 150.0);
+        double plageJours = 180.0 - 30.0; // amplitude de la décroissance linéaire
+        return p.getQualiteRetardLong() + (p.getQualiteImpaye() - p.getQualiteRetardLong()) * ((jours - 30) / plageJours);
     }
 
     private double poidsAnciennete(LocalDate obs, LocalDate ref) {

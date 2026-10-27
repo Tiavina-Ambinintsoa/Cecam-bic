@@ -55,6 +55,7 @@ flowchart LR
 | Historique des rapports | Route `/rapports` → `pages/HistoriqueRapportsPage.tsx` → `api/axiosClient.get('/contrats')` → `ContratController.lister` → `ContratService.listerTous` (trié par ID descendant pour afficher les derniers rapports générés en premier). Tableau enrichi avec colonne Score & Risque (badges colorés par niveau de risque A-E). Filtres avancés : marge de montant (min/max et boutons rapides <5M, 5M-20M, etc.), catégorie de score, type de crédit (RFR, PRO, etc.), période et recherche textuelle. Consultation directe et téléchargement PDF instantané. |
 | Fonctions transverses | Pages de recherche, rapports, alertes et audit → API frontend → contrôleurs `client`, `rapport` et `audit`; les alertes sont calculées depuis les contrats actifs et leurs échéances |
 | Soumettre une mise à jour | `pages/MiseAJourDemandePage.tsx` → `api/modificationContratApi.ts` → `ModificationContratController` → `ModificationContratService` → `ModificationContratDemandeRepository`; seuls les administrateurs peuvent approuver ou refuser |
+| Gérer les sociétaires (clients) | Route `/admin/clients` → `pages/admin/GestionClientsPage.tsx` → `api/clientApi.ts` (lister, obtenir, modifier, supprimer) et `api/contratApi.ts` (contrats du client, accès rapport, modification de phase, suppression contrat, redirection vers édition d'historique `GET /api/contrats/{id}/historique`) → `ClientController`, `ContratController` ; modal à double onglet ("Fiche sociétaire" et "Dossiers & Contrats" avec décompte), pagination serveur, recherche instantanée par nom/prénom/code CB/code CECAM |
 | Gérer les utilisateurs | Route `/admin/utilisateurs` → `pages/admin/GestionUtilisateursPage.tsx` → `api/utilisateurApi.ts` → `auth/UtilisateurController` (CRUD complet) → `UtilisateurRepository`; création/modification/suppression/bascule actif réservées à l'admin, mot de passe haché par BCrypt, audit de chaque action, auto-suppression interdite |
 | Importer des clients | `pages/admin/ImportPage.tsx` → `api/clientApi.ts` → `ClientController` → `ClientService.enregistrerOuRecuperer`; les doublons CIN sont comptés et chaque ligne invalide est signalée |
 
@@ -73,6 +74,7 @@ Les routes applicatives sont déclarées dans `bic-frontend/src/App.tsx`. `/logi
 | `/alertes` | `AlertesPage` |
 | `/rapports` | `HistoriqueRapportsPage` |
 | `/audit` | `AuditPage` |
+| `/admin/clients` | `GestionClientsPage`, protégée par `AdminRoute` — CRUD sociétaires (recherche, modification coordonnées, suppression sous condition) |
 | `/admin/import` | `ImportPage`, protégée par `AdminRoute` |
 | `/admin/demandes-modification` | `DemandesModificationPage`, protégée par `AdminRoute` et API admin |
 | `/admin/utilisateurs` | `GestionUtilisateursPage`, protégée par `AdminRoute` — CRUD comptes agents/admin |

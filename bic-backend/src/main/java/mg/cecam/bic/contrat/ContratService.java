@@ -28,6 +28,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Service métier pour la gestion du cycle de vie des contrats de crédit et des demandes.
+ * <p>
+ * Responsabilités principales :
+ * <ul>
+ *   <li><b>Origination de crédit (créerDemande)</b> : Calcul des échéances, des intérêts conventionnels
+ *       (taux mensuel paramétré par type de crédit RFR, PRO, GCV...), ratios de couverture de garantie
+ *       et de patrimoine, et enregistrement des antécédents déclarés vérifiés.</li>
+ *   <li><b>Cycle de vie & Transitions de phases (changerPhase)</b> : Passage de DEMANDE_EN_COURS à ACTIF,
+ *       génération automatique de l'échéancier selon la périodicité (mensuelle, trimestrielle...),
+ *       clôture (FERME, ABANDONNE) avec motif réglementaire.</li>
+ *   <li><b>Administration & Historique (saisirHistorique, modifierHistorique)</b> : Gestion sous
+ *       contrôle d'accès strict (ADMIN) des dossiers historiques importés ou régularisés.</li>
+ * </ul>
+ * </p>
+ *
+ * @author CECAM / Direction du Crédit & des Engagements
+ * @version 2.1 (Octobre 2026)
+ */
 @Service
 @RequiredArgsConstructor
 public class ContratService {
@@ -42,6 +61,7 @@ public class ContratService {
     private final HistoriquePaiementMensuelRepository historiquePaiementMensuelRepository;
     private final ModificationContratDemandeRepository modificationContratDemandeRepository;
     private final DernierContratRepository dernierContratRepository;
+    private final TauxMensuelProperties tauxMensuelProperties;
     private final AuditService auditService;
 
     @Transactional
@@ -130,7 +150,7 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
         BigDecimal moisDuree = BigDecimal.valueOf(nombreEcheances)
                 .multiply(BigDecimal.valueOf(moisEntreEcheances));
         BigDecimal tauxMensuelPct = request.tauxInteretMensuel() != null && request.tauxInteretMensuel().signum() >= 0
-                ? request.tauxInteretMensuel() : tauxMensuelParType(typeCredit);
+                ? request.tauxInteretMensuel() : tauxMensuelProperties.pourType(typeCredit);
         BigDecimal tauxInteretGlobal = tauxMensuelPct.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP)
                 .multiply(moisDuree);
         BigDecimal montantInteret = request.montantFinance().multiply(tauxInteretGlobal);
@@ -210,15 +230,6 @@ public void changerEcheanceMensuelle(Long id, BigDecimal montant, String devise)
 
         auditService.enregistrer("CONTRAT", contrat.getId(), "CREATION", "Nouvelle demande créée");
         return contrat;
-    }
-
-    private BigDecimal tauxMensuelParType(String typeCredit) {
-        return switch (typeCredit.trim().toUpperCase(Locale.ROOT)) {
-            case "RFR", "LVM", "CIM" -> BigDecimal.valueOf(2.75);
-            case "PRO" -> BigDecimal.valueOf(3.5);
-            case "GCV" -> BigDecimal.valueOf(3.0);
-            default -> BigDecimal.valueOf(3.0);
-        };
     }
 
     private void enregistrerRevenusComplementaires(Contrat contrat, ContratRequest request) {
@@ -413,6 +424,113 @@ public Contrat saisirHistorique(HistoriqueContratRequest req) {
     auditService.enregistrer("CONTRAT", contratId, "MODIFICATION_HISTORIQUE", "Historique modifié par admin");
 }
 
+    @Transactional(readOnly = true)
+    public mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse obtenirDetailHistorique(Long contratId) {
+        Contrat c = contratRepository.findById(contratId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrat introuvable : " + contratId));
+
+        Client cl = c.getClient();
+        String cin = null;
+        if (cl != null && cl.getIdentifiants() != null) {
+            cin = cl.getIdentifiants().stream()
+                    .filter(i -> "CIN".equalsIgnoreCase(i.getTypeIdentifiant()))
+                    .map(mg.cecam.bic.client.Identifiant::getNumero)
+                    .findFirst()
+                    .orElse(null);
+        }
+
+        List<mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.EcheanceDetailResponse> echeances =
+                echeanceRepository.findByContrat_IdOrderByNumeroEcheance(contratId).stream()
+                        .map(e -> new mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.EcheanceDetailResponse(
+                                e.getNumeroEcheance(), e.getDateEcheance(), e.getMontantDu(),
+                                e.getMontantPaye(), e.getDatePaiement(), e.getStatut()
+                        )).toList();
+
+        List<mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.MoisDetailResponse> mois =
+                historiquePaiementMensuelRepository.findByContrat_IdOrderByMoisDesc(contratId).stream()
+                        .map(m -> new mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.MoisDetailResponse(
+                                m.getMois(), m.getNombreEcheances(), m.getNombreEcheancesImpayees(),
+                                m.getJoursDeRetard(), m.getStatut(), m.getDetailsSource()
+                        )).toList();
+
+        List<mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.GarantieDetailResponse> garanties =
+                garantieRepository.findByContrat_Id(contratId).stream()
+                        .map(g -> new mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.GarantieDetailResponse(
+                                g.getNature(), g.getTypeGarantie(), g.getCodeEtablissementGarantie(),
+                                g.getNomGarant(), g.getCodeClientCbGarant(), g.getMontantCouvert(),
+                                g.getDateDebutValidite(), g.getDateFinValidite()
+                        )).toList();
+
+        List<mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.ClientLieDetailResponse> liens =
+                contratLienRepository.findByContrat_Id(contratId).stream()
+                        .map(l -> new mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.ClientLieDetailResponse(
+                                l.getCodeClientCb(), l.getNomClient(), l.getRoleClient()
+                        )).toList();
+
+        mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.BienLeasingDetailResponse leasing =
+                bienLeasingRepository.findByContrat_Id(contratId)
+                        .map(b -> new mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse.BienLeasingDetailResponse(
+                                b.getCodeBien(), b.getValeurBien(), b.getEtatBien(),
+                                b.getMarqueBien(), b.getDateAcquisition(), b.getImmatriculation()
+                        )).orElse(null);
+
+        return new mg.cecam.bic.contrat.dto.HistoriqueContratDetailResponse(
+                c.getId(),
+                cl != null ? cl.getId() : null,
+                cl != null ? cl.getNom() : null,
+                cl != null ? cl.getPrenom() : null,
+                cin,
+                cl != null ? cl.getCodeClientCb() : null,
+                c.getCodeContratCb(),
+                c.getCodeContratEtablissement(),
+                c.getCodeEtablissementDeclarant(),
+                c.getCodeEtablissementCrypte(),
+                c.getTypeContrat(),
+                c.getTypeRelationEntreprise(),
+                c.getRoleClient(),
+                c.getPhaseDemande(),
+                c.getMotifCloture(),
+                c.getDateDemande(),
+                c.getDateDebutContrat(),
+                c.getDateFinContrat(),
+                c.getDatePremiereEcheance(),
+                c.getDateDerniereModificationSource(),
+                c.getMontantFinance(),
+                c.getMontantTotalDu(),
+                c.getMontantEcheanceMensuelle(),
+                c.getNombreTotalEcheances(),
+                c.getDevise(),
+                c.getPeriodicitePaiement(),
+                c.getModeReglement(),
+                c.getMontantProchaineEcheance(),
+                c.getDateProchaineEcheance(),
+                c.getDateDernierReglement(),
+                c.getNombreEcheancesRestantes(),
+                c.getMontantRestantDu(),
+                c.getNombreEcheancesImpayees(),
+                c.getMontantImpayes(),
+                c.getMaxMontantImpayes(),
+                c.getMaxNombreEcheancesImpayees(),
+                c.getDateMaxNombreEcheancesImpayees(),
+                c.getNombreJoursRetard(),
+                c.getMaxNombreJoursRetard(),
+                c.getDateMaxNombreJoursRetard(),
+                c.getPireStatut(),
+                c.getDatePireStatut(),
+                c.getCodeRestructuration(),
+                c.getDateCodeRestructuration(),
+                c.getContratOrigine(),
+                c.getNouveauContrat(),
+                c.getNote(),
+                c.getOrigineDonnee(),
+                echeances,
+                mois,
+                garanties,
+                liens,
+                leasing
+        );
+    }
+
     private String utilisateurConnecte() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
@@ -470,8 +588,25 @@ public Contrat saisirHistorique(HistoriqueContratRequest req) {
         bienLeasingRepository.findByContrat_IdIn(List.of(id)).forEach(bienLeasingRepository::delete);
         revenuDemandeRepository.deleteAll(revenuDemandeRepository.findByContrat_Id(id));
         dernierContratRepository.deleteAll(dernierContratRepository.findByContrat_IdOrderByDateOctroiAsc(id));
-        modificationContratDemandeRepository.deleteAll(modificationContratDemandeRepository.findAllByOrderByDateSoumissionDesc()
-                .stream().filter(m -> m.getContrat().getId().equals(id)).toList());
+        modificationContratDemandeRepository.deleteAll(modificationContratDemandeRepository.findByContrat_Id(id));
+    }
+
+    /**
+     * Supprime un contrat et l'intégralité de son historique lié (échéances, garanties, déclarations mensuelles, etc.).
+     * Réservé aux administrateurs.
+     */
+    @Transactional
+    public void supprimerContrat(Long contratId) {
+        Contrat contrat = contratRepository.findById(contratId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrat introuvable : " + contratId));
+        supprimerHistoriqueLie(contrat);
+        contratRepository.delete(contrat);
+        auditService.enregistrer("CONTRAT", contratId, "SUPPRESSION", "Contrat supprimé par un administrateur");
+    }
+
+    public Contrat obtenirParId(Long contratId) {
+        return contratRepository.findById(contratId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrat introuvable : " + contratId));
     }
 
     public List<Contrat> listerParClient(Long clientId) {

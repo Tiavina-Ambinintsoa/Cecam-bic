@@ -2,6 +2,7 @@ package mg.cecam.bic.client;
 
 import mg.cecam.bic.audit.AuditService;
 import mg.cecam.bic.client.dto.ClientRequest;
+import mg.cecam.bic.contrat.ContratRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -17,6 +18,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ClientServiceTest {
     @Mock private ClientRepository clientRepository;
+    @Mock private ContratRepository contratRepository;
     @Mock private EmploiRepository emploiRepository;
     @Mock private AuditService auditService;
 
@@ -26,7 +28,7 @@ class ClientServiceTest {
         when(clientRepository.findAllByCinNormalise("123456789012"))
                 .thenReturn(List.of(clientExistant));
 
-        ClientService service = new ClientService(clientRepository, emploiRepository, auditService);
+        ClientService service = new ClientService(clientRepository, contratRepository, emploiRepository, auditService);
         ClientRequest request = new ClientRequest(
                 null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, List.of(),

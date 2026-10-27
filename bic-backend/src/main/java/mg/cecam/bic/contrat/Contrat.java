@@ -290,6 +290,7 @@ private String codeDemandeEtablissement;
         if (p.startsWith("TRIM")) return 3;
         if (p.startsWith("SEM")) return 6;
         if (p.startsWith("AN")) return 12;
+        if (p.contains("FINE") || p.contains("TERME") || p.contains("SAISON") || p.contains("CAMPAGNE")) return 6;
         return 0;
     }
 }

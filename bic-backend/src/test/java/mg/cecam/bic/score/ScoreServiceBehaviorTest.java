@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -27,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class ScoreServiceBehaviorTest {
     @Mock private GrilleScoreRepository grilleScoreRepository;
     @Mock private ContratRepository contratRepository;
@@ -149,6 +152,21 @@ class ScoreServiceBehaviorTest {
     }
 
     @Test
+    void historiqueUniquementDeclareNonVerifiePlafonneEnClasseC() {
+        LocalDate dateRemboursement = LocalDate.now().minusMonths(1);
+        when(dernierContratRepository.findByContrat_IdOrderByDateOctroiAsc(demande.getId()))
+                .thenReturn(List.of(
+                        DernierContrat.builder().statut("A_TEMPS").dateRemboursement(dateRemboursement).verifie(false).build(),
+                        DernierContrat.builder().statut("A_TEMPS").dateRemboursement(dateRemboursement.minusMonths(2)).verifie(false).build()));
+
+        ScoreResult result = service.calculer(client, demande, true);
+
+        assertTrue(result.calculable());
+        assertTrue(result.valeur() <= properties.getPlafondHistoriqueDeclare());
+        assertTrue(result.plafonds().stream().anyMatch(p -> p.contains("historique uniquement déclaré")));
+    }
+
+    @Test
     void couvertureInferieureA50PourcentPlafonneLeScoreGlobalEnD() {
         ScoreResult result = service.calculer(client, demandeAvecCouverture("49.99"), true,
                 LocalDate.of(2026, 10, 23));
@@ -195,6 +213,34 @@ class ScoreServiceBehaviorTest {
         assertEquals(new BigDecimal("0.00"), CouvertureGarantie.ratioPour(contrat));
     }
 
+    @Test
+    void nouveauClientSansHistoriqueAvecBonneCapaciteEstEvalueNormalementSansPlafondDeClasseC() {
+        // Nouveau client : aucun contrat antérieur, aucun contrat déclaré
+        when(contratRepository.findPourClient(client.getId())).thenReturn(List.of());
+        when(dernierContratRepository.findByContrat_IdOrderByDateOctroiAsc(demande.getId())).thenReturn(List.of());
+
+        // Capacité budgétaire saine : ratio reste 75%, garantie à 120%
+        Contrat demandeNouveauClient = Contrat.builder()
+                .id(demande.getId())
+                .client(client)
+                .roleClient(RoleClient.TITULAIRE)
+                .phaseDemande(PhaseDemande.DEMANDE_EN_COURS)
+                .devise("MGA")
+                .ratioRestePourcentage(BigDecimal.valueOf(75))
+                .ratioCouvertureGarantie(BigDecimal.valueOf(120))
+                .build();
+
+        ScoreResult result = service.calculer(client, demandeNouveauClient, false);
+
+        assertTrue(result.calculable(), "Le score d'un nouveau client avec capacité doit être calculable");
+        assertTrue(result.valeur() > properties.getPlafondClasseC(),
+                "Le score d'un nouveau sociétaire ne doit pas être plafonné en classe C");
+        assertFalse(result.plafonds().stream().anyMatch(p -> p.contains("aucun remboursement observé")),
+                "L'absence d'historique ne doit pas être un motif de plafond pénalisant");
+        assertTrue(result.message().contains("primo-emprunteur") || result.message().contains("Nouveau"),
+                "Le message doit identifier le profil nouveau sociétaire");
+    }
+
     private Contrat contratHistorique(Long id) {
         return Contrat.builder()
                 .id(id)
@@ -228,6 +274,8 @@ class ScoreServiceBehaviorTest {
         return DernierContrat.builder()
                 .statut("A_TEMPS")
                 .dateRemboursement(dateRemboursement)
+                .verifie(true)
+                .sourceVerification("DOSSIER_CECAM")
                 .build();
     }
 

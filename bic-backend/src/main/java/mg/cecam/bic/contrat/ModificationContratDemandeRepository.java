@@ -10,4 +10,6 @@ public interface ModificationContratDemandeRepository extends JpaRepository<Modi
     List<ModificationContratDemande> findByStatutOrderByDateSoumissionAsc(StatutDemandeModification statut);
     List<ModificationContratDemande> findBySoumisParOrderByDateSoumissionDesc(String soumisPar);
     boolean existsByContrat_IdAndStatut(Long contratId, StatutDemandeModification statut);
+    /** Toutes les demandes de modification liées à un contrat donné. */
+    List<ModificationContratDemande> findByContrat_Id(Long contratId);
 }

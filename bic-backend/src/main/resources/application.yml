@@ -22,7 +22,7 @@ spring:
   thymeleaf:
     cache: false
 
-spring.sql.init.data-locations: classpath:data.sql, classpath:data-crif.sql, classpath:data-crif-fianarantsoa.sql
+spring.sql.init.data-locations: ${SPRING_SQL_INIT_DATA_LOCATIONS:classpath:data-seed-init.sql}
 
 app:
   cors:
@@ -91,3 +91,12 @@ app:
     # Risque de groupe
     malus-par-co-oblige-a-risque: 20
     malus-co-obliges-max: 60
+
+  # Taux d'intérêt mensuels par type de crédit (en %)
+  taux-mensuel:
+    rfr: 2.75
+    lvm: 2.75
+    cim: 2.75
+    pro: 3.5
+    gcv: 3.0
+    defaut: 3.0

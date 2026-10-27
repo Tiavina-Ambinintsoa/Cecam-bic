@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import mg.cecam.bic.audit.AuditService;
 import mg.cecam.bic.client.dto.ClientEnregistrementResponse;
 import mg.cecam.bic.client.dto.ClientRequest;
+import mg.cecam.bic.contrat.ContratRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Service métier pour la gestion du cycle de vie des clients (sociétaires).
+ * <p>Responsabilités : création, recherche par identifiant, mise à jour,
+ * suppression et détection des doublons par CIN normalisé.</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class ClientService {
@@ -21,6 +27,7 @@ public class ClientService {
             "Nouvelle demande sur client existant";
 
     private final ClientRepository clientRepository;
+    private final ContratRepository contratRepository;
     private final EmploiRepository emploiRepository;
     private final AuditService auditService;
 
@@ -224,5 +231,24 @@ public class ClientService {
                 .devise(emploi.devise())
                 .build();
         return valeur.estRenseigne();
+    }
+
+    /**
+     * Supprime un client et toutes ses données liées (contrats, emploi, etc.).
+     * <p>Ne supprime que si le client n'a aucun contrat actif.</p>
+     */
+    @Transactional
+    public void supprimer(Long clientId) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client introuvable"));
+        boolean aContratActif = contratRepository.findPourClient(clientId).stream()
+                .anyMatch(c -> c.getPhaseDemande() == mg.cecam.bic.common.enums.PhaseDemande.ACTIF);
+        if (aContratActif) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Impossible de supprimer un client ayant un contrat actif.");
+        }
+        emploiRepository.findByClient_Id(clientId).ifPresent(emploiRepository::delete);
+        auditService.enregistrer("CLIENT", clientId, "SUPPRESSION", "Client supprimé par un administrateur");
+        clientRepository.delete(client);
     }
 }

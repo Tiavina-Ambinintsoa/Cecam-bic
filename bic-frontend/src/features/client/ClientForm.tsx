@@ -288,7 +288,7 @@ export function ClientForm() {
 
             <div className="space-y-1.5 md:col-span-2 min-w-0">
               <Label className="font-semibold text-slate-800">
-                Catégorie Tiers <span className="text-red-500">*</span>
+                Catégorie du sociétaire (Tiers BIC) <span className="text-red-500">*</span>
               </Label>
               <Select
                 defaultValue="0215"
@@ -554,7 +554,7 @@ export function ClientForm() {
           <Button
             type="button"
             size="sm"
-            className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full sm:w-auto shrink-0"
             onClick={() =>
               adressesArray.append({
                 typeAdresse: "Individu - Adresse secondaire",
@@ -647,7 +647,7 @@ export function ClientForm() {
           <Button
             type="button"
             size="sm"
-            className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0 shadow-sm"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full sm:w-auto shrink-0 shadow-sm"
             onClick={() =>
               identifiantsArray.append({
                 typeIdentifiant: "CIN",
@@ -745,7 +745,7 @@ export function ClientForm() {
           <Button
             type="button"
             size="sm"
-            className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full sm:w-auto shrink-0"
             onClick={() =>
               documentsArray.append({
                 typeDocument: "Passeport",
@@ -870,7 +870,7 @@ export function ClientForm() {
           <Button
             type="button"
             size="sm"
-            className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full sm:w-auto shrink-0"
             onClick={() =>
               contactsArray.append({
                 typeContact: "Téléphone portable",
@@ -1090,7 +1090,7 @@ export function ClientForm() {
                 <Button
                   type="button"
                   size="sm"
-                  className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full sm:w-auto shrink-0"
                   onClick={() =>
                     affaireAdressesArray.append({
                       typeAdresse: "Entreprise - Adresse Principale",
@@ -1185,7 +1185,7 @@ export function ClientForm() {
                 <Button
                   type="button"
                   size="sm"
-                  className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full sm:w-auto shrink-0"
                   onClick={() =>
                     affaireIdentifiantsArray.append({
                       typeIdentifiant: "STAT",
@@ -1275,7 +1275,7 @@ export function ClientForm() {
                 <Button
                   type="button"
                   size="sm"
-                  className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto shrink-0"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full sm:w-auto shrink-0"
                   onClick={() =>
                     affaireContactsArray.append({
                       typeContact: "Téléphone professionnel",
@@ -1371,7 +1371,7 @@ export function ClientForm() {
           type="submit"
           disabled={submitting}
           size="lg"
-          className="bg-black text-white hover:bg-black/90 font-medium w-full sm:w-auto"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium w-full sm:w-auto"
         >
           {submitting ? "Enregistrement..." : "Continuer vers la demande"}
         </Button>

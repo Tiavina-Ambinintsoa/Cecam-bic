@@ -6,10 +6,10 @@
     "semantic_hash": "786bf3fbe53ceec8925ef0f2d11a4e13"
   },
   "bic-backend/pom.xml": {
-    "mtime": 1792405375.8668337,
-    "seen": 1792424468.1606796,
-    "ast_hash": "d7b7cc554e5a1dfac9f71d96bcc30bac",
-    "semantic_hash": "d7b7cc554e5a1dfac9f71d96bcc30bac"
+    "mtime": 1793109270.4753878,
+    "seen": 1793110957.772348,
+    "ast_hash": "64fb1294f9a3afe912203f7bbcc74c37",
+    "semantic_hash": "64fb1294f9a3afe912203f7bbcc74c37"
   },
   "bic-backend/src/main/java/mg/cecam/bic/BicBackendApplication.java": {
     "mtime": 1788842516.0,
@@ -108,22 +108,22 @@
     "semantic_hash": "d0b2247b5e18dfd24bf714efb41908cb"
   },
   "bic-backend/src/main/java/mg/cecam/bic/client/ClientController.java": {
-    "mtime": 1792405375.90439,
-    "seen": 1792424468.1725411,
-    "ast_hash": "81d2a7f39cdb3530c85aa4d96670b193",
-    "semantic_hash": "81d2a7f39cdb3530c85aa4d96670b193"
+    "mtime": 1793108771.888411,
+    "seen": 1793110957.785324,
+    "ast_hash": "8eeb948c265a2f6ef33df233c736db9e",
+    "semantic_hash": "8eeb948c265a2f6ef33df233c736db9e"
   },
   "bic-backend/src/main/java/mg/cecam/bic/client/ClientRepository.java": {
-    "mtime": 1792669508.2308164,
-    "seen": 1792669822.0246062,
-    "ast_hash": "a6a8126966b93153eb36bd4fcf6cf8b1",
-    "semantic_hash": "a6a8126966b93153eb36bd4fcf6cf8b1"
+    "mtime": 1793108753.140342,
+    "seen": 1793110957.7853284,
+    "ast_hash": "94357b312917c7dab35f6d3072646b14",
+    "semantic_hash": "94357b312917c7dab35f6d3072646b14"
   },
   "bic-backend/src/main/java/mg/cecam/bic/client/ClientService.java": {
-    "mtime": 1792669528.1020384,
-    "seen": 1792669822.0246193,
-    "ast_hash": "8775c3f8a74c4a44893774b177b9e92c",
-    "semantic_hash": "8775c3f8a74c4a44893774b177b9e92c"
+    "mtime": 1793103729.2788484,
+    "seen": 1793105100.4428713,
+    "ast_hash": "fa93b4899a3176e9e28a92068cd8ab90",
+    "semantic_hash": "fa93b4899a3176e9e28a92068cd8ab90"
   },
   "bic-backend/src/main/java/mg/cecam/bic/client/Emploi.java": {
     "mtime": 1792405375.9093907,
@@ -156,10 +156,10 @@
     "semantic_hash": "2fdf915c8641d796b0a098ef5b95092e"
   },
   "bic-backend/src/main/java/mg/cecam/bic/client/dto/ClientResponse.java": {
-    "mtime": 1788873883.665194,
-    "seen": 1791207737.554516,
-    "ast_hash": "78b4bfcbff8023a2a1ff53899f807366",
-    "semantic_hash": "78b4bfcbff8023a2a1ff53899f807366"
+    "mtime": 1793104223.8948512,
+    "seen": 1793105100.4476357,
+    "ast_hash": "318d3aaf25053f2d8555a6e8bca7ef40",
+    "semantic_hash": "318d3aaf25053f2d8555a6e8bca7ef40"
   },
   "bic-backend/src/main/java/mg/cecam/bic/client/dto/ImportLigneDTO.java": {
     "mtime": 1792405375.916932,
@@ -264,22 +264,22 @@
     "semantic_hash": "2355467bf1be66fb726b2169ea441cfc"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/BienLeasingRepository.java": {
-    "mtime": 1790230699.3834248,
-    "seen": 1791207737.554516,
-    "ast_hash": "a468e93af213e4a8e44a87f721689b86",
-    "semantic_hash": "a468e93af213e4a8e44a87f721689b86"
+    "mtime": 1793107749.1865835,
+    "seen": 1793108406.0042622,
+    "ast_hash": "a6d6f5eabc41cfdb8551dd881a8638c5",
+    "semantic_hash": "a6d6f5eabc41cfdb8551dd881a8638c5"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/Contrat.java": {
-    "mtime": 1792589173.799484,
-    "seen": 1792589922.3357365,
-    "ast_hash": "a905f510efbc35a98f97bfc120b0f7f8",
-    "semantic_hash": "a905f510efbc35a98f97bfc120b0f7f8"
+    "mtime": 1793111641.7288177,
+    "seen": 1793111934.3438582,
+    "ast_hash": "9390506ecf5d218cb2595e1833c1e442",
+    "semantic_hash": "9390506ecf5d218cb2595e1833c1e442"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/ContratController.java": {
-    "mtime": 1792405375.9366393,
-    "seen": 1792424468.1878667,
-    "ast_hash": "fae9d65c197ea098032c93be6ab84229",
-    "semantic_hash": "fae9d65c197ea098032c93be6ab84229"
+    "mtime": 1793107910.4075103,
+    "seen": 1793108406.00598,
+    "ast_hash": "7f01655173a2e9f1b16987702f2e6755",
+    "semantic_hash": "7f01655173a2e9f1b16987702f2e6755"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/ContratLien.java": {
     "mtime": 1792405375.937638,
@@ -288,10 +288,10 @@
     "semantic_hash": "e81fbdaff2800f18a3319627bf8e0e9f"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/ContratLienRepository.java": {
-    "mtime": 1792405375.9396386,
-    "seen": 1792424468.1878734,
-    "ast_hash": "7be4718793235b573a62c2b92197703d",
-    "semantic_hash": "7be4718793235b573a62c2b92197703d"
+    "mtime": 1793107421.103379,
+    "seen": 1793108406.0134082,
+    "ast_hash": "af07e906889a46562386b41509094fea",
+    "semantic_hash": "af07e906889a46562386b41509094fea"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/ContratRepository.java": {
     "mtime": 1792558859.9268732,
@@ -300,10 +300,10 @@
     "semantic_hash": "b48c1db38b34d5b11cdb07d0888c2bd8"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/ContratService.java": {
-    "mtime": 1792674317.513123,
-    "seen": 1792675369.6679196,
-    "ast_hash": "5247c4afb1b828acf8de548b2e8b2eae",
-    "semantic_hash": "5247c4afb1b828acf8de548b2e8b2eae"
+    "mtime": 1793107894.3063097,
+    "seen": 1793108406.0148718,
+    "ast_hash": "bce59a6c976f6135a24ec8562458314f",
+    "semantic_hash": "bce59a6c976f6135a24ec8562458314f"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/Echeance.java": {
     "mtime": 1792405375.9456418,
@@ -336,10 +336,10 @@
     "semantic_hash": "8ac1224d4fdd2c9af4cd3e69f2698427"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/dto/ContratRequest.java": {
-    "mtime": 1792674317.4281974,
-    "seen": 1792675369.7566028,
-    "ast_hash": "f348dca5de9a60242758936415d9be6d",
-    "semantic_hash": "f348dca5de9a60242758936415d9be6d"
+    "mtime": 1793102344.4853039,
+    "seen": 1793105100.481062,
+    "ast_hash": "333758a0a9fa236a239418f0a51428a0",
+    "semantic_hash": "333758a0a9fa236a239418f0a51428a0"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/dto/HistoriqueContratRequest.java": {
     "mtime": 1792405375.9618046,
@@ -366,10 +366,10 @@
     "semantic_hash": "a1fdbd9435467e528fa4fde0d0d920df"
   },
   "bic-backend/src/main/java/mg/cecam/bic/rapport/CalendrierService.java": {
-    "mtime": 1792405375.9697316,
-    "seen": 1792424468.191378,
-    "ast_hash": "cfcc6ffe3ee2edffb8f53abb7aa54d1a",
-    "semantic_hash": "cfcc6ffe3ee2edffb8f53abb7aa54d1a"
+    "mtime": 1793098756.9221203,
+    "seen": 1793105100.4871633,
+    "ast_hash": "308b43b2be551e69bafecb4e9e119e8b",
+    "semantic_hash": "308b43b2be551e69bafecb4e9e119e8b"
   },
   "bic-backend/src/main/java/mg/cecam/bic/rapport/RapportController.java": {
     "mtime": 1788928969.8633044,
@@ -384,10 +384,10 @@
     "semantic_hash": "1707cf448384b60b3f19c911bfa527d9"
   },
   "bic-backend/src/main/java/mg/cecam/bic/rapport/RapportService.java": {
-    "mtime": 1792675617.2049708,
-    "seen": 1792676050.3461533,
-    "ast_hash": "30f3f9cbd33605acc50e7760a55c1e61",
-    "semantic_hash": "30f3f9cbd33605acc50e7760a55c1e61"
+    "mtime": 1793112780.2487235,
+    "seen": 1793112983.597715,
+    "ast_hash": "1acd7930b80cdfeced997872f2629e5d",
+    "semantic_hash": "1acd7930b80cdfeced997872f2629e5d"
   },
   "bic-backend/src/main/java/mg/cecam/bic/rapport/dto/AdresseDTO.java": {
     "mtime": 1790573732.5818405,
@@ -504,10 +504,10 @@
     "semantic_hash": "94e2a37124463d78dd83e581fc85788f"
   },
   "bic-backend/src/main/java/mg/cecam/bic/rapport/dto/RapportSolvabiliteResponse.java": {
-    "mtime": 1792675572.1662526,
-    "seen": 1792676050.4887848,
-    "ast_hash": "f40a8025f995315c95d671a27d89770d",
-    "semantic_hash": "f40a8025f995315c95d671a27d89770d"
+    "mtime": 1792755849.0384982,
+    "seen": 1793105100.5113423,
+    "ast_hash": "41fbfe472a9810bff541a6fc2ed742a6",
+    "semantic_hash": "41fbfe472a9810bff541a6fc2ed742a6"
   },
   "bic-backend/src/main/java/mg/cecam/bic/rapport/dto/RepartitionLigneDTO.java": {
     "mtime": 1790573732.612849,
@@ -552,10 +552,10 @@
     "semantic_hash": "5143097e1096729be31d0b7d64c79fbe"
   },
   "bic-backend/src/main/java/mg/cecam/bic/score/ScoreProperties.java": {
-    "mtime": 1792674317.237684,
-    "seen": 1792675370.0150428,
-    "ast_hash": "55c681b2e216e6f22d7b01c5879d149a",
-    "semantic_hash": "55c681b2e216e6f22d7b01c5879d149a"
+    "mtime": 1793102540.1652257,
+    "seen": 1793105100.5168471,
+    "ast_hash": "0d4b9d4d565e08d3872a685b55a4044d",
+    "semantic_hash": "0d4b9d4d565e08d3872a685b55a4044d"
   },
   "bic-backend/src/main/java/mg/cecam/bic/score/ScoreResult.java": {
     "mtime": 1792405376.006047,
@@ -564,10 +564,10 @@
     "semantic_hash": "ccce3508ddc28536f8a0d7e190964b31"
   },
   "bic-backend/src/main/java/mg/cecam/bic/score/ScoreService.java": {
-    "mtime": 1792674954.638209,
-    "seen": 1792675370.0175948,
-    "ast_hash": "bcb5bb2cd04f8c6ab3382e6af888caa1",
-    "semantic_hash": "bcb5bb2cd04f8c6ab3382e6af888caa1"
+    "mtime": 1793111586.1277406,
+    "seen": 1793111934.4948757,
+    "ast_hash": "77fdea5a2dcfc072ed70eeb214cdb1ba",
+    "semantic_hash": "77fdea5a2dcfc072ed70eeb214cdb1ba"
   },
   "bic-backend/src/test/java/mg/cecam/bic/BicBackendApplicationTests.java": {
     "mtime": 1792405376.0460668,
@@ -594,10 +594,10 @@
     "semantic_hash": "37d9537d5af464d950e43fdcdbfdb48b"
   },
   "bic-frontend/src/App.tsx": {
-    "mtime": 1792405376.0721939,
-    "seen": 1792424468.2119784,
-    "ast_hash": "10b4b532ad609bb32544a641c3f50d68",
-    "semantic_hash": "10b4b532ad609bb32544a641c3f50d68"
+    "mtime": 1793103822.2311437,
+    "seen": 1793105100.5310428,
+    "ast_hash": "6844f3c16801106df9d66fc85dddcfdf",
+    "semantic_hash": "6844f3c16801106df9d66fc85dddcfdf"
   },
   "bic-frontend/src/api/authApi.ts": {
     "mtime": 1789363602.2418196,
@@ -612,16 +612,16 @@
     "semantic_hash": "ee2594ed24b237f3aebd1c6e763feab6"
   },
   "bic-frontend/src/api/clientApi.ts": {
-    "mtime": 1792405376.0756238,
-    "seen": 1792424468.2166026,
-    "ast_hash": "b009163b2c0d13207b085b1003289cc4",
-    "semantic_hash": "b009163b2c0d13207b085b1003289cc4"
+    "mtime": 1793107954.8266761,
+    "seen": 1793108406.2186115,
+    "ast_hash": "bdb02ef4db5c8f08d08515d568f0c39d",
+    "semantic_hash": "bdb02ef4db5c8f08d08515d568f0c39d"
   },
   "bic-frontend/src/api/contratApi.ts": {
-    "mtime": 1792405376.0771575,
-    "seen": 1792424468.2166116,
-    "ast_hash": "359a338d83a3d4ca0cf8cc3776d9a210",
-    "semantic_hash": "359a338d83a3d4ca0cf8cc3776d9a210"
+    "mtime": 1793107996.8303614,
+    "seen": 1793108406.21862,
+    "ast_hash": "68584a7f829abb69b3ebbfb601f9711b",
+    "semantic_hash": "68584a7f829abb69b3ebbfb601f9711b"
   },
   "bic-frontend/src/api/rapportApi.ts": {
     "mtime": 1792405376.082159,
@@ -636,10 +636,10 @@
     "semantic_hash": "4e1f43b0f3b8534091fcfa6bf1ddac26"
   },
   "bic-frontend/src/components/home/HomeMenu.tsx": {
-    "mtime": 1792405376.0876856,
-    "seen": 1792424468.2177742,
-    "ast_hash": "f7d2b59f38333744ff6a90865171ed06",
-    "semantic_hash": "f7d2b59f38333744ff6a90865171ed06"
+    "mtime": 1793103839.1059387,
+    "seen": 1793105100.5389256,
+    "ast_hash": "64d8e6d6d7fbd08e8a808a2e6c40ef05",
+    "semantic_hash": "64d8e6d6d7fbd08e8a808a2e6c40ef05"
   },
   "bic-frontend/src/components/layout/AppBreadcrumb.tsx": {
     "mtime": 1792405376.0896847,
@@ -654,10 +654,10 @@
     "semantic_hash": "30bd3aaaac79b83d865586c93f8ee760"
   },
   "bic-frontend/src/components/layout/TopBar.tsx": {
-    "mtime": 1792558912.3040526,
-    "seen": 1792574628.2902517,
-    "ast_hash": "f7af0e26f1c8d431c25d9f29d1fac610",
-    "semantic_hash": "f7af0e26f1c8d431c25d9f29d1fac610"
+    "mtime": 1793107809.4675481,
+    "seen": 1793108406.2323275,
+    "ast_hash": "eb327a8d11200f76c27de33fef59cdd8",
+    "semantic_hash": "eb327a8d11200f76c27de33fef59cdd8"
   },
   "bic-frontend/src/components/ui/button.tsx": {
     "mtime": 1792405376.0946867,
@@ -738,10 +738,10 @@
     "semantic_hash": "eb103e612acf6ca5321c6c7fd4864309"
   },
   "bic-frontend/src/features/client/ClientForm.tsx": {
-    "mtime": 1792581254.6728504,
-    "seen": 1792589923.204521,
-    "ast_hash": "34c284b8f118f6f7e87b9b7860aad1f5",
-    "semantic_hash": "34c284b8f118f6f7e87b9b7860aad1f5"
+    "mtime": 1793110623.9598482,
+    "seen": 1793110957.9008186,
+    "ast_hash": "30bca753e0fc0d2aa8f0ffb20f406e20",
+    "semantic_hash": "30bca753e0fc0d2aa8f0ffb20f406e20"
   },
   "bic-frontend/src/features/client/clientSchema.ts": {
     "mtime": 1792565767.4052033,
@@ -750,10 +750,10 @@
     "semantic_hash": "0f73e094af6d74d5b474118dffc69a0d"
   },
   "bic-frontend/src/features/contrat/ContratForm.tsx": {
-    "mtime": 1792674318.1304474,
-    "seen": 1792675370.3390281,
-    "ast_hash": "e793a9b25cd74d9b62e940792a5f7412",
-    "semantic_hash": "e793a9b25cd74d9b62e940792a5f7412"
+    "mtime": 1793110683.7769709,
+    "seen": 1793110957.9013999,
+    "ast_hash": "2413648060ede7f17f429958c6d53b1d",
+    "semantic_hash": "2413648060ede7f17f429958c6d53b1d"
   },
   "bic-frontend/src/features/contrat/contratSchema.ts": {
     "mtime": 1792674317.7942653,
@@ -810,10 +810,10 @@
     "semantic_hash": "46ba5672667a1a305d7acaf59b7d84ad"
   },
   "bic-frontend/src/pages/HistoriqueRapportsPage.tsx": {
-    "mtime": 1792580601.8966727,
-    "seen": 1792589923.300072,
-    "ast_hash": "ab2c839b9f6ea80ba4d308074c2cde8c",
-    "semantic_hash": "ab2c839b9f6ea80ba4d308074c2cde8c"
+    "mtime": 1792755857.7791536,
+    "seen": 1793105100.5641696,
+    "ast_hash": "89fc05cd500034e56ec515bfac7c85ee",
+    "semantic_hash": "89fc05cd500034e56ec515bfac7c85ee"
   },
   "bic-frontend/src/pages/LoginPage.tsx": {
     "mtime": 1792405376.1450636,
@@ -840,10 +840,10 @@
     "semantic_hash": "927ddb1ac10563ed1a8698de74937fc8"
   },
   "bic-frontend/src/pages/admin/SaisieHistoriquePage.tsx": {
-    "mtime": 1792405376.1724765,
-    "seen": 1792424468.225578,
-    "ast_hash": "41abf39a9d5ec5aa4910699e67b285c3",
-    "semantic_hash": "41abf39a9d5ec5aa4910699e67b285c3"
+    "mtime": 1793108298.5759516,
+    "seen": 1793108406.3026397,
+    "ast_hash": "63c9fdd219e9610dd5dbb76936cd235e",
+    "semantic_hash": "63c9fdd219e9610dd5dbb76936cd235e"
   },
   "bic-frontend/src/types/client.ts": {
     "mtime": 1792565585.1065748,
@@ -852,16 +852,16 @@
     "semantic_hash": "f6fd323fb539c9dc081d3dfded33b8b0"
   },
   "bic-frontend/src/types/contrat.ts": {
-    "mtime": 1792674317.6703582,
-    "seen": 1792675370.4732542,
-    "ast_hash": "d0245a58375d95444fb0e72bbd3fae6c",
-    "semantic_hash": "d0245a58375d95444fb0e72bbd3fae6c"
+    "mtime": 1793107978.7792962,
+    "seen": 1793108406.3039873,
+    "ast_hash": "cb4b331cba37e467c761482b3437a4ae",
+    "semantic_hash": "cb4b331cba37e467c761482b3437a4ae"
   },
   "bic-frontend/src/types/rapport.ts": {
-    "mtime": 1792675831.0436645,
-    "seen": 1792676051.110873,
-    "ast_hash": "07abc1d3a3737ade7df9a571d8803423",
-    "semantic_hash": "07abc1d3a3737ade7df9a571d8803423"
+    "mtime": 1793103541.0117483,
+    "seen": 1793105100.5764298,
+    "ast_hash": "404a06ddc5f325651df656d01be34bc5",
+    "semantic_hash": "404a06ddc5f325651df656d01be34bc5"
   },
   "bic-frontend/tsconfig.app.json": {
     "mtime": 1788856632.9940014,
@@ -954,10 +954,10 @@
     "semantic_hash": "e8ff8e563c3a6cbf4316f5c1903a1640"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/ModificationContratDemandeRepository.java": {
-    "mtime": 1792405375.9541936,
-    "seen": 1792424468.1901855,
-    "ast_hash": "209d6ddf81c0d660a9a6c634294e6584",
-    "semantic_hash": "209d6ddf81c0d660a9a6c634294e6584"
+    "mtime": 1793103541.1977541,
+    "seen": 1793105100.47914,
+    "ast_hash": "e1bbe44e0888a240add55c89b7772617",
+    "semantic_hash": "e1bbe44e0888a240add55c89b7772617"
   },
   "bic-backend/src/main/java/mg/cecam/bic/contrat/ModificationContratService.java": {
     "mtime": 1792405375.9541936,
@@ -1158,10 +1158,10 @@
     "semantic_hash": "ae1f62694fd6572f58b49863177d0af3"
   },
   "bic-backend/src/test/java/mg/cecam/bic/score/ScoreServiceBehaviorTest.java": {
-    "mtime": 1792675050.551579,
-    "seen": 1792675370.0830016,
-    "ast_hash": "b67f7ffbf853c641d9dbbe518c661af5",
-    "semantic_hash": "b67f7ffbf853c641d9dbbe518c661af5"
+    "mtime": 1793109935.3100579,
+    "seen": 1793110957.8793252,
+    "ast_hash": "93fca7fc79339d622a168ecb0b264c05",
+    "semantic_hash": "93fca7fc79339d622a168ecb0b264c05"
   },
   "bic-backend/src/test/java/mg/cecam/bic/score/ScoreServiceRulesTest.java": {
     "mtime": 1792590712.4142685,
@@ -1176,21 +1176,45 @@
     "semantic_hash": "dfff4442f92b88c958f4040f347eb54e"
   },
   "bic-backend/src/test/java/mg/cecam/bic/client/ClientServiceTest.java": {
-    "mtime": 1792669529.022869,
-    "seen": 1792669822.8829532,
-    "ast_hash": "5825fedde15548a07adf7cb7914d427e",
-    "semantic_hash": "5825fedde15548a07adf7cb7914d427e"
+    "mtime": 1793104680.2248964,
+    "seen": 1793105100.5280445,
+    "ast_hash": "4ac2c491940ddce8b7f481a3421abf2f",
+    "semantic_hash": "4ac2c491940ddce8b7f481a3421abf2f"
   },
   "bic-backend/src/test/java/mg/cecam/bic/rapport/RapportClientStatusTest.java": {
-    "mtime": 1792675670.7360754,
-    "seen": 1792676050.7737207,
-    "ast_hash": "4be3ce655e9d53df91f49cce84f37b79",
-    "semantic_hash": "4be3ce655e9d53df91f49cce84f37b79"
+    "mtime": 1792755931.6280043,
+    "seen": 1793105100.5286987,
+    "ast_hash": "5345293070c5914c3f99418b192ac2dc",
+    "semantic_hash": "5345293070c5914c3f99418b192ac2dc"
   },
-  "bic-backend/src/main/java/mg/cecam/bic/rapport/dto/RisqueGlobalDTO.java": {
-    "mtime": 1792675572.0428245,
-    "seen": 1792676050.4940393,
-    "ast_hash": "ecb532a14ed64c727777df709495fc2e",
-    "semantic_hash": "ecb532a14ed64c727777df709495fc2e"
+  "bic-backend/src/main/java/mg/cecam/bic/contrat/TauxMensuelProperties.java": {
+    "mtime": 1793103579.4996963,
+    "seen": 1793105100.4810565,
+    "ast_hash": "e2edd1f16b253d10eeb4cd01a34046c7",
+    "semantic_hash": "e2edd1f16b253d10eeb4cd01a34046c7"
+  },
+  "bic-backend/src/main/java/mg/cecam/bic/score/CouvertureGarantie.java": {
+    "mtime": 1792755848.6149175,
+    "seen": 1793105100.5168417,
+    "ast_hash": "2acca1f52fc661f6777968bbd66248be",
+    "semantic_hash": "2acca1f52fc661f6777968bbd66248be"
+  },
+  "bic-frontend/src/pages/admin/GestionClientsPage.tsx": {
+    "mtime": 1793108283.6213858,
+    "seen": 1793108406.2959297,
+    "ast_hash": "5d89cbe92ddbe51e66b72132a35b3a7b",
+    "semantic_hash": "5d89cbe92ddbe51e66b72132a35b3a7b"
+  },
+  "bic-backend/src/main/java/mg/cecam/bic/contrat/dto/HistoriqueContratDetailResponse.java": {
+    "mtime": 1793107823.33217,
+    "seen": 1793108406.0737977,
+    "ast_hash": "05d9ca8e635e4ff6da668052adaad8a6",
+    "semantic_hash": "05d9ca8e635e4ff6da668052adaad8a6"
+  },
+  "bic-backend/src/main/java/mg/cecam/bic/config/AppProperties.java": {
+    "mtime": 1793109147.2768383,
+    "seen": 1793110957.8081348,
+    "ast_hash": "17186353fc37f48e577c26012cef64d5",
+    "semantic_hash": "17186353fc37f48e577c26012cef64d5"
   }
 }

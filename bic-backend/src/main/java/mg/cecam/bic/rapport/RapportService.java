@@ -38,6 +38,23 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Service d'agrégation et de génération des Rapports de Solvabilité (Credit Bureau Report).
+ * <p>
+ * Ce service compile l'ensemble des données d'un sociétaire :
+ * <ul>
+ *   <li>Identité civile, adresses (actuelles et historiques), employeur et revenus certifiés.</li>
+ *   <li>Synthèse financière globale multi-établissements (exposition, restants dus, impayés).</li>
+ *   <li>Ventilation par devises normalisées (MGA / devises étrangères sans conversion arbitraire).</li>
+ *   <li>Calendrier historique des paiements sur 36 mois avec statut par échéance (buckets CRIF).</li>
+ *   <li>Évaluation dynamique du score BIC CECAM avec note synthétique, couleur, plafonds et alertes.</li>
+ *   <li>Bloc de couverture de garantie avec calcul du montant d'emprunt suggéré pour 120% de couverture.</li>
+ * </ul>
+ * </p>
+ *
+ * @author CECAM / Direction des Risques
+ * @version 2.1 (Octobre 2026)
+ */
 @Service
 @RequiredArgsConstructor
 public class RapportService {
@@ -204,9 +221,14 @@ public class RapportService {
                 contratRestant = c.getMontantRestantDu();
             } else {
                 List<Echeance> echs = echeances.getOrDefault(c.getId(), List.of());
+                // Somme totale de toutes les sommes non encore remboursées par le client sur ce contrat actif
                 contratRestant = echs.stream()
-                        .filter(e -> !e.estPayee() && !e.estEnSouffrance(reference))
-                        .map(Echeance::getMontantDu)
+                        .filter(e -> !e.estPayee())
+                        .map(e -> {
+                            BigDecimal du = e.getMontantDu() != null ? e.getMontantDu() : BigDecimal.ZERO;
+                            BigDecimal paye = e.getMontantPaye() != null ? e.getMontantPaye() : BigDecimal.ZERO;
+                            return du.subtract(paye).max(BigDecimal.ZERO);
+                        })
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 if (contratRestant.signum() == 0 && echs.isEmpty()) {
                     contratRestant = c.totalDu() != null ? c.totalDu() : (c.getMontantFinance() != null ? c.getMontantFinance() : BigDecimal.ZERO);
@@ -220,7 +242,11 @@ public class RapportService {
             } else {
                 contratImpayes = echeances.getOrDefault(c.getId(), List.of()).stream()
                         .filter(e -> !e.estPayee() && e.estEnSouffrance(reference))
-                        .map(Echeance::getMontantDu)
+                        .map(e -> {
+                            BigDecimal du = e.getMontantDu() != null ? e.getMontantDu() : BigDecimal.ZERO;
+                            BigDecimal paye = e.getMontantPaye() != null ? e.getMontantPaye() : BigDecimal.ZERO;
+                            return du.subtract(paye).max(BigDecimal.ZERO);
+                        })
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
             }
             impayes = impayes.add(contratImpayes);
@@ -239,7 +265,7 @@ public class RapportService {
                 .map(g -> g.getMontantCouvert() == null ? BigDecimal.ZERO : g.getMontantCouvert())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal exposition = restantDu.add(garantieSignature);
+        BigDecimal exposition = restantDu.add(demandes).add(garantieSignature);
 
         int etablissements = (int) contratsSynthese.stream()
                 .map(Contrat::getCodeEtablissementDeclarant)
@@ -754,9 +780,10 @@ public class RapportService {
         };
     }
 
-    // [AJOUTÉ] factorise la règle déjà présente avant (comparaison dateAdhesion/historique) pour
-    // qu'elle serve à la fois au libellé affiché (statutClient) et au message de score
-    // (ScoreService.calculer reçoit maintenant ce booléen).
+    /**
+     * Détermine si le sociétaire possède une antériorité confirmée au sein de l'institution
+     * (historique de crédit, consultation préalable enregistrée, ou adhésion antérieure à la demande).
+     */
     static boolean clientPreexistant(Client client, Contrat saisi, List<Contrat> historique,
                                      List<JournalAudit> journalClient) {
         return !historique.isEmpty()

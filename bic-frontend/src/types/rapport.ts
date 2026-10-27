@@ -91,6 +91,12 @@ export interface Score {
   couleurHex?: string;
   message?: string;
   avertissement?: string;
+  /** Indique que certains facteurs n'étaient pas disponibles lors du calcul. */
+  calculPartiel?: boolean;
+  /** Décomposition du score par pilier (paiement, arrieres_en_cours, endettement, exposition, budget…). */
+  composantes?: Record<string, number>;
+  /** Motifs de plafonnement appliqués au score (format "valeur|motif"). */
+  plafonds?: string[];
 }
 
 export interface GrilleScoreItem {

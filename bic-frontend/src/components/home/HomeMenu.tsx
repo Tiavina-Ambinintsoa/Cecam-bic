@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FilePlus2, Search, PencilLine, Bell, History, Upload, ClipboardList, ShieldCheck, Users, UserPlus, type LucideIcon } from "lucide-react";
+import { FilePlus2, Search, PencilLine, Bell, History, Upload, ClipboardList, ShieldCheck, Users, UserPlus, Contact, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 interface Tache {
@@ -45,6 +45,7 @@ export function HomeMenu() {
     { label: "Importation de clients", description: "Charger les clients depuis un fichier CSV.", to: "/admin/import", icon: Upload },
     { label: "Saisie d'historique", description: "Saisir ou corriger les contrats historiques.", to: "/admin/saisie-historique", icon: FilePlus2 },
     { label: "Gestion des utilisateurs", description: "Créer, modifier ou désactiver les comptes agents et administrateurs.", to: "/admin/utilisateurs", icon: Users },
+    { label: "Gestion des clients", description: "Consulter, rechercher et gérer les sociétaires enregistrés.", to: "/admin/clients", icon: Contact },
     { label: "Créer un compte agent", description: "Enregistrer rapidement un nouveau compte agent de crédit.", to: "/admin/creer-agent", icon: UserPlus },
     { label: "Journal d'audit", description: "Consulter les actions réalisées dans le système.", to: "/audit", icon: ShieldCheck },
   ] : tachesCommunes;

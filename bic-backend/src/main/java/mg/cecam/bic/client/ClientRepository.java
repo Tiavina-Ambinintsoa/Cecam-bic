@@ -1,5 +1,7 @@
 package mg.cecam.bic.client;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,4 +28,14 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
 
     Optional<Client> findByCodeClientCb(String codeClientCb);
     Optional<Client> findByCodeClientEtablissement(String codeClientEtablissement);
+
+    /** Liste paginée des clients, triée par id décroissant par défaut. */
+    Page<Client> findAllByOrderByIdDesc(Pageable pageable);
+
+    /** Recherche paginée par nom, prénom ou code CB, triée par id décroissant. */
+    @Query("SELECT c FROM Client c WHERE LOWER(c.nom) LIKE LOWER(CONCAT('%', :q, '%')) "
+         + "OR LOWER(c.prenom) LIKE LOWER(CONCAT('%', :q, '%')) "
+         + "OR c.codeClientCb LIKE CONCAT('%', :q, '%') "
+         + "ORDER BY c.id DESC")
+    Page<Client> rechercherParMotCle(@Param("q") String motCle, Pageable pageable);
 }

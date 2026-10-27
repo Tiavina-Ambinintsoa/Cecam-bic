@@ -17,15 +17,15 @@
     td, th { vertical-align: top; }
 
     .bandeau-etab { border: 1px solid #e3e1da; background: #fbfaf8; padding: 6px 8px; font-size: 7pt; }
-    .titre-rapport { text-align: center; font-size: 15pt; color: #174a7e; margin: 14px 0 2px; }
-    .nom-client { text-align: center; font-size: 13pt; color: #174a7e; margin-bottom: 14px; }
-    .marque { font-size: 17pt; font-weight: bold; color: #174a7e; }
+    .titre-rapport { text-align: center; font-size: 15pt; color: #166534; margin: 14px 0 2px; }
+    .nom-client { text-align: center; font-size: 13pt; color: #166534; margin-bottom: 14px; }
+    .marque { font-size: 17pt; font-weight: bold; color: #166534; }
     .marque span { color: #6b6a65; font-weight: normal; font-size: 12pt; }
 
-    .section { background: #f4f4f4; border-radius: 18px; padding: 6px 10px; margin: 16px 0 8px;
-               font-family: Georgia, "DejaVu Serif", serif; font-size: 12pt; color: #174a7e;
-               text-align: center; page-break-after: avoid; }
-    .sous-section { color: #174a7e; font-size: 10pt; border-bottom: 1px solid #174a7e;
+    .section { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px 10px; margin: 16px 0 8px;
+               font-family: inherit; font-size: 11pt; font-weight: bold; color: #14532d;
+               text-align: left; page-break-after: avoid; }
+    .sous-section { color: #166534; font-size: 10pt; border-bottom: 1px solid #166534;
                     padding-bottom: 2px; margin: 12px 0 6px; page-break-after: avoid; }
     .bloc-titre { font-weight: bold; font-size: 9pt; margin: 8px 0 4px; }
 
@@ -72,15 +72,15 @@
 <div class="titre-rapport">RAPPORT DE SOLVABILITÉ</div>
 <div class="nom-client" th:text="${#strings.toUpperCase(r.client.nomComplet)}">-</div>
 
-<table style="width: 100%; margin: 6px 0 14px; border-bottom: 1.5px solid #174a7e; padding-bottom: 4px; font-size: 8pt;">
+<table style="width: 100%; margin: 6px 0 14px; border-bottom: 1.5px solid #166534; padding-bottom: 4px; font-size: 8pt;">
   <tr>
-    <td style="width:33%; text-align:left; color:#174a7e;">
+    <td style="width:33%; text-align:left; color:#166534;">
       <strong>Date de la requête:</strong> <span th:text="${#temporals.format(r.dateRequete, 'dd/MM/yyyy')}">13/04/2026</span>
     </td>
-    <td style="width:34%; text-align:center; font-weight:bold; color:#174a7e; font-size: 9.5pt;" th:text="${r.statutClient}">
+    <td style="width:34%; text-align:center; font-weight:bold; color:#166534; font-size: 9.5pt;" th:text="${r.statutClient}">
       Client Trouvé
     </td>
-    <td style="width:33%; text-align:right; color:#174a7e;">
+    <td style="width:33%; text-align:right; color:#166534;">
       <strong>Identifiant du rapport:</strong> <span th:text="${r.identifiantRapport}">-</span>
     </td>
   </tr>
@@ -370,6 +370,9 @@
 </th:block>
 
 <div class="section">SCORE GLOBAL — REMBOURSEMENT ET GARANTIE</div>
+<div th:if="${r.statutClient == 'Client Non Trouvé' or (r.derniersContrats != null and r.derniersContrats.isEmpty())}" style="margin: 6px 0 10px; padding: 6px 10px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; color: #047857; font-size: 8pt; line-height: 1.4;">
+  <strong>🌿 Nouveau sociétaire (Primo-emprunteur)</strong> — Score calculé selon la capacité budgétaire mensuelle, le taux d'effort et les garanties réelles apportées, sans pénalisation liée à l'absence d'historique de crédit.
+</div>
 <div th:unless="${r.score.calculable}" class="encadre">
   <div class="bloc-titre">Le score n'est pas calculé :</div>
   <div class="val" th:text="${r.score.message}">-</div>
@@ -390,7 +393,7 @@
                        + ';width:'  + (${g.intervalle == r.score.intervalle} ? '34px' : '24px')
                        + ';height:' + (${g.intervalle == r.score.intervalle} ? '34px' : '24px')
                        + ';border-radius:4px'
-                        + (${g.intervalle == r.score.intervalle} ? ';border:2px solid #174a7e' : '')"></div>
+                        + (${g.intervalle == r.score.intervalle} ? ';border:2px solid #166534' : '')"></div>
         </td>
       </tr></table>
     </td>
@@ -412,17 +415,7 @@
   </tr>
 </table>
 
-<div class="section">OBSERVATIONS ET SUGGESTIONS</div>
-<div class="encadre">
-  <div class="sous-section">Observations</div>
-  <ul class="score-conseils">
-    <li th:each="observation : ${r.observationsScore}" th:text="${observation}">Observation</li>
-  </ul>
-  <div class="sous-section">Suggestions</div>
-  <ul class="score-conseils">
-    <li th:each="suggestion : ${r.suggestionsScore}" th:text="${suggestion}">Suggestion</li>
-  </ul>
-</div>
+
 
 <div class="section">SYNTHÈSE RAPPORT DE SOLVABILITÉ</div>
 <div class="sous-section">Chiffres Clés</div>

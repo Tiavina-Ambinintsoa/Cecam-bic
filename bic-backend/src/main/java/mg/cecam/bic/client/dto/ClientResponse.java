@@ -17,6 +17,9 @@ public record ClientResponse(
         String paysNaissance,
         Genre genre,
         String nationalite,
-        String etatCivil
+        String etatCivil,
+        String telephone,
+        String codeClientEtablissement,
+        LocalDate dateAdhesion
 ) {
 }
