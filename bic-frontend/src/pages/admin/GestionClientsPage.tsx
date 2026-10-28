@@ -740,7 +740,7 @@ export function GestionClientsPage() {
                         Aucun contrat enregistré pour ce sociétaire.
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Vous pouvez ajouter un contrat historique issu d'un rapport BIC ou créer un nouveau crédit CECAM.
+                        Vous pouvez ajouter un contrat historique ou enregistrer un nouveau crédit CECAM.
                       </p>
                       <div className="mt-4 flex justify-center gap-3">
                         <Link
@@ -809,7 +809,7 @@ export function GestionClientsPage() {
                             <Link
                               to={`/demande/rapport/${c.id}`}
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                              title="Consulter le rapport de solvabilité BIC"
+                              title="Consulter le rapport de scoring et solvabilité"
                             >
                               <FileText className="size-3.5 text-primary" />
                               <span>Rapport</span>
@@ -880,7 +880,7 @@ export function GestionClientsPage() {
               ) : (
                 <>
                   <div className="text-xs text-muted-foreground">
-                    Sociétaire actif dans le système BIC CECAM
+                    Sociétaire actif dans le système Scoring CECAM
                   </div>
                   <div className="flex items-center gap-2">
                     {ongletModal === "fiche" && !modeEdition && (

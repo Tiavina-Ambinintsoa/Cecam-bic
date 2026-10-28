@@ -387,8 +387,8 @@ export function SaisieHistoriquePage() {
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {contratEnEdition
-              ? "Modifiez l'échéancier, les observations CRIF et les garanties rattachées."
-              : "Enregistrement manuel ou certifié d'antécédents de crédit pour le calcul du score BIC."}
+              ? "Modifiez l'échéancier, les observations périodiques et les garanties rattachées."
+              : "Enregistrement d'antécédents de crédit pour le calcul du score interne CECAM."}
           </p>
         </div>
       </div>
@@ -545,7 +545,7 @@ export function SaisieHistoriquePage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>6. Historique mensuel CRIF (si pas d'échéances exactes)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>6. Historique mensuel consolidé (si pas d'échéances exactes)</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {mois.fields.map((f, i) => (
             <div key={f.id} className="grid grid-cols-2 gap-3 border-b pb-3 md:grid-cols-6">
@@ -560,7 +560,7 @@ export function SaisieHistoriquePage() {
               </div>
             </div>
           ))}
-          <Button type="button" variant="outline" onClick={() => mois.append({ mois: "", nombreEcheances: "1", nombreEcheancesImpayees: "0", joursDeRetard: "0", statut: "0", detailsSource: "" })}>+ Ajouter un mois CRIF</Button>
+          <Button type="button" variant="outline" onClick={() => mois.append({ mois: "", nombreEcheances: "1", nombreEcheancesImpayees: "0", joursDeRetard: "0", statut: "0", detailsSource: "" })}>+ Ajouter un mois d'observation</Button>
         </CardContent>
       </Card>
 

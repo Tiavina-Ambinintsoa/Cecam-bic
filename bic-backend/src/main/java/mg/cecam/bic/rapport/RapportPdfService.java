@@ -18,10 +18,23 @@ public class RapportPdfService {
     private static final Logger log = LoggerFactory.getLogger(RapportPdfService.class);
 
     private final SpringTemplateEngine templateEngine;
+    private final String logoBase64 = chargerLogoBase64();
+
+    private static String chargerLogoBase64() {
+        try (var is = RapportPdfService.class.getResourceAsStream("/static/cecam-logo.png")) {
+            if (is != null) {
+                return java.util.Base64.getEncoder().encodeToString(is.readAllBytes());
+            }
+        } catch (Exception e) {
+            log.warn("Impossible de charger le logo CECAM pour les rapports PDF : {}", e.getMessage());
+        }
+        return null;
+    }
 
     public String genererHtml(RapportSolvabiliteResponse rapport) {
         Context context = new Context();
         context.setVariable("r", rapport);
+        context.setVariable("logoBase64", logoBase64);
         return templateEngine.process("rapport-solvabilite", context);
     }
 

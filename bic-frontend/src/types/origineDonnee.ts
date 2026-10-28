@@ -5,6 +5,6 @@ export type OrigineDonnee =
 
 export const ORIGINE_DONNEE_LABELS: Record<OrigineDonnee, string> = {
   NON_RENSEIGNEE: "Origine non renseignée",
-  RAPPORT_CRIF: "Rapport CRIF",
-  DONNEE_FICTIVE: "Donnée fictive de démonstration",
+  RAPPORT_CRIF: "Historique externe / Centrale",
+  DONNEE_FICTIVE: "Donnée de démonstration",
 };

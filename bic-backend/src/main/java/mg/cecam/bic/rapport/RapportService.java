@@ -881,8 +881,8 @@ public class RapportService {
         if (origine == null) return "Origine non renseignée";
         return switch (origine) {
             case NON_RENSEIGNEE -> "Origine non renseignée";
-            case RAPPORT_CRIF -> "Rapport CRIF";
-            case DONNEE_FICTIVE -> "Donnée fictive de démonstration";
+            case RAPPORT_CRIF -> "Historique externe / Centrale de crédit";
+            case DONNEE_FICTIVE -> "Donnée de démonstration";
         };
     }
 

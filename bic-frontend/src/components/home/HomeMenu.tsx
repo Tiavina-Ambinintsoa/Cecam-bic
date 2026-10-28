@@ -51,11 +51,17 @@ export function HomeMenu() {
   ] : tachesCommunes;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-6 py-12">
-      <h1 className="font-heading text-3xl text-foreground">Que voulez-vous faire ?</h1>
-      <p className="mt-2 text-base text-muted-foreground">
-        Toute consultation d'un dossier est enregistrée dans le journal d'audit.
-      </p>
+    <div className="mx-auto w-full max-w-5xl px-6 py-10">
+      <div className="mb-8 border-b border-border pb-6">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+          <span className="inline-block size-2 rounded-full bg-primary" />
+          <span>Scoring Interne CECAM</span>
+        </div>
+        <h1 className="mt-2 font-heading text-3xl font-bold tracking-tight text-foreground">Que voulez-vous faire ?</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Portail d'évaluation de solvabilité — Toute consultation de dossier est tracée dans le journal d'audit.
+        </p>
+      </div>
 
       <ul className="mt-8 divide-y divide-border border-y border-border">
         {taches.map((t) => {

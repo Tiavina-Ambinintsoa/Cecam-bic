@@ -36,9 +36,12 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <Card className="w-full max-w-sm">
-        <CardHeader><CardTitle>BIC — CECAM</CardTitle><p className="text-sm text-slate-500">Connexion</p></CardHeader>
+    <div className="flex min-h-screen items-center justify-center bg-slate-50/70 p-4">
+      <Card className="w-full max-w-sm shadow-xs border border-border">
+        <CardHeader className="text-center pb-2 pt-6">
+          <CardTitle className="text-2xl font-extrabold text-foreground tracking-tight">Scoring CECAM</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Système interne d'évaluation de solvabilité</p>
+        </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">

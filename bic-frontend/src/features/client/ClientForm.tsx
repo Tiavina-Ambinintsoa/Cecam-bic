@@ -288,7 +288,7 @@ export function ClientForm() {
 
             <div className="space-y-1.5 md:col-span-2 min-w-0">
               <Label className="font-semibold text-slate-800">
-                Catégorie du sociétaire (Tiers BIC) <span className="text-red-500">*</span>
+                Catégorie du sociétaire (Classification interne) <span className="text-red-500">*</span>
               </Label>
               <Select
                 defaultValue="0215"

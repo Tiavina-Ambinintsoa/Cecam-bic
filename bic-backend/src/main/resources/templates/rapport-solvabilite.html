@@ -10,22 +10,22 @@
       @bottom-left  { content: "CONFIDENTIEL"; font-size: 8pt; color: #64748b; }
       @bottom-right { content: "Page " counter(page) " de " counter(pages); font-size: 8pt; color: #64748b; }
     }
-    #entete { position: running(entete); font-size: 8pt; color: #14453d; }
+    #entete { position: running(entete); font-size: 8pt; color: #0369a1; }
 
     body { font-family: "DejaVu Sans", Helvetica, Arial, sans-serif; font-size: 8.5pt; color: #1c1b19; }
     table { width: 100%; border-collapse: collapse; }
     td, th { vertical-align: top; }
 
-    .bandeau-etab { border: 1px solid #e3e1da; background: #fbfaf8; padding: 6px 8px; font-size: 7pt; }
-    .titre-rapport { text-align: center; font-size: 15pt; color: #166534; margin: 14px 0 2px; }
-    .nom-client { text-align: center; font-size: 13pt; color: #166534; margin-bottom: 14px; }
-    .marque { font-size: 17pt; font-weight: bold; color: #166534; }
-    .marque span { color: #6b6a65; font-weight: normal; font-size: 12pt; }
+    .bandeau-etab { border: 1px solid #bae6fd; background: #f0f9ff; padding: 6px 8px; font-size: 7pt; border-radius: 4px; }
+    .titre-rapport { text-align: center; font-size: 15pt; color: #0284c7; margin: 14px 0 2px; }
+    .nom-client { text-align: center; font-size: 13pt; color: #0369a1; margin-bottom: 14px; }
+    .marque { font-size: 17pt; font-weight: bold; color: #0284c7; }
+    .marque span { color: #64748b; font-weight: normal; font-size: 11pt; }
 
-    .section { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px 10px; margin: 16px 0 8px;
-               font-family: inherit; font-size: 11pt; font-weight: bold; color: #14532d;
+    .section { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 6px 10px; margin: 16px 0 8px;
+               font-family: inherit; font-size: 11pt; font-weight: bold; color: #0369a1;
                text-align: left; page-break-after: avoid; }
-    .sous-section { color: #166534; font-size: 10pt; border-bottom: 1px solid #166534;
+    .sous-section { color: #0284c7; font-size: 10pt; border-bottom: 1px solid #0284c7;
                     padding-bottom: 2px; margin: 12px 0 6px; page-break-after: avoid; }
     .bloc-titre { font-weight: bold; font-size: 9pt; margin: 8px 0 4px; }
 
@@ -54,11 +54,23 @@
 </head>
 <body>
 
-<div id="entete" th:text="'RAPPORT DE SOLVABILITÉ DE ' + ${#temporals.format(r.dateRequete, 'dd/MM/yyyy')}"></div>
+<div id="entete" th:text="'RAPPORT DE SCORING INTERNE DE ' + ${#temporals.format(r.dateRequete, 'dd/MM/yyyy')}"></div>
 
 <table>
   <tr>
-    <td style="width:55%"><div class="marque">CECAM <span>— Agence de credit</span></div></td>
+    <td style="width:55%">
+      <table style="width:auto; border-collapse:collapse;">
+        <tr>
+          <td style="vertical-align:middle; padding-right:12px;" th:if="${logoBase64 != null}">
+            <img th:src="'data:image/png;base64,' + ${logoBase64}" style="height:46px; width:auto; border-radius:3px;" alt="Logo CECAM"/>
+          </td>
+          <td style="vertical-align:middle;">
+            <div class="marque">Scoring CECAM <span>— Système interne</span></div>
+            <div style="font-size:7.5pt; color:#0284c7; font-weight:600; letter-spacing:0.5px; margin-top:2px;">FAHOMBIAZANA IFAMPIZARANA</div>
+          </td>
+        </tr>
+      </table>
+    </td>
     <td style="width:45%">
       <div class="bandeau-etab">
         <strong>CECAM — Service Crédit</strong><br/>
@@ -69,18 +81,18 @@
   </tr>
 </table>
 
-<div class="titre-rapport">RAPPORT DE SOLVABILITÉ</div>
+<div class="titre-rapport">RAPPORT DE SCORING ET DE SOLVABILITÉ</div>
 <div class="nom-client" th:text="${#strings.toUpperCase(r.client.nomComplet)}">-</div>
 
-<table style="width: 100%; margin: 6px 0 14px; border-bottom: 1.5px solid #166534; padding-bottom: 4px; font-size: 8pt;">
+<table style="width: 100%; margin: 6px 0 14px; border-bottom: 1.5px solid #0284c7; padding-bottom: 4px; font-size: 8pt;">
   <tr>
-    <td style="width:33%; text-align:left; color:#166534;">
+    <td style="width:33%; text-align:left; color:#0369a1;">
       <strong>Date de la requête:</strong> <span th:text="${#temporals.format(r.dateRequete, 'dd/MM/yyyy')}">13/04/2026</span>
     </td>
-    <td style="width:34%; text-align:center; font-weight:bold; color:#166534; font-size: 9.5pt;" th:text="${r.statutClient}">
+    <td style="width:34%; text-align:center; font-weight:bold; color:#0284c7; font-size: 9.5pt;" th:text="${r.statutClient}">
       Client Trouvé
     </td>
-    <td style="width:33%; text-align:right; color:#166534;">
+    <td style="width:33%; text-align:right; color:#0369a1;">
       <strong>Identifiant du rapport:</strong> <span th:text="${r.identifiantRapport}">-</span>
     </td>
   </tr>
@@ -393,7 +405,7 @@
                        + ';width:'  + (${g.intervalle == r.score.intervalle} ? '34px' : '24px')
                        + ';height:' + (${g.intervalle == r.score.intervalle} ? '34px' : '24px')
                        + ';border-radius:4px'
-                        + (${g.intervalle == r.score.intervalle} ? ';border:2px solid #166534' : '')"></div>
+                        + (${g.intervalle == r.score.intervalle} ? ';border:2px solid #0284c7' : '')"></div>
         </td>
       </tr></table>
     </td>
